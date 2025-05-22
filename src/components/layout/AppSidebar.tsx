@@ -11,7 +11,7 @@ import {
   SidebarMenuButton,
   SidebarFooter,
 } from '@/components/ui/sidebar';
-import { Home, Swords, PlusCircle, BarChart3, History, Settings, Sparkles, Github } from 'lucide-react';
+import { Home, Swords, PlusCircle, BarChart3, History, Settings, Sparkles, Github, Users as UsersIcon } from 'lucide-react'; // Added UsersIcon
 import { Button } from '@/components/ui/button';
 
 const navItems = [
@@ -19,6 +19,7 @@ const navItems = [
   { href: '/add-result', label: 'Add Game Result', icon: PlusCircle },
   { href: '/leaderboards', label: 'Leaderboards', icon: BarChart3 },
   { href: '/match-history', label: 'Match History', icon: History },
+  { href: '/players', label: 'Manage Players', icon: UsersIcon }, // New item
   // { href: '/settings', label: 'Settings', icon: Settings }, // Future feature
 ];
 

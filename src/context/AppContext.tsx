@@ -12,6 +12,7 @@ interface AppContextType {
   players: Player[];
   matches: Match[];
   addMatch: (matchData: Omit<Match, 'id' | 'date'>) => void;
+  updatePlayer: (playerId: string, newName: string) => void;
   getGameById: (gameId: string) => Game | undefined;
   getPlayerById: (playerId: string) => Player | undefined;
   getOverallLeaderboard: () => ScoreData[];
@@ -23,7 +24,13 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [games, setGames] = useState<Game[]>(MOCK_GAMES);
-  const [players, setPlayers] = useState<Player[]>(MOCK_PLAYERS);
+  const [players, setPlayers] = useState<Player[]>(() => {
+    if (typeof window !== 'undefined') {
+      const savedPlayers = localStorage.getItem('scoreverse-players');
+      return savedPlayers ? JSON.parse(savedPlayers) : MOCK_PLAYERS;
+    }
+    return MOCK_PLAYERS;
+  });
   const [matches, setMatches] = useState<Match[]>(() => {
     if (typeof window !== 'undefined') {
       const savedMatches = localStorage.getItem('scoreverse-matches');
@@ -44,6 +51,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   }, [matches, isClient]);
 
+  useEffect(() => {
+    if (isClient) {
+      localStorage.setItem('scoreverse-players', JSON.stringify(players));
+    }
+  }, [players, isClient]);
+
   const addMatch = useCallback((matchData: Omit<Match, 'id' | 'date'>) => {
     const newMatch: Match = {
       ...matchData,
@@ -51,11 +64,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       date: new Date().toISOString(),
     };
     setMatches(prevMatches => [...prevMatches, newMatch]);
+  }, []); // Removed toast from here to avoid double toasts if form also shows one.
+
+  const updatePlayer = useCallback((playerId: string, newName: string) => {
+    setPlayers(prevPlayers => 
+      prevPlayers.map(p => 
+        p.id === playerId ? { ...p, name: newName } : p
+      )
+    );
     toast({
-      title: "Match Recorded!",
-      description: `Scores updated for ${getGameById(newMatch.gameId)?.name || 'the game'}.`,
+      title: "Player Updated",
+      description: `Player name changed to ${newName}.`,
     });
-  }, [toast, games]); // Added games to dependency array for getGameById
+  }, [toast]);
 
   const getGameById = useCallback((gameId: string) => {
     return games.find(g => g.id === gameId);
@@ -113,7 +134,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       games, 
       players, 
       matches, 
-      addMatch, 
+      addMatch,
+      updatePlayer, 
       getGameById, 
       getPlayerById,
       getOverallLeaderboard,
