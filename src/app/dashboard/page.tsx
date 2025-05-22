@@ -9,10 +9,10 @@ import { PlusCircle, BarChart3, History, Users, Swords, Layers, LayoutDashboard,
 import Image from 'next/image';
 
 export default function DashboardPage() {
-  const { currentUser, isClient, getActiveSpace } = useAppContext();
+  const { currentUser, isClient, getActiveSpace, isLoadingAuth } = useAppContext(); // Moved isLoadingAuth here
   const activeSpace = getActiveSpace();
 
-  if (!isClient || isLoadingAuth) { // Added isLoadingAuth check
+  if (!isClient || isLoadingAuth) { 
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-theme(spacing.16))]">
         <UserCircle className="h-12 w-12 text-muted-foreground mb-4" />
@@ -21,7 +21,6 @@ export default function DashboardPage() {
     );
   }
   
-  // Added this block
   if (!currentUser && !isLoadingAuth) {
      return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-theme(spacing.16))]">
@@ -34,7 +33,6 @@ export default function DashboardPage() {
     );
   }
   
-  // Make sure currentUser is not null before trying to access its properties
   if (!currentUser) return null; 
 
 
@@ -122,5 +120,3 @@ export default function DashboardPage() {
   );
 }
 
-// Added isLoadingAuth to prevent premature rendering
-const isLoadingAuth = useAppContext().isLoadingAuth;
