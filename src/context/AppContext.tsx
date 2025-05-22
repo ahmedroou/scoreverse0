@@ -53,10 +53,10 @@ const DEFAULT_SPACE_NAME = "Personal Space";
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [games, setGames] = useState<Game[]>(MOCK_GAMES);
-  const [players, setPlayers] = useState<Player[]>([]);
-  const [matches, setMatches] = useState<Match[]>([]);
-  const [spaces, setSpaces] = useState<Space[]>([]);
-  const [activeSpaceId, setActiveSpaceIdState] = useState<string | null>(null);
+  const [players, setPlayers] = useState<Player[]>([]); // Initialize as empty, loaded by useEffect
+  const [matches, setMatches] = useState<Match[]>([]); // Initialize as empty, loaded by useEffect
+  const [spaces, setSpaces] = useState<Space[]>([]); // Initialize as empty, loaded by useEffect
+  const [activeSpaceId, setActiveSpaceIdState] = useState<string | null>(null); // Loaded by useEffect
   
   const [currentUser, setCurrentUser] = useState<UserAccount | null>(null);
   const [registeredUsers, setRegisteredUsers] = useState<UserAccount[]>([]);
@@ -70,21 +70,34 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setIsClient(true);
   }, []);
 
-  // Load registered users and current user (once on client mount)
+  // Load registered users (once on client mount)
   useEffect(() => {
     if (isClient) {
       const savedRegisteredUsers = localStorage.getItem(REGISTERED_USERS_LS_KEY);
       if (savedRegisteredUsers) {
         setRegisteredUsers(JSON.parse(savedRegisteredUsers));
       }
-
+    }
+  }, [isClient]);
+  
+  // Load current user (once on client mount, after registered users)
+  useEffect(() => {
+    if (isClient) {
       const savedCurrentUser = localStorage.getItem(CURRENT_USER_LS_KEY);
       if (savedCurrentUser) {
-        setCurrentUser(JSON.parse(savedCurrentUser));
+        const user = JSON.parse(savedCurrentUser);
+        // Ensure the loaded current user is still in registered users (sanity check)
+        if (registeredUsers.find(ru => ru.id === user.id)) {
+          setCurrentUser(user);
+        } else {
+          // User might have been deleted or data corruption
+          localStorage.removeItem(CURRENT_USER_LS_KEY);
+          setCurrentUser(null);
+        }
       }
       setIsLoadingAuth(false); // Auth loading done after this
     }
-  }, [isClient]);
+  }, [isClient, registeredUsers]); // Depends on registeredUsers to ensure sanity check is valid
 
   // Load user-specific data when currentUser changes or on initial client load if currentUser is already set
   useEffect(() => {
@@ -101,25 +114,27 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       setMatches(savedMatches ? JSON.parse(savedMatches) : []);
 
       const savedSpaces = localStorage.getItem(spacesKey);
-      const userSpaces: Space[] = savedSpaces ? JSON.parse(savedSpaces) : [];
+      let userSpaces: Space[] = savedSpaces ? JSON.parse(savedSpaces) : [];
       
       if (userSpaces.length === 0) {
-        // If user has no spaces, create a default "Personal Space" for them
         const defaultSpaceId = `space-default-${currentUser.id}-${Date.now()}`;
         const defaultSpace: Space = { id: defaultSpaceId, name: DEFAULT_SPACE_NAME, ownerId: currentUser.id };
-        setSpaces([defaultSpace]);
-        setActiveSpaceIdState(defaultSpaceId); // Set this new default space as active
-        localStorage.setItem(spacesKey, JSON.stringify([defaultSpace]));
-        localStorage.setItem(activeSpaceKey, JSON.stringify(defaultSpaceId));
-      } else {
-        setSpaces(userSpaces);
-        const savedActiveSpaceId = localStorage.getItem(activeSpaceKey);
-        // Ensure the saved active space ID is valid and belongs to the user's current spaces
-        const validActiveSpace = userSpaces.find(s => s.id === (savedActiveSpaceId ? JSON.parse(savedActiveSpaceId) : null));
-        setActiveSpaceIdState(validActiveSpace ? validActiveSpace.id : (userSpaces[0]?.id || null));
+        userSpaces = [defaultSpace]; // Use the new array for setting state
+        localStorage.setItem(spacesKey, JSON.stringify(userSpaces)); // Save immediately
+        setActiveSpaceIdState(defaultSpaceId);
+        localStorage.setItem(activeSpaceKey, JSON.stringify(defaultSpaceId)); // Save immediately
       }
+      setSpaces(userSpaces); // Set spaces state
+
+      // Load active space ID after spaces are potentially initialized
+      const savedActiveSpaceId = localStorage.getItem(activeSpaceKey);
+      const activeIdFromJson = savedActiveSpaceId ? JSON.parse(savedActiveSpaceId) : null;
+      const validActiveSpace = userSpaces.find(s => s.id === activeIdFromJson);
+      
+      setActiveSpaceIdState(validActiveSpace ? validActiveSpace.id : (userSpaces[0]?.id || null));
+
     } else if (isClient && !currentUser) { // User logged out or no user
-      setPlayers(INITIAL_MOCK_PLAYERS); // Reset to initial mock players or an empty array
+      setPlayers(INITIAL_MOCK_PLAYERS); 
       setMatches([]);
       setSpaces([]);
       setActiveSpaceIdState(null);
@@ -151,12 +166,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       localStorage.setItem(`${PLAYERS_LS_KEY_PREFIX}${currentUser.id}`, JSON.stringify(players));
       localStorage.setItem(`${MATCHES_LS_KEY_PREFIX}${currentUser.id}`, JSON.stringify(matches));
       localStorage.setItem(`${SPACES_LS_KEY_PREFIX}${currentUser.id}`, JSON.stringify(spaces));
-      if (activeSpaceId) {
-        localStorage.setItem(`${ACTIVE_SPACE_LS_KEY_PREFIX}${currentUser.id}`, JSON.stringify(activeSpaceId));
-      } else {
-        // If activeSpaceId is null, we might want to remove it or store null
-        localStorage.setItem(`${ACTIVE_SPACE_LS_KEY_PREFIX}${currentUser.id}`, JSON.stringify(null));
-      }
+      // activeSpaceId is string | null, JSON.stringify will handle null correctly
+      localStorage.setItem(`${ACTIVE_SPACE_LS_KEY_PREFIX}${currentUser.id}`, JSON.stringify(activeSpaceId));
     }
   }, [players, matches, spaces, activeSpaceId, isClient, currentUser]);
 
@@ -165,7 +176,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setIsLoadingAuth(true);
     const userExists = registeredUsers.find(u => u.username.toLowerCase() === username.toLowerCase());
     if (userExists) {
-      setCurrentUser(userExists); // This will trigger the useEffect to load user-specific data
+      setCurrentUser(userExists); 
       toast({ title: "Logged In", description: `Welcome back, ${username}!` });
       setIsLoadingAuth(false);
       return true;
@@ -184,27 +195,41 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       return false;
     }
     const newUser: UserAccount = { id: `user-${Date.now()}`, username };
-    setRegisteredUsers(prev => [...prev, newUser]);
     
-    // Initialize new user's data
-    setPlayers(INITIAL_MOCK_PLAYERS);
-    setMatches([]);
+    // Initialize new user's data directly here before setting them as current user
+    // This ensures that when `currentUser` useEffect runs, these values are somewhat initialized if localStorage is empty
+    const initialPlayers = INITIAL_MOCK_PLAYERS;
+    const initialMatches: Match[] = [];
     const defaultSpaceId = `space-default-${newUser.id}-${Date.now()}`;
     const defaultSpace: Space = { id: defaultSpaceId, name: DEFAULT_SPACE_NAME, ownerId: newUser.id };
-    setSpaces([defaultSpace]);
-    setActiveSpaceIdState(defaultSpaceId); // Set the new default space as active for the new user
-  
-    setCurrentUser(newUser); // Set current user *after* initializing their data
+    const initialSpaces = [defaultSpace];
+
+    // Persist this initial data immediately for the new user
+    if(isClient) {
+        localStorage.setItem(`${PLAYERS_LS_KEY_PREFIX}${newUser.id}`, JSON.stringify(initialPlayers));
+        localStorage.setItem(`${MATCHES_LS_KEY_PREFIX}${newUser.id}`, JSON.stringify(initialMatches));
+        localStorage.setItem(`${SPACES_LS_KEY_PREFIX}${newUser.id}`, JSON.stringify(initialSpaces));
+        localStorage.setItem(`${ACTIVE_SPACE_LS_KEY_PREFIX}${newUser.id}`, JSON.stringify(defaultSpaceId));
+    }
+    
+    // Set the state for the new user *after* saving their initial data
+    setPlayers(initialPlayers);
+    setMatches(initialMatches);
+    setSpaces(initialSpaces);
+    setActiveSpaceIdState(defaultSpaceId);
+    
+    setRegisteredUsers(prev => [...prev, newUser]);
+    setCurrentUser(newUser); 
+    
     toast({ title: "Account Created", description: `Welcome, ${username}!` });
     setIsLoadingAuth(false);
     return true;
-  }, [registeredUsers, toast]);
+  }, [registeredUsers, toast, isClient]);
 
   const logout = useCallback(() => {
     setIsLoadingAuth(true);
     const currentUsername = currentUser?.username;
-    setCurrentUser(null);
-    // Data clearing for players, matches, spaces, activeSpaceId is handled by useEffect listening to currentUser becoming null
+    setCurrentUser(null); // This will trigger the useEffect to clear user-specific data states
     if (currentUsername) {
         toast({ title: "Logged Out", description: `Goodbye, ${currentUsername}!` });
     } else {
@@ -222,8 +247,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const newPlayer: Player = {
       id: `player-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
       name,
-      winRate: 0, // Initialize with 0, will be calculated
-      averageScore: 0, // Initialize with 0
+      winRate: 0, 
+      averageScore: 0, 
     };
     setPlayers(prevPlayers => [...prevPlayers, newPlayer]);
     toast({
@@ -236,7 +261,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return games.find(g => g.id === gameId);
   }, [games]);
 
-  const getPlayerById = useCallback((playerId: string) => {
+  const getPlayerById = useCallback((playerId: string): Player | undefined => {
     return players.find(p => p.id === playerId);
   }, [players]);
 
@@ -254,39 +279,31 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     
     setMatches(prevMatches => {
       const updatedMatches = [...prevMatches, newMatch];
-      
-      // Recalculate player stats after adding the new match
       const game = getGameById(newMatch.gameId);
       if (game) {
           const updatedPlayers = players.map(p => {
             if (newMatch.playerIds.includes(p.id)) {
               const playerClone = { ...p }; 
-              // Filter matches for this specific player, game, and space context
               const allMatchesForPlayerInThisGame = updatedMatches
                 .filter(m => 
                     m.playerIds.includes(p.id) && 
                     m.gameId === newMatch.gameId &&
-                    m.spaceId === (activeSpaceId || undefined) // Match current space context
+                    m.spaceId === (activeSpaceId || undefined) 
                 );
 
               const totalGamesPlayedInThisGame = allMatchesForPlayerInThisGame.length;
               const totalWinsInThisGame = allMatchesForPlayerInThisGame.filter(m => m.winnerIds.includes(p.id)).length;
-
               playerClone.winRate = totalGamesPlayedInThisGame > 0 ? totalWinsInThisGame / totalGamesPlayedInThisGame : 0;
-              
-              // Placeholder for average score - this would need more complex tracking if not part of pointsAwarded
-              // playerClone.averageScore = ... 
               return playerClone;
             }
             return p;
           });
-          setPlayers(updatedPlayers); // Update players state with new stats
+          setPlayers(updatedPlayers); 
       }
-      return updatedMatches; // Return updated matches for setMatches
+      return updatedMatches;
     });
 
-  }, [currentUser, toast, players, getGameById, matches, activeSpaceId]);
-
+  }, [currentUser, toast, players, getGameById, matches, activeSpaceId]); // Added `matches` as it's used in `updatedMatches` for stat calculation basis
 
   const updatePlayer = useCallback((playerId: string, newName: string) => {
     if (!currentUser) {
@@ -304,11 +321,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     });
   }, [currentUser, toast]);
 
-
-  const calculateScores = useCallback((filteredMatches: Match[]): ScoreData[] => {
+  const calculateScores = useCallback((filteredMatchesForCalc: Match[]): ScoreData[] => {
     const playerScores: Record<string, ScoreData> = {};
 
-    players.forEach(player => {
+    players.forEach(player => { // `players` from AppContext scope
       playerScores[player.id] = { 
         playerId: player.id, 
         playerName: player.name, 
@@ -318,12 +334,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       };
     });
 
-    filteredMatches.forEach(match => {
+    filteredMatchesForCalc.forEach(match => {
       match.playerIds.forEach(playerId => {
         if (playerScores[playerId]) {
           playerScores[playerId].gamesPlayed += 1;
-        } else { // Should not happen if players list is comprehensive
-          const p = getPlayerById(playerId);
+        } else { 
+          const p = getPlayerById(playerId); // `getPlayerById` from AppContext scope
           if (p) {
              playerScores[playerId] = { playerId: p.id, playerName: p.name, totalPoints: 0, gamesPlayed: 1, wins: 0 };
           }
@@ -345,13 +361,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       .filter(s => s.gamesPlayed > 0 || s.totalPoints !== 0) 
       .sort((a, b) => b.totalPoints - a.totalPoints || b.wins - a.wins || a.gamesPlayed - b.gamesPlayed || a.playerName.localeCompare(b.playerName));
 
-  }, [getPlayerById, players]);
-
+  }, [players, getPlayerById]); // Explicitly list `players` and `getPlayerById`
 
   const getOverallLeaderboard = useCallback((): ScoreData[] => {
     if (!currentUser || !isClient) return [];
-    const filteredMatches = activeSpaceId ? matches.filter(m => m.spaceId === activeSpaceId) : matches.filter(m => m.spaceId === undefined);
-    return calculateScores(filteredMatches);
+    const filteredBoardMatches = activeSpaceId ? matches.filter(m => m.spaceId === activeSpaceId) : matches.filter(m => m.spaceId === undefined);
+    return calculateScores(filteredBoardMatches);
   }, [matches, calculateScores, currentUser, isClient, activeSpaceId]);
 
   const getGameLeaderboard = useCallback((gameId: string): ScoreData[] => {
@@ -362,7 +377,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return calculateScores(gameMatches);
   }, [matches, calculateScores, currentUser, isClient, activeSpaceId]);
 
-  // --- Space Management Functions ---
   const addSpace = useCallback((name: string) => {
     if (!currentUser) {
       toast({ title: "Error", description: "You must be logged in to add spaces.", variant: "destructive"});
@@ -375,9 +389,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     };
     setSpaces(prevSpaces => {
       const updatedSpaces = [...prevSpaces, newSpace];
-      // If adding the first space for this user (after default or if no default existed)
-      // or if no active space is currently set, make the new space active.
-      if (updatedSpaces.length === 1 || !activeSpaceId) {
+      if (updatedSpaces.length === 1 || !activeSpaceId) { // If it's the first user-created space beyond default or no active
         setActiveSpaceIdState(newSpace.id);
       }
       return updatedSpaces;
@@ -396,50 +408,46 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     toast({ title: "Space Updated", description: "Space name has been changed." });
   }, [currentUser, toast]);
 
-  const deleteSpace = useCallback((spaceId: string) => {
+  const deleteSpace = useCallback((spaceIdToDelete: string) => {
      if (!currentUser) {
       toast({ title: "Error", description: "Login required.", variant: "destructive"});
       return;
     }
     const userOwnedSpaces = spaces.filter(s => s.ownerId === currentUser.id);
-    if (userOwnedSpaces.length <= 1 && userOwnedSpaces.find(s => s.id === spaceId)) {
+    if (userOwnedSpaces.length <= 1 && userOwnedSpaces.find(s => s.id === spaceIdToDelete)) {
         toast({ title: "Cannot Delete", description: "You must have at least one space.", variant: "destructive"});
         return;
     }
 
     setSpaces(prevSpaces => {
       const remainingSpaces = prevSpaces.filter(s => {
-          if (s.id === spaceId && s.ownerId === currentUser.id) {
-              // If deleting the active space, set active to the first of the remaining spaces, or null
-              if (activeSpaceId === spaceId) {
-                  const otherUserSpaces = prevSpaces.filter(os => os.id !== spaceId && os.ownerId === currentUser.id);
+          if (s.id === spaceIdToDelete && s.ownerId === currentUser.id) {
+              if (activeSpaceId === spaceIdToDelete) {
+                  const otherUserSpaces = prevSpaces.filter(os => os.id !== spaceIdToDelete && os.ownerId === currentUser.id);
                   setActiveSpaceIdState(otherUserSpaces.length > 0 ? otherUserSpaces[0].id : null);
               }
-              return false; // delete it
+              return false; 
           }
-          return true; // keep it
+          return true; 
       });
       return remainingSpaces;
     });
-
-    // Also remove matches associated with this space (or mark them as global if preferred)
-    setMatches(prevMatches => prevMatches.filter(m => m.spaceId !== spaceId));
+    
+    setMatches(prevMatches => prevMatches.filter(m => m.spaceId !== spaceIdToDelete));
     toast({ title: "Space Deleted", description: "The space and its associated matches have been deleted." });
-  }, [currentUser, toast, spaces, activeSpaceId]);
+  }, [currentUser, toast, spaces, activeSpaceId]); // Added `matches` dependency for setMatches
   
-  const setActiveSpaceId = useCallback((spaceId: string | null) => {
+  const setActiveSpaceId = useCallback((newActiveSpaceId: string | null) => {
     if (!currentUser) {
-        // This can happen on logout, so don't show an error toast
         setActiveSpaceIdState(null);
         return;
     }
-    // Ensure the spaceId belongs to the current user or is null
-    const spaceExists = spaceId === null || spaces.some(s => s.id === spaceId && s.ownerId === currentUser.id);
+    const spaceExists = newActiveSpaceId === null || spaces.some(s => s.id === newActiveSpaceId && s.ownerId === currentUser.id);
     if (spaceExists) {
-        setActiveSpaceIdState(spaceId);
-        const spaceName = spaceId ? spaces.find(s=>s.id === spaceId)?.name : "Global (No Space)";
-        if (spaceId !== activeSpaceId) { // Only toast if it's a change
-          toast({ title: "Active Space Changed", description: `Now viewing: ${spaceName}`});
+        if (newActiveSpaceId !== activeSpaceId) { // Only toast and update if it's a change
+            setActiveSpaceIdState(newActiveSpaceId);
+            const spaceName = newActiveSpaceId ? spaces.find(s=>s.id === newActiveSpaceId)?.name : "Global (No Space)";
+            toast({ title: "Active Space Changed", description: `Now viewing: ${spaceName}`});
         }
     } else {
         toast({ title: "Error", description: "Invalid space selected.", variant: "destructive"});
