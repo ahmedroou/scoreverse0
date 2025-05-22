@@ -11,6 +11,7 @@ interface AppContextType {
   games: Game[];
   players: Player[];
   matches: Match[];
+  addPlayer: (name: string) => void;
   addMatch: (matchData: Omit<Match, 'id' | 'date'>) => void;
   updatePlayer: (playerId: string, newName: string) => void;
   getGameById: (gameId: string) => Game | undefined;
@@ -57,6 +58,21 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   }, [players, isClient]);
 
+  const addPlayer = useCallback((name: string) => {
+    const newPlayer: Player = {
+      id: `player-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      name,
+      // Default winRate and averageScore can be added if desired for new players
+      // winRate: 0, 
+      // averageScore: 0 
+    };
+    setPlayers(prevPlayers => [...prevPlayers, newPlayer]);
+    toast({
+      title: "Player Added",
+      description: `${name} has been added to the roster.`,
+    });
+  }, [toast]);
+
   const addMatch = useCallback((matchData: Omit<Match, 'id' | 'date'>) => {
     const newMatch: Match = {
       ...matchData,
@@ -64,7 +80,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       date: new Date().toISOString(),
     };
     setMatches(prevMatches => [...prevMatches, newMatch]);
-  }, []); // Removed toast from here to avoid double toasts if form also shows one.
+  }, []);
 
   const updatePlayer = useCallback((playerId: string, newName: string) => {
     setPlayers(prevPlayers => 
@@ -133,7 +149,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     <AppContext.Provider value={{ 
       games, 
       players, 
-      matches, 
+      matches,
+      addPlayer, 
       addMatch,
       updatePlayer, 
       getGameById, 
