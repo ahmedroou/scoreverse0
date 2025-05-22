@@ -7,15 +7,15 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { EditPlayerForm } from './EditPlayerForm';
-import { AddPlayerForm } from './AddPlayerForm'; // Import AddPlayerForm
+import { AddPlayerForm } from './AddPlayerForm';
 import type { Player } from '@/types';
 import { Loader2, Users, Edit3, UserPlus } from 'lucide-react';
 
 export default function ManagePlayersPage() {
-  const { players, isClient } = useAppContext();
+  const { players, isClient, currentUser } = useAppContext();
   const [editingPlayer, setEditingPlayer] = useState<Player | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [isAddPlayerDialogOpen, setIsAddPlayerDialogOpen] = useState(false); // State for AddPlayerForm dialog
+  const [isAddPlayerDialogOpen, setIsAddPlayerDialogOpen] = useState(false);
 
   const handleEditClick = (player: Player) => {
     setEditingPlayer(player);
@@ -37,6 +37,21 @@ export default function ManagePlayersPage() {
   
   if (!isClient) {
     return <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin text-primary" /> <span className="ml-2">Loading players...</span></div>;
+  }
+
+  if (!currentUser) {
+     return (
+        <div className="container mx-auto py-8">
+            <Card className="w-full max-w-3xl mx-auto shadow-xl bg-card">
+                <CardHeader>
+                    <CardTitle className="text-2xl font-bold text-primary">Access Denied</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <p className="text-muted-foreground">Please log in to manage players.</p>
+                </CardContent>
+            </Card>
+        </div>
+    );
   }
 
   return (

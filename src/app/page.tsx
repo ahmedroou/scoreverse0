@@ -1,18 +1,30 @@
 
-import { redirect } from 'next/navigation';
+"use client"; // Required for client-side hooks like useAppContext
+
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAppContext } from '@/context/AppContext';
+import { Loader2 } from 'lucide-react';
 
 export default function HomePage() {
-  // Redirect to the game library page as the main landing experience
-  redirect('/games');
-  
-  // Alternatively, you could render a dashboard or welcome page here.
-  // For now, a simple redirect is sufficient.
-  // return (
-  //   <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)] text-center">
-  //     <h1 className="text-5xl font-bold text-primary mb-4">Welcome to ScoreVerse!</h1>
-  //     <p className="text-xl text-muted-foreground">
-  //       Track your game scores, climb the leaderboards, and settle rivalries.
-  //     </p>
-  //   </div>
-  // );
+  const { currentUser, isLoadingAuth } = useAppContext();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isLoadingAuth) {
+      if (currentUser) {
+        router.replace('/games'); // Or dashboard later
+      } else {
+        router.replace('/auth');
+      }
+    }
+  }, [currentUser, isLoadingAuth, router]);
+
+  return (
+    <div className="flex flex-col items-center justify-center min-h-screen text-center bg-background text-foreground">
+      <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
+      <h1 className="text-2xl font-semibold text-primary">Loading ScoreVerse</h1>
+      <p className="text-md text-muted-foreground">Please wait a moment...</p>
+    </div>
+  );
 }

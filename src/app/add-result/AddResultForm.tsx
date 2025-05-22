@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { useForm, Controller, useFieldArray } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useAppContext } from '@/context/AppContext';
@@ -27,14 +27,24 @@ import { useToast } from '@/hooks/use-toast';
 import { PlayerTag } from '@/components/PlayerTag';
 import { useSearchParams } from 'next/navigation';
 
+// MOCK_GAMES can be obtained from AppContext if they become dynamic
+const MOCK_STATIC_GAMES_FOR_VALIDATION = [
+  { id: 'jackaroo', name: 'Jackaroo', minPlayers: 2, maxPlayers: 4 },
+  { id: 'scro', name: 'Scro (سكرو)', minPlayers: 4, maxPlayers: 4 },
+  { id: 'baloot', name: 'Baloot (بلوت)', minPlayers: 4, maxPlayers: 4 },
+  { id: 'billiards', name: 'Billiards', minPlayers: 2, maxPlayers: 2 },
+  { id: 'tennis', name: 'Tennis', minPlayers: 2, maxPlayers: 4 },
+  { id: 'custom', name: 'Other Game', minPlayers: 1 },
+];
+
+
 const formSchema = z.object({
   gameId: z.string().min(1, "Please select a game."),
   selectedPlayerIds: z.array(z.string()).min(1, "Please select at least one player."),
   winnerIds: z.array(z.string()).min(1, "Please select at least one winner."),
-  // For AI Handicap suggestions, player stats are collected separately
 }).superRefine((data, ctx) => {
   if (data.selectedPlayerIds.length > 0) {
-    const game = MOCK_GAMES.find(g => g.id === data.gameId); // Assuming MOCK_GAMES is accessible or pass games via props
+    const game = MOCK_STATIC_GAMES_FOR_VALIDATION.find(g => g.id === data.gameId);
     if (game) {
       if (data.selectedPlayerIds.length < game.minPlayers) {
         ctx.addIssue({
@@ -70,19 +80,9 @@ const formSchema = z.object({
   }
 });
 
-// Temporary MOCK_GAMES for schema refinement, should be passed or fetched
-const MOCK_GAMES = [
-  { id: 'jackaroo', name: 'Jackaroo', minPlayers: 2, maxPlayers: 4 },
-  { id: 'scro', name: 'Scro (سكرو)', minPlayers: 4, maxPlayers: 4 },
-  { id: 'baloot', name: 'Baloot (بلوت)', minPlayers: 4, maxPlayers: 4 },
-  { id: 'billiards', name: 'Billiards', minPlayers: 2, maxPlayers: 2 },
-  { id: 'tennis', name: 'Tennis', minPlayers: 2, maxPlayers: 4 },
-  { id: 'custom', name: 'Other Game', minPlayers: 1 },
-];
-
 
 export function AddResultForm() {
-  const { games, players, addMatch, getGameById, getPlayerById, isClient } = useAppContext();
+  const { games, players, addMatch, getGameById, getPlayerById, isClient, currentUser } = useAppContext();
   const { toast } = useToast();
   const searchParams = useSearchParams();
   const defaultGameId = searchParams.get('gameId');
@@ -115,10 +115,13 @@ export function AddResultForm() {
   const watchedSelectedPlayerIds = form.watch('selectedPlayerIds');
 
   useEffect(() => {
-    setSelectedGame(getGameById(watchedGameId) || null);
+    const gameFromContext = getGameById(watchedGameId);
+    setSelectedGame(gameFromContext || null);
     // Reset players if game changes to ensure player count validation is fresh
     form.setValue('selectedPlayerIds', []);
     form.setValue('winnerIds', []);
+    // Update validation context if needed
+    // MOCK_STATIC_GAMES_FOR_VALIDATION should be updated if games are dynamic and editable by user
   }, [watchedGameId, getGameById, form]);
 
   useEffect(() => {
@@ -126,8 +129,9 @@ export function AddResultForm() {
     setMatchPlayers(
       currentlySelectedPlayers.map(p => ({
         ...p,
-        aiWinRate: p.winRate !== undefined ? p.winRate * 100 : 50, // Default 50%
-        aiAverageScore: p.averageScore !== undefined ? p.averageScore : 100, // Default 100
+        // Use actual stats from player object if available, otherwise defaults
+        aiWinRate: p.winRate !== undefined ? p.winRate * 100 : 50,
+        aiAverageScore: p.averageScore !== undefined ? p.averageScore : 100,
       }))
     );
     setPotentialWinners(currentlySelectedPlayers);
@@ -147,25 +151,29 @@ export function AddResultForm() {
   };
 
   const onSubmit = (values: z.infer<typeof formSchema>) => {
+    if (!currentUser) {
+      toast({ title: "Authentication Error", description: "You must be logged in to record a match.", variant: "destructive"});
+      return;
+    }
     const game = getGameById(values.gameId);
     if (!game) {
       toast({ title: "Error", description: "Selected game not found.", variant: "destructive" });
       return;
     }
 
-    const pointsAwarded = values.winnerIds.map(winnerId => ({
-      playerId: winnerId,
-      points: game.pointsPerWin + (handicapSuggestions?.find(s => s.playerName === getPlayerById(winnerId)?.name)?.handicap || 0),
-    }));
+    const pointsAwarded = values.winnerIds.map(winnerId => {
+      const player = getPlayerById(winnerId);
+      return {
+        playerId: winnerId,
+        points: game.pointsPerWin + (handicapSuggestions?.find(s => s.playerName === player?.name)?.handicap || 0),
+      };
+    });
     
-    // Assign 0 points to losers, or handle negative handicaps for losers if applicable.
-    // For now, only winners get points based on game's pointsPerWin + their handicap.
     values.selectedPlayerIds.forEach(playerId => {
       if (!values.winnerIds.includes(playerId)) {
-        const loserHandicap = handicapSuggestions?.find(s => s.playerName === getPlayerById(playerId)?.name)?.handicap || 0;
-        // If a loser has a positive handicap, it means they get points. If negative, they lose points.
-        // Let's assume handicap is added to score, so for losers, their "win points" (0) + handicap.
-        if (loserHandicap !== 0) {
+        const player = getPlayerById(playerId);
+        const loserHandicap = handicapSuggestions?.find(s => s.playerName === player?.name)?.handicap || 0;
+        if (loserHandicap !== 0) { // Only add if handicap is non-zero
            pointsAwarded.push({playerId: playerId, points: loserHandicap });
         }
       }
@@ -180,7 +188,7 @@ export function AddResultForm() {
       handicapSuggestions: handicapSuggestions || undefined,
     });
 
-    form.reset({ gameId: "", selectedPlayerIds: [], winnerIds: [] });
+    form.reset({ gameId: watchedGameId, selectedPlayerIds: [], winnerIds: [] }); // Keep game selected
     setMatchPlayers([]);
     setPotentialWinners([]);
     setHandicapSuggestions(null);
@@ -206,7 +214,7 @@ export function AddResultForm() {
       gameName: selectedGame.name,
       playerStats: matchPlayers.map(p => ({
         playerName: p.name,
-        winRate: p.aiWinRate / 100, // Convert percentage to 0-1 scale
+        winRate: p.aiWinRate / 100, 
         averageScore: p.aiAverageScore,
       })),
     };
@@ -225,7 +233,6 @@ export function AddResultForm() {
   
   const availablePlayers = useMemo(() => {
     if (!selectedGame) return players;
-    // Filter out players if max player limit for the game is reached
     if (selectedGame.maxPlayers && watchedSelectedPlayerIds.length >= selectedGame.maxPlayers) {
       return players.filter(p => watchedSelectedPlayerIds.includes(p.id));
     }
@@ -235,6 +242,19 @@ export function AddResultForm() {
 
   if (!isClient) {
     return <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin text-primary" /> <span className="ml-2">Loading form...</span></div>;
+  }
+
+  if (!currentUser) {
+    return (
+        <Card className="w-full max-w-2xl mx-auto shadow-xl bg-card">
+            <CardHeader>
+                <CardTitle className="text-2xl font-bold text-primary">Access Denied</CardTitle>
+            </CardHeader>
+            <CardContent>
+                <p className="text-muted-foreground">Please log in to record game results.</p>
+            </CardContent>
+        </Card>
+    );
   }
 
   return (
@@ -252,7 +272,7 @@ export function AddResultForm() {
               control={form.control}
               name="gameId"
               render={({ field }) => (
-                <Select onValueChange={field.onChange} value={field.value}>
+                <Select onValueChange={field.onChange} value={field.value} defaultValue={defaultGameId || undefined}>
                   <SelectTrigger id="gameId" aria-label="Select game">
                     <SelectValue placeholder="Select a game" />
                   </SelectTrigger>
@@ -289,6 +309,7 @@ export function AddResultForm() {
                         }
                         field.onChange([...(field.value || []), playerId]);
                       }}
+                       value="" // Reset select after choosing
                     >
                       <SelectTrigger aria-label="Add a player">
                         <SelectValue placeholder="Add a player..." />
@@ -299,9 +320,10 @@ export function AddResultForm() {
                           .map(player => (
                             <SelectItem key={player.id} value={player.id}>{player.name}</SelectItem>
                           ))}
+                         {availablePlayers.filter(p => !field.value?.includes(p.id)).length === 0 && <p className="p-2 text-sm text-muted-foreground">All available players selected or no players match.</p>}
                       </SelectContent>
                     </Select>
-                    <div className="flex flex-wrap gap-2 mt-2">
+                    <div className="flex flex-wrap gap-2 mt-2 min-h-[30px]">
                       {field.value?.map(playerId => {
                         const player = getPlayerById(playerId);
                         return player ? (
@@ -333,10 +355,11 @@ export function AddResultForm() {
                       onValueChange={(winnerId) => {
                         if (!winnerId) return;
                         const newWinners = field.value?.includes(winnerId)
-                          ? field.value?.filter(id => id !== winnerId) // Toggle: remove if already selected
-                          : [...(field.value || []), winnerId]; // Toggle: add if not selected
+                          ? field.value?.filter(id => id !== winnerId) 
+                          : [...(field.value || []), winnerId]; 
                         field.onChange(newWinners);
                       }}
+                       value="" // Reset select after choosing
                     >
                       <SelectTrigger aria-label="Select winners">
                          <SelectValue placeholder="Select winner(s)..." />
@@ -344,12 +367,12 @@ export function AddResultForm() {
                       <SelectContent>
                         {potentialWinners.map(player => (
                           <SelectItem key={player.id} value={player.id} className={field.value?.includes(player.id) ? 'font-bold text-primary' : ''}>
-                            {player.name} {field.value?.includes(player.id) && '(Selected)'}
+                            {player.name} {field.value?.includes(player.id) && ' (Selected)'}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
-                     <div className="flex flex-wrap gap-2 mt-2">
+                     <div className="flex flex-wrap gap-2 mt-2 min-h-[30px]">
                       {field.value?.map(playerId => {
                         const player = getPlayerById(playerId);
                         return player ? (
@@ -376,14 +399,14 @@ export function AddResultForm() {
               <div className="space-y-4">
                 <h3 className="text-xl font-semibold text-accent flex items-center gap-2"><Bot /> AI Handicap Helper</h3>
                 <p className="text-sm text-muted-foreground">
-                  Optionally, get AI-powered handicap suggestions. Adjust player stats below for more accurate recommendations.
+                  Optionally, get AI-powered handicap suggestions. Adjust player stats below for more accurate recommendations. Player stats like Win Rate and Average Score are global and can be managed from the player's profile in the future. For now, you can tweak them here for this specific match's handicap calculation.
                 </p>
                 <div className="space-y-3">
-                  {matchPlayers.map((player, index) => (
+                  {matchPlayers.map((player) => (
                     <div key={player.id} className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end p-3 border rounded-md border-border">
                       <Label className="md:col-span-3 font-medium">{player.name}</Label>
                       <div>
-                        <Label htmlFor={`winRate-${player.id}`} className="text-xs">Win Rate (%)</Label>
+                        <Label htmlFor={`winRate-${player.id}`} className="text-xs">Current Win Rate (%)</Label>
                         <Input
                           id={`winRate-${player.id}`}
                           type="number"
@@ -394,7 +417,7 @@ export function AddResultForm() {
                         />
                       </div>
                        <div>
-                        <Label htmlFor={`avgScore-${player.id}`} className="text-xs">Average Score</Label>
+                        <Label htmlFor={`avgScore-${player.id}`} className="text-xs">Current Avg Score</Label>
                         <Input
                           id={`avgScore-${player.id}`}
                           type="number"
@@ -410,7 +433,7 @@ export function AddResultForm() {
                 <Button 
                   type="button" 
                   onClick={handleGetHandicapSuggestions} 
-                  disabled={isSuggestingHandicap || matchPlayers.length < (selectedGame?.minPlayers || 2)}
+                  disabled={isSuggestingHandicap || matchPlayers.length < (selectedGame?.minPlayers || 0)}
                   variant="outline"
                   className="w-full border-accent text-accent hover:bg-accent hover:text-accent-foreground"
                 >
@@ -454,7 +477,7 @@ export function AddResultForm() {
           <Button 
             type="submit" 
             className="w-full bg-primary hover:bg-primary/90 text-primary-foreground text-lg py-6"
-            disabled={!form.formState.isValid || isSuggestingHandicap}
+            disabled={!form.formState.isValid || isSuggestingHandicap || !currentUser}
           >
             Record Match
           </Button>
