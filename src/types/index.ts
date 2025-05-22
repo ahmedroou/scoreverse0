@@ -26,6 +26,13 @@ export interface MatchPlayer extends Player {
   aiAverageScore: number; // Score for form input
 }
 
+export interface Space {
+  id: string;
+  name: string;
+  ownerId: string; // ID of the user who owns this space
+  // Future additions: memberIds, permissions, etc.
+}
+
 export interface Match {
   id: string;
   gameId: string;
@@ -34,6 +41,7 @@ export interface Match {
   winnerIds: string[];
   pointsAwarded: Array<{ playerId: string; points: number }>;
   handicapSuggestions?: SuggestHandicapOutput; // Store the suggestions made for this match
+  spaceId?: string; // Optional: ID of the space this match belongs to
 }
 
 export interface ScoreData {
@@ -43,3 +51,4 @@ export interface ScoreData {
   gamesPlayed: number;
   wins: number;
 }
+

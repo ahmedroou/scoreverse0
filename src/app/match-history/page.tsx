@@ -6,22 +6,28 @@ import { useState, useMemo } from 'react';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { Loader2, Search, SlidersHorizontal, X, History, ListFilter } from 'lucide-react'; // Added ListFilter
-import { Label } from '@/components/ui/label'; // Added Label
-import Link from 'next/link'; // Added missing import
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'; // Added for access denied
+import { Loader2, Search, SlidersHorizontal, X, History, ListFilter, Layers } from 'lucide-react'; 
+import { Label } from '@/components/ui/label'; 
+import Link from 'next/link'; 
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'; 
 
 export default function MatchHistoryPage() {
-  const { matches, games, players, getGameById, getPlayerById, isClient, currentUser } = useAppContext();
+  const { matches, games, players, getGameById, getPlayerById, isClient, currentUser, activeSpaceId, getActiveSpace } = useAppContext();
+  const activeSpace = getActiveSpace();
   
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedGameFilter, setSelectedGameFilter] = useState<string>('');
   const [selectedPlayerFilter, setSelectedPlayerFilter] = useState<string>('');
   const [showFilters, setShowFilters] = useState(false);
 
+  const relevantMatches = useMemo(() => {
+    if (!activeSpaceId) return matches.filter(m => m.spaceId === undefined); // Show only global matches if no space selected
+    return matches.filter(m => m.spaceId === activeSpaceId);
+  }, [matches, activeSpaceId]);
+
   const sortedMatches = useMemo(() => 
-    [...matches].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
-  [matches]);
+    [...relevantMatches].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
+  [relevantMatches]);
 
   const filteredMatches = useMemo(() => {
     return sortedMatches.filter(match => {
@@ -65,8 +71,20 @@ export default function MatchHistoryPage() {
   return (
     <div className="container mx-auto py-8">
       <header className="mb-8">
-        <h1 className="text-4xl font-bold tracking-tight text-primary mb-2 flex items-center gap-3"><History /> Match History</h1>
-        <p className="text-lg text-muted-foreground">Review past glories, epic showdowns, and analyze game outcomes.</p>
+         <div className="flex items-center justify-between">
+            <div>
+                <h1 className="text-4xl font-bold tracking-tight text-primary mb-1 flex items-center gap-3"><History /> Match History</h1>
+                 <p className="text-lg text-muted-foreground">
+                    Review outcomes in {activeSpace ? `the "${activeSpace.name}" space` : "the global context (no space)"}.
+                </p>
+            </div>
+            {activeSpace && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground p-2 border border-border rounded-md bg-card">
+                    <Layers className="h-5 w-5 text-accent"/>
+                    <span>Active Space: <strong className="text-accent">{activeSpace.name}</strong></span>
+                </div>
+            )}
+        </div>
       </header>
 
       <div className="mb-6 p-4 border border-border rounded-lg bg-card shadow-md">
@@ -141,7 +159,7 @@ export default function MatchHistoryPage() {
               key={match.id} 
               match={match} 
               game={getGameById(match.gameId)}
-              getPlayerById={getPlayerById} // Pass getPlayerById
+              getPlayerById={getPlayerById} 
             />
           ))}
         </div>
@@ -150,13 +168,14 @@ export default function MatchHistoryPage() {
           <History className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
           <p className="text-2xl font-semibold text-card-foreground">No Matches Found</p>
           <p className="text-md text-muted-foreground mt-2">
-            Try adjusting your search or filters, or go record a new match!
+            No matches found for the current space and filters. Try adjusting your search or filters, or go record a new match!
           </p>
            <Link href="/add-result" passHref legacyBehavior>
-             <Button className="mt-6 bg-primary hover:bg-primary/90 text-primary-foreground">Record First Match</Button>
+             <Button className="mt-6 bg-primary hover:bg-primary/90 text-primary-foreground">Record Match</Button>
            </Link>
         </div>
       )}
     </div>
   );
 }
+

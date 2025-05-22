@@ -3,11 +3,12 @@
 import { useAppContext } from '@/context/AppContext';
 import { LeaderboardTable } from '@/components/LeaderboardTable';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, BarChart3, AlertTriangle } from 'lucide-react'; // Added AlertTriangle for no data
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'; // Added Card components
+import { Loader2, BarChart3, AlertTriangle, Layers } from 'lucide-react'; 
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'; 
 
 export default function LeaderboardsPage() {
-  const { games, getOverallLeaderboard, getGameLeaderboard, isClient, currentUser } = useAppContext();
+  const { games, getOverallLeaderboard, getGameLeaderboard, isClient, currentUser, getActiveSpace, spaces } = useAppContext();
+  const activeSpace = getActiveSpace();
 
   if (!isClient) {
     return <div className="flex justify-center items-center min-h-[calc(100vh-theme(spacing.32))]"><Loader2 className="h-8 w-8 animate-spin text-primary" /> <span className="ml-2 text-lg">Loading leaderboards...</span></div>;
@@ -28,16 +29,27 @@ export default function LeaderboardsPage() {
     );
   }
   
-  const overallScores = getOverallLeaderboard();
+  const overallScores = getOverallLeaderboard(); // This now considers activeSpace
+  const pageTitle = activeSpace ? `${activeSpace.name} - Leaderboards` : "Global Leaderboards (No Space Selected)";
 
   return (
     <div className="container mx-auto py-8">
       <header className="mb-8">
-        <h1 className="text-4xl font-bold tracking-tight text-primary mb-2 flex items-center gap-3"><BarChart3 /> Leaderboards</h1>
-        <p className="text-lg text-muted-foreground">See who's dominating the ScoreVerse and ruling each game!</p>
+        <div className="flex items-center justify-between">
+            <div>
+                <h1 className="text-4xl font-bold tracking-tight text-primary mb-1 flex items-center gap-3"><BarChart3 /> Leaderboards</h1>
+                <p className="text-lg text-muted-foreground">See who's dominating in {activeSpace ? `the "${activeSpace.name}" space` : "the global arena"}!</p>
+            </div>
+            {activeSpace && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground p-2 border border-border rounded-md bg-card">
+                    <Layers className="h-5 w-5 text-accent"/>
+                    <span>Active Space: <strong className="text-accent">{activeSpace.name}</strong></span>
+                </div>
+            )}
+        </div>
       </header>
 
-      {games.length === 0 && overallScores.length === 0 ? (
+      {(games.length === 0 || spaces.length === 0) && overallScores.length === 0 ? ( // Check if spaces also exist
         <Card className="text-center py-12 bg-card border-border shadow">
           <CardHeader>
             <AlertTriangle className="h-16 w-16 text-amber-500 mx-auto mb-4" />
@@ -45,10 +57,10 @@ export default function LeaderboardsPage() {
           </CardHeader>
           <CardContent>
             <p className="text-muted-foreground">
-              Looks like there are no games or recorded matches.
+              Looks like there are no games, spaces, or recorded matches in the current context.
             </p>
             <p className="text-muted-foreground mt-1">
-              Add some games and record match results to see leaderboards appear here.
+              Create a space, add some games, and record match results to see leaderboards appear here.
             </p>
           </CardContent>
         </Card>
@@ -62,12 +74,12 @@ export default function LeaderboardsPage() {
           </TabsList>
 
           <TabsContent value="overall">
-            <LeaderboardTable scores={overallScores} title="Overall Leaderboard" />
+            <LeaderboardTable scores={overallScores} title={`Overall Leaderboard ${activeSpace ? `(${activeSpace.name})` : '(Global)'}`} />
           </TabsContent>
 
           {games.map(game => (
             <TabsContent key={game.id} value={game.id}>
-              <LeaderboardTable scores={getGameLeaderboard(game.id)} title={`${game.name} Leaderboard`} />
+              <LeaderboardTable scores={getGameLeaderboard(game.id)} title={`${game.name} Leaderboard ${activeSpace ? `(${activeSpace.name})` : '(Global)'}`} />
             </TabsContent>
           ))}
         </Tabs>
@@ -75,3 +87,4 @@ export default function LeaderboardsPage() {
     </div>
   );
 }
+
