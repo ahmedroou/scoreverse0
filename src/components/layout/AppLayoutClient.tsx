@@ -20,7 +20,7 @@ function ProtectedLayout({ children }: { children: ReactNode }) {
       if (!currentUser && pathname !== '/auth') {
         router.push('/auth');
       } else if (currentUser && pathname === '/auth') {
-        router.push('/games'); // Or dashboard later
+        router.push('/dashboard'); // Redirect to dashboard if logged in and on auth page
       }
     }
   }, [currentUser, isLoadingAuth, pathname, router]);

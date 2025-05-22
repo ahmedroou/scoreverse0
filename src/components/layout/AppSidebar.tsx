@@ -11,15 +11,16 @@ import {
   SidebarMenuButton,
   SidebarFooter,
 } from '@/components/ui/sidebar';
-import { Home, Swords, PlusCircle, BarChart3, History, Settings, Sparkles, Github, Users as UsersIcon } from 'lucide-react'; // Added UsersIcon
-import { Button } from '@/components/ui/button';
+import { Home, Swords, PlusCircle, BarChart3, History, Settings, Sparkles, Github, Users as UsersIcon, LayoutDashboard, Layers } from 'lucide-react'; // Added LayoutDashboard, Layers
 
 const navItems = [
+  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/games', label: 'Game Library', icon: Swords },
   { href: '/add-result', label: 'Add Game Result', icon: PlusCircle },
   { href: '/leaderboards', label: 'Leaderboards', icon: BarChart3 },
   { href: '/match-history', label: 'Match History', icon: History },
-  { href: '/players', label: 'Manage Players', icon: UsersIcon }, // New item
+  { href: '/players', label: 'Manage Players', icon: UsersIcon },
+  { href: '/spaces', label: 'Manage Spaces', icon: Layers, disabled: true }, // Placeholder for Spaces
   // { href: '/settings', label: 'Settings', icon: Settings }, // Future feature
 ];
 
@@ -35,11 +36,13 @@ export function AppSidebar() {
         <SidebarMenu>
           {navItems.map((item) => (
             <SidebarMenuItem key={item.href}>
-              <Link href={item.href} legacyBehavior passHref>
+              <Link href={item.disabled ? "#" : item.href} legacyBehavior passHref>
                 <SidebarMenuButton
-                  isActive={pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href))}
-                  tooltip={item.label}
+                  isActive={!item.disabled && (pathname === item.href || (item.href !== '/dashboard' && item.href !== '/' && pathname.startsWith(item.href)))}
+                  tooltip={item.label + (item.disabled ? " (Coming Soon)" : "")}
                   aria-label={item.label}
+                  disabled={item.disabled}
+                  className={item.disabled ? "cursor-not-allowed text-muted-foreground hover:bg-transparent" : ""}
                 >
                   <item.icon className="h-5 w-5" />
                   <span>{item.label}</span>

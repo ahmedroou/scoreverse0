@@ -13,7 +13,7 @@ export default function HomePage() {
   useEffect(() => {
     if (!isLoadingAuth) {
       if (currentUser) {
-        router.replace('/games'); // Or dashboard later
+        router.replace('/dashboard'); // Redirect to dashboard if logged in
       } else {
         router.replace('/auth');
       }

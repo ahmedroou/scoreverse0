@@ -23,7 +23,7 @@ export function AppHeader() {
     <header className="sticky top-0 z-50 flex h-16 items-center justify-between border-b bg-card px-4 shadow-sm sm:px-6">
       <div className="flex items-center gap-2">
         {isMobile && currentUser && <SidebarTrigger />}
-        <Link href={currentUser ? "/games" : "/auth"} className="flex items-center gap-2 text-xl font-bold text-primary hover:opacity-80 transition-opacity">
+        <Link href={currentUser ? "/dashboard" : "/auth"} className="flex items-center gap-2 text-xl font-bold text-primary hover:opacity-80 transition-opacity">
           <Sparkles className="h-7 w-7" />
           <span>ScoreVerse</span>
         </Link>
