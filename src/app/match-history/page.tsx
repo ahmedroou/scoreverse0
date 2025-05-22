@@ -8,6 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button';
 import { Loader2, Search, SlidersHorizontal, X, History, ListFilter } from 'lucide-react'; // Added ListFilter
 import { Label } from '@/components/ui/label'; // Added Label
+import Link from 'next/link'; // Added missing import
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'; // Added for access denied
 
 export default function MatchHistoryPage() {
   const { matches, games, players, getGameById, getPlayerById, isClient, currentUser } = useAppContext();
