@@ -11,7 +11,7 @@ import {
   TableCaption,
 } from '@/components/ui/table';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Medal, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { Medal, TrendingUp, TrendingDown, Minus, Trophy, ShieldQuestion } from 'lucide-react'; // Added ShieldQuestion for no scores
 
 interface LeaderboardTableProps {
   scores: ScoreData[];
@@ -19,10 +19,10 @@ interface LeaderboardTableProps {
 }
 
 const getRankIndicator = (rank: number) => {
-  if (rank === 1) return <Medal className="h-5 w-5 text-yellow-400" />;
-  if (rank === 2) return <Medal className="h-5 w-5 text-gray-400" />;
-  if (rank === 3) return <Medal className="h-5 w-5 text-orange-400" />;
-  return <span className="font-semibold text-muted-foreground">{rank}</span>;
+  if (rank === 1) return <Medal className="h-6 w-6 text-yellow-400" />;
+  if (rank === 2) return <Medal className="h-6 w-6 text-gray-400" />;
+  if (rank === 3) return <Medal className="h-6 w-6 text-orange-500" />; // Brighter orange
+  return <span className="font-semibold text-muted-foreground text-lg">{rank}</span>;
 };
 
 const getWinRatePercentage = (wins: number, gamesPlayed: number) => {
@@ -32,46 +32,59 @@ const getWinRatePercentage = (wins: number, gamesPlayed: number) => {
 
 export function LeaderboardTable({ scores, title }: LeaderboardTableProps) {
   if (!scores || scores.length === 0) {
-    return <p className="text-center text-muted-foreground py-8">No scores yet for this leaderboard.</p>;
+    return (
+      <div className="text-center py-12 bg-card border-border shadow-md rounded-lg">
+        <ShieldQuestion className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+        <p className="text-xl font-semibold text-card-foreground">No Scores Yet</p>
+        <p className="text-muted-foreground mt-1">
+          {title ? `No match data available for the ${title}.` : "No one has played any matches yet."}
+        </p>
+        <p className="text-muted-foreground mt-1">
+          Record some game results to see the leaderboard populate!
+        </p>
+      </div>
+    );
   }
 
   return (
-    <Table className="bg-card border-border shadow-md rounded-lg">
-      {title && <TableCaption className="text-lg font-semibold py-2 text-primary">{title}</TableCaption>}
-      <TableHeader>
-        <TableRow className="hover:bg-card">
-          <TableHead className="w-[80px] text-center text-primary-foreground/80">Rank</TableHead>
-          <TableHead className="text-primary-foreground/80">Player</TableHead>
-          <TableHead className="text-center text-primary-foreground/80">Total Points</TableHead>
-          <TableHead className="text-center text-primary-foreground/80">Games Played</TableHead>
-          <TableHead className="text-center text-primary-foreground/80">Wins</TableHead>
-          <TableHead className="text-center text-primary-foreground/80">Win Rate</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {scores.map((score, index) => (
-          <TableRow key={score.playerId} className="hover:bg-muted/20 transition-colors">
-            <TableCell className="text-center font-medium">
-                <div className="flex items-center justify-center">
-                    {getRankIndicator(index + 1)}
-                </div>
-            </TableCell>
-            <TableCell>
-              <div className="flex items-center gap-3">
-                <Avatar className="h-9 w-9">
-                  <AvatarImage src={`https://placehold.co/40x40.png?text=${score.playerName.substring(0,1)}`} alt={score.playerName} data-ai-hint="avatar user" />
-                  <AvatarFallback>{score.playerName.substring(0, 2).toUpperCase()}</AvatarFallback>
-                </Avatar>
-                <span className="font-medium text-primary-foreground">{score.playerName}</span>
-              </div>
-            </TableCell>
-            <TableCell className="text-center font-bold text-accent">{score.totalPoints}</TableCell>
-            <TableCell className="text-center text-muted-foreground">{score.gamesPlayed}</TableCell>
-            <TableCell className="text-center text-green-400">{score.wins}</TableCell>
-            <TableCell className="text-center text-muted-foreground">{getWinRatePercentage(score.wins, score.gamesPlayed)}</TableCell>
+    <div className="overflow-x-auto">
+      <Table className="bg-card border-border shadow-md rounded-lg min-w-[600px]">
+        {title && <TableCaption className="text-xl font-bold py-3 text-primary bg-card-foreground/5 rounded-t-lg">{title}</TableCaption>}
+        <TableHeader className="bg-muted/30">
+          <TableRow className="hover:bg-muted/40 border-b-2 border-border">
+            <TableHead className="w-[80px] text-center text-primary-foreground/90 font-semibold text-base">Rank</TableHead>
+            <TableHead className="text-primary-foreground/90 font-semibold text-base">Player</TableHead>
+            <TableHead className="text-center text-primary-foreground/90 font-semibold text-base">Total Points</TableHead>
+            <TableHead className="text-center text-primary-foreground/90 font-semibold text-base">Games Played</TableHead>
+            <TableHead className="text-center text-primary-foreground/90 font-semibold text-base">Wins</TableHead>
+            <TableHead className="text-center text-primary-foreground/90 font-semibold text-base">Win Rate</TableHead>
           </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+        </TableHeader>
+        <TableBody>
+          {scores.map((score, index) => (
+            <TableRow key={score.playerId} className="hover:bg-muted/20 transition-colors border-b border-border last:border-b-0">
+              <TableCell className="text-center font-medium">
+                  <div className="flex items-center justify-center h-full">
+                      {getRankIndicator(index + 1)}
+                  </div>
+              </TableCell>
+              <TableCell>
+                <div className="flex items-center gap-3 py-2">
+                  <Avatar className="h-10 w-10 border-2 border-primary/30">
+                    <AvatarImage src={`https://placehold.co/40x40.png?text=${score.playerName.substring(0,1)}`} alt={score.playerName} data-ai-hint="avatar user" />
+                    <AvatarFallback className="bg-primary/20 text-primary font-semibold">{score.playerName.substring(0, 2).toUpperCase()}</AvatarFallback>
+                  </Avatar>
+                  <span className="font-medium text-lg text-card-foreground">{score.playerName}</span>
+                </div>
+              </TableCell>
+              <TableCell className="text-center font-bold text-xl text-accent">{score.totalPoints}</TableCell>
+              <TableCell className="text-center text-lg text-muted-foreground">{score.gamesPlayed}</TableCell>
+              <TableCell className="text-center text-lg text-green-500 font-medium">{score.wins}</TableCell>
+              <TableCell className="text-center text-lg text-muted-foreground">{getWinRatePercentage(score.wins, score.gamesPlayed)}</TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
   );
 }

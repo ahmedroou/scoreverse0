@@ -1,5 +1,7 @@
+
 import type { Game, Player } from '@/types';
-import { Swords, Users, Dices, HelpCircle, Medal, Bot } from 'lucide-react'; // Using Bot for Billiards as a placeholder
+import { Swords, Users, Dices, HelpCircle, Medal } from 'lucide-react';
+import type React from 'react';
 
 // For Billiards, as lucide-react doesn't have a direct icon.
 // A simple circle SVG can represent a billiard ball.
@@ -16,7 +18,7 @@ export const MOCK_GAMES: Game[] = [
   { id: 'baloot', name: 'Baloot (بلوت)', icon: Users, pointsPerWin: 2, description: 'A trick-taking card game.', minPlayers: 4, maxPlayers: 4 },
   { id: 'billiards', name: 'Billiards', icon: BilliardBallIcon, pointsPerWin: 1, description: 'Classic cue sport.', minPlayers: 2, maxPlayers: 2 },
   { id: 'tennis', name: 'Tennis', icon: Medal, pointsPerWin: 1, description: 'Racket sport.', minPlayers: 2, maxPlayers: 4 },
-  { id: 'custom', name: 'Other Game', icon: HelpCircle, pointsPerWin: 1, description: 'A custom game added by users.', minPlayers: 1 },
+  { id: 'custom', name: 'Other Game', icon: HelpCircle, pointsPerWin: 1, description: 'A custom game added by users.', minPlayers: 1 }, // No maxPlayers for custom game means flexible
 ];
 
 export const MOCK_PLAYERS: Player[] = [

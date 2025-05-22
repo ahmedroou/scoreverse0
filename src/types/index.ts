@@ -1,3 +1,4 @@
+
 import type { LucideIcon } from "lucide-react";
 import type { SuggestHandicapOutput } from "@/ai/flows/suggest-handicap";
 
@@ -14,15 +15,15 @@ export interface Game {
 export interface Player {
   id: string;
   name: string;
-  // For AI Handicap Suggestions
-  winRate?: number; // 0 to 1
+  // For AI Handicap Suggestions & potential future stats display
+  winRate?: number; // 0 to 1, represents probability
   averageScore?: number;
 }
 
+// Extends Player for form-specific input where winRate might be 0-100
 export interface MatchPlayer extends Player {
-  // For AI Handicap form
-  aiWinRate: number;
-  aiAverageScore: number;
+  aiWinRate: number; // Percentage based (0-100) for form input
+  aiAverageScore: number; // Score for form input
 }
 
 export interface Match {

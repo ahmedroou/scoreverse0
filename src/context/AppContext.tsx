@@ -6,7 +6,7 @@ import type { Game, Player, Match, ScoreData } from '@/types';
 import { MOCK_GAMES, MOCK_PLAYERS as INITIAL_MOCK_PLAYERS } from '@/data/mock-data';
 import { Toaster } from '@/components/ui/toaster';
 import { useToast } from '@/hooks/use-toast';
-import { useRouter, usePathname } from 'next/navigation';
+import { useRouter } from 'next/navigation'; // Removed usePathname as it's not used here directly
 
 interface UserAccount {
   id: string;
@@ -52,7 +52,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [isClient, setIsClient] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
-  const pathname = usePathname();
 
   useEffect(() => {
     setIsClient(true);
@@ -70,14 +69,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       if (savedCurrentUser) {
         const user = JSON.parse(savedCurrentUser);
         setCurrentUser(user);
-        // Load user-specific data or global data
         const savedPlayers = localStorage.getItem(PLAYERS_LS_KEY);
         setPlayers(savedPlayers ? JSON.parse(savedPlayers) : INITIAL_MOCK_PLAYERS);
         const savedMatches = localStorage.getItem(MATCHES_LS_KEY);
         setMatches(savedMatches ? JSON.parse(savedMatches) : []);
       } else {
-        // No user logged in, clear sensitive data or use defaults
-        setPlayers(INITIAL_MOCK_PLAYERS); // Or empty array if players are user-specific
+        setPlayers(INITIAL_MOCK_PLAYERS); 
         setMatches([]);
       }
       setIsLoadingAuth(false);
@@ -104,60 +101,65 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   
   // Persist matches
   useEffect(() => {
-    if (isClient && currentUser) { // Only save if a user is logged in
+    if (isClient && currentUser) { 
       localStorage.setItem(MATCHES_LS_KEY, JSON.stringify(matches));
     }
   }, [matches, isClient, currentUser]);
 
   // Persist players
   useEffect(() => {
-    if (isClient && currentUser) { // Only save if a user is logged in
+    if (isClient && currentUser) { 
       localStorage.setItem(PLAYERS_LS_KEY, JSON.stringify(players));
     }
   }, [players, isClient, currentUser]);
 
 
   const login = useCallback((username: string): boolean => {
+    setIsLoadingAuth(true);
     const userExists = registeredUsers.find(u => u.username.toLowerCase() === username.toLowerCase());
     if (userExists) {
       setCurrentUser(userExists);
-      // Load their specific data if applicable, or global data
       const savedPlayers = localStorage.getItem(PLAYERS_LS_KEY);
       setPlayers(savedPlayers ? JSON.parse(savedPlayers) : INITIAL_MOCK_PLAYERS);
       const savedMatches = localStorage.getItem(MATCHES_LS_KEY);
       setMatches(savedMatches ? JSON.parse(savedMatches) : []);
       toast({ title: "Logged In", description: `Welcome back, ${username}!` });
+      setIsLoadingAuth(false);
       return true;
     }
     toast({ title: "Login Failed", description: "User not found.", variant: "destructive" });
+    setIsLoadingAuth(false);
     return false;
   }, [registeredUsers, toast]);
 
   const signup = useCallback((username: string): boolean => {
+    setIsLoadingAuth(true);
     const userExists = registeredUsers.find(u => u.username.toLowerCase() === username.toLowerCase());
     if (userExists) {
       toast({ title: "Signup Failed", description: "Username already taken.", variant: "destructive" });
+      setIsLoadingAuth(false);
       return false;
     }
     const newUser: UserAccount = { id: `user-${Date.now()}`, username };
     setRegisteredUsers(prev => [...prev, newUser]);
     setCurrentUser(newUser);
-    // Initialize data for new user
-    setPlayers(INITIAL_MOCK_PLAYERS); // Or empty if players should be added by user
+    setPlayers(INITIAL_MOCK_PLAYERS); 
     setMatches([]);
     toast({ title: "Account Created", description: `Welcome, ${username}!` });
+    setIsLoadingAuth(false);
     return true;
   }, [registeredUsers, toast]);
 
   const logout = useCallback(() => {
+    setIsLoadingAuth(true);
     setCurrentUser(null);
-    // Clear user-specific data or reset to defaults
     setPlayers(INITIAL_MOCK_PLAYERS);
     setMatches([]);
     localStorage.removeItem(PLAYERS_LS_KEY);
     localStorage.removeItem(MATCHES_LS_KEY);
     toast({ title: "Logged Out", description: "You have been logged out." });
     router.push('/auth');
+    setIsLoadingAuth(false);
   }, [toast, router]);
 
   const addPlayer = useCallback((name: string) => {
@@ -168,6 +170,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const newPlayer: Player = {
       id: `player-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       name,
+      winRate: 0.5, // Default win rate
+      averageScore: 100, // Default average score
     };
     setPlayers(prevPlayers => [...prevPlayers, newPlayer]);
     toast({
@@ -175,6 +179,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       description: `${name} has been added to the roster.`,
     });
   }, [currentUser, toast]);
+
+  const getGameById = useCallback((gameId: string) => {
+    return games.find(g => g.id === gameId);
+  }, [games]);
+
+  const getPlayerById = useCallback((playerId: string) => {
+    return players.find(p => p.id === playerId);
+  }, [players]);
 
   const addMatch = useCallback((matchData: Omit<Match, 'id' | 'date'>) => {
     if (!currentUser) {
@@ -187,7 +199,34 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       date: new Date().toISOString(),
     };
     setMatches(prevMatches => [...prevMatches, newMatch]);
-  }, [currentUser, toast]);
+    
+    const game = getGameById(newMatch.gameId);
+    if (game) {
+        // Create a new players array with updated stats to avoid direct mutation
+        const updatedPlayers = players.map(p => {
+          if (newMatch.playerIds.includes(p.id)) {
+            // Clone player to update, to ensure a new object reference for state update
+            const updatedPlayer = { ...p }; 
+            const isWinner = newMatch.winnerIds.includes(p.id);
+            
+            // Consider all matches for this player and this specific game to calculate new winRate
+            const allMatchesForPlayerInThisGame = matches
+              .filter(m => m.playerIds.includes(p.id) && m.gameId === newMatch.gameId)
+              .concat(newMatch); // Include the current new match
+
+            const totalGamesPlayedInThisGame = allMatchesForPlayerInThisGame.length;
+            const totalWinsInThisGame = allMatchesForPlayerInThisGame.filter(m => m.winnerIds.includes(p.id)).length;
+
+            updatedPlayer.winRate = totalGamesPlayedInThisGame > 0 ? totalWinsInThisGame / totalGamesPlayedInThisGame : 0.5;
+            // averageScore update would need more specific logic based on how scores are tracked per match
+            return updatedPlayer;
+          }
+          return p;
+        });
+        setPlayers(updatedPlayers);
+    }
+  }, [currentUser, toast, players, getPlayerById, getGameById, matches, games]); // Added 'games' due to getGameById
+
 
   const updatePlayer = useCallback((playerId: string, newName: string) => {
     if (!currentUser) {
@@ -205,64 +244,60 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     });
   }, [currentUser, toast]);
 
-  const getGameById = useCallback((gameId: string) => {
-    return games.find(g => g.id === gameId);
-  }, [games]);
-
-  const getPlayerById = useCallback((playerId: string) => {
-    return players.find(p => p.id === playerId);
-  }, [players]);
 
   const calculateScores = useCallback((filteredMatches: Match[]): ScoreData[] => {
-    const scores: Record<string, Omit<ScoreData, 'playerName'>> = {};
+    const playerScores: Record<string, ScoreData> = {};
 
     players.forEach(player => {
-      scores[player.id] = { playerId: player.id, totalPoints: 0, gamesPlayed: 0, wins: 0 };
+      playerScores[player.id] = { 
+        playerId: player.id, 
+        playerName: player.name, 
+        totalPoints: 0, 
+        gamesPlayed: 0, 
+        wins: 0 
+      };
     });
 
     filteredMatches.forEach(match => {
       match.playerIds.forEach(playerId => {
-        if (scores[playerId]) {
-          scores[playerId].gamesPlayed += 1;
-        } else if (getPlayerById(playerId)) { // Player might have been added after some matches
-            scores[playerId] = { playerId: playerId, totalPoints: 0, gamesPlayed: 1, wins: 0 };
+        if (playerScores[playerId]) {
+          playerScores[playerId].gamesPlayed += 1;
+        } else {
+          const p = getPlayerById(playerId); // getPlayerById is from the outer scope
+          if (p) {
+             playerScores[playerId] = { playerId: p.id, playerName: p.name, totalPoints: 0, gamesPlayed: 1, wins: 0 };
+          }
         }
       });
       match.pointsAwarded.forEach(pa => {
-        if (scores[pa.playerId]) {
-          scores[pa.playerId].totalPoints += pa.points;
-        } else if (getPlayerById(pa.playerId)){
-            scores[pa.playerId] = { playerId: pa.playerId, totalPoints: pa.points, gamesPlayed: 0, wins: 0 }; // gamesPlayed will be incremented above
+        if (playerScores[pa.playerId]) {
+          playerScores[pa.playerId].totalPoints += pa.points;
         }
       });
       match.winnerIds.forEach(winnerId => {
-        if (scores[winnerId]) {
-          scores[winnerId].wins += 1;
-        } else if(getPlayerById(winnerId)) {
-             scores[winnerId] = { playerId: winnerId, totalPoints: 0, gamesPlayed: 0, wins: 1 };
+        if (playerScores[winnerId]) {
+          playerScores[winnerId].wins += 1;
         }
       });
     });
     
-    return Object.values(scores).map(s => ({
-      ...s,
-      playerName: getPlayerById(s.playerId)?.name || 'Unknown Player'
-    })).filter(s => s.playerName !== 'Unknown Player') // Filter out players that might have been deleted
-    .sort((a, b) => b.totalPoints - a.totalPoints || b.wins - a.wins || a.gamesPlayed - b.gamesPlayed);
+    return Object.values(playerScores)
+      .filter(s => s.gamesPlayed > 0 || s.totalPoints !== 0) 
+      .sort((a, b) => b.totalPoints - a.totalPoints || b.wins - a.wins || a.gamesPlayed - b.gamesPlayed || a.playerName.localeCompare(b.playerName));
 
-  }, [players, getPlayerById]);
+  }, [getPlayerById, players]); // Keep players here because playerScores initialization depends on it. getPlayerById alone might not be enough if players array itself changes structure for initialization.
 
 
   const getOverallLeaderboard = useCallback((): ScoreData[] => {
-    if (!currentUser) return [];
+    if (!currentUser || !isClient) return [];
     return calculateScores(matches);
-  }, [matches, calculateScores, currentUser]);
+  }, [matches, calculateScores, currentUser, isClient]);
 
   const getGameLeaderboard = useCallback((gameId: string): ScoreData[] => {
-    if (!currentUser) return [];
+    if (!currentUser || !isClient) return [];
     const gameMatches = matches.filter(match => match.gameId === gameId);
     return calculateScores(gameMatches);
-  }, [matches, calculateScores, currentUser]);
+  }, [matches, calculateScores, currentUser, isClient]);
 
 
   return (

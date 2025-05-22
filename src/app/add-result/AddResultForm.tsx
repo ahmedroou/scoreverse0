@@ -27,24 +27,13 @@ import { useToast } from '@/hooks/use-toast';
 import { PlayerTag } from '@/components/PlayerTag';
 import { useSearchParams } from 'next/navigation';
 
-// MOCK_GAMES can be obtained from AppContext if they become dynamic
-const MOCK_STATIC_GAMES_FOR_VALIDATION = [
-  { id: 'jackaroo', name: 'Jackaroo', minPlayers: 2, maxPlayers: 4 },
-  { id: 'scro', name: 'Scro (سكرو)', minPlayers: 4, maxPlayers: 4 },
-  { id: 'baloot', name: 'Baloot (بلوت)', minPlayers: 4, maxPlayers: 4 },
-  { id: 'billiards', name: 'Billiards', minPlayers: 2, maxPlayers: 2 },
-  { id: 'tennis', name: 'Tennis', minPlayers: 2, maxPlayers: 4 },
-  { id: 'custom', name: 'Other Game', minPlayers: 1 },
-];
-
-
-const formSchema = z.object({
+const createFormSchema = (gamesForValidation: Game[]) => z.object({
   gameId: z.string().min(1, "Please select a game."),
   selectedPlayerIds: z.array(z.string()).min(1, "Please select at least one player."),
   winnerIds: z.array(z.string()).min(1, "Please select at least one winner."),
 }).superRefine((data, ctx) => {
   if (data.selectedPlayerIds.length > 0) {
-    const game = MOCK_STATIC_GAMES_FOR_VALIDATION.find(g => g.id === data.gameId);
+    const game = gamesForValidation.find(g => g.id === data.gameId);
     if (game) {
       if (data.selectedPlayerIds.length < game.minPlayers) {
         ctx.addIssue({
@@ -69,6 +58,12 @@ const formSchema = z.object({
           });
         }
       });
+    } else if (data.gameId) { // Game ID is selected but game not found in context
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Selected game not found. Please refresh or select another game.",
+            path: ['gameId'],
+        });
     }
   }
   if (data.winnerIds.length > data.selectedPlayerIds.length) {
@@ -87,8 +82,10 @@ export function AddResultForm() {
   const searchParams = useSearchParams();
   const defaultGameId = searchParams.get('gameId');
 
+  const formSchema = useMemo(() => createFormSchema(games), [games]);
+
   const [selectedGame, setSelectedGame] = useState<Game | null>(defaultGameId ? getGameById(defaultGameId) || null : null);
-  const [matchPlayers, setMatchPlayers] = useState<MatchPlayer[]>([]);
+  const [matchPlayers, setMatchPlayers] = useState<MatchPlayer[]>([]); // For AI stats editing
   const [potentialWinners, setPotentialWinners] = useState<Player[]>([]);
   
   const [handicapSuggestions, setHandicapSuggestions] = useState<SuggestHandicapOutput | null>(null);
@@ -107,9 +104,13 @@ export function AddResultForm() {
   useEffect(() => {
     if (defaultGameId) {
       form.setValue('gameId', defaultGameId);
-      setSelectedGame(getGameById(defaultGameId) || null);
+      const game = getGameById(defaultGameId);
+      setSelectedGame(game || null);
+      if (!game) {
+        toast({title: "Warning", description: "The pre-selected game could not be found.", variant: "default"})
+      }
     }
-  }, [defaultGameId, form, getGameById]);
+  }, [defaultGameId, form, getGameById, toast]);
 
   const watchedGameId = form.watch('gameId');
   const watchedSelectedPlayerIds = form.watch('selectedPlayerIds');
@@ -117,11 +118,10 @@ export function AddResultForm() {
   useEffect(() => {
     const gameFromContext = getGameById(watchedGameId);
     setSelectedGame(gameFromContext || null);
-    // Reset players if game changes to ensure player count validation is fresh
     form.setValue('selectedPlayerIds', []);
     form.setValue('winnerIds', []);
-    // Update validation context if needed
-    // MOCK_STATIC_GAMES_FOR_VALIDATION should be updated if games are dynamic and editable by user
+    setHandicapSuggestions(null); 
+    setHandicapError(null);
   }, [watchedGameId, getGameById, form]);
 
   useEffect(() => {
@@ -129,12 +129,13 @@ export function AddResultForm() {
     setMatchPlayers(
       currentlySelectedPlayers.map(p => ({
         ...p,
-        // Use actual stats from player object if available, otherwise defaults
-        aiWinRate: p.winRate !== undefined ? p.winRate * 100 : 50,
+        // Initialize AI stats from player's actual stats or defaults
+        aiWinRate: p.winRate !== undefined ? p.winRate * 100 : 50, // Convert probability to percentage
         aiAverageScore: p.averageScore !== undefined ? p.averageScore : 100,
       }))
     );
     setPotentialWinners(currentlySelectedPlayers);
+    // Ensure winners are a subset of selected players
     form.setValue('winnerIds', form.getValues('winnerIds').filter(id => watchedSelectedPlayerIds.includes(id)));
   }, [watchedSelectedPlayerIds, players, form]);
 
@@ -161,20 +162,25 @@ export function AddResultForm() {
       return;
     }
 
-    const pointsAwarded = values.winnerIds.map(winnerId => {
+    const pointsAwarded: Array<{ playerId: string; points: number }> = [];
+    
+    // Award points to winners
+    values.winnerIds.forEach(winnerId => {
       const player = getPlayerById(winnerId);
-      return {
+      const handicapAdjustment = handicapSuggestions?.find(s => s.playerName === player?.name && s.handicap !== undefined)?.handicap || 0;
+      pointsAwarded.push({
         playerId: winnerId,
-        points: game.pointsPerWin + (handicapSuggestions?.find(s => s.playerName === player?.name)?.handicap || 0),
-      };
+        points: game.pointsPerWin + handicapAdjustment,
+      });
     });
     
+    // Apply handicap (if any) to non-winners if it results in non-zero points
     values.selectedPlayerIds.forEach(playerId => {
-      if (!values.winnerIds.includes(playerId)) {
+      if (!values.winnerIds.includes(playerId)) { // If player is not a winner
         const player = getPlayerById(playerId);
-        const loserHandicap = handicapSuggestions?.find(s => s.playerName === player?.name)?.handicap || 0;
-        if (loserHandicap !== 0) { // Only add if handicap is non-zero
-           pointsAwarded.push({playerId: playerId, points: loserHandicap });
+        const handicapAdjustment = handicapSuggestions?.find(s => s.playerName === player?.name && s.handicap !== undefined)?.handicap || 0;
+        if (handicapAdjustment !== 0) { // Only add if handicap causes points change
+           pointsAwarded.push({playerId: playerId, points: handicapAdjustment });
         }
       }
     });
@@ -188,7 +194,7 @@ export function AddResultForm() {
       handicapSuggestions: handicapSuggestions || undefined,
     });
 
-    form.reset({ gameId: watchedGameId, selectedPlayerIds: [], winnerIds: [] }); // Keep game selected
+    form.reset({ gameId: watchedGameId, selectedPlayerIds: [], winnerIds: [] }); 
     setMatchPlayers([]);
     setPotentialWinners([]);
     setHandicapSuggestions(null);
@@ -196,7 +202,7 @@ export function AddResultForm() {
     toast({
       title: "Match Recorded!",
       description: `${game.name} result has been saved.`,
-      action: <ThumbsUp className="h-5 w-5 text-green-500" />,
+      action: <ThumbsUp className="h-5 w-5 text-green-400" />, // Changed icon color for visibility
     });
   };
 
@@ -205,16 +211,21 @@ export function AddResultForm() {
       toast({ title: "Error", description: "Please select a game and players first.", variant: "destructive" });
       return;
     }
+     if (matchPlayers.length < selectedGame.minPlayers) {
+      toast({ title: "Error", description: `This game requires at least ${selectedGame.minPlayers} players for handicap suggestion.`, variant: "destructive" });
+      return;
+    }
 
     setIsSuggestingHandicap(true);
     setHandicapError(null);
-    setHandicapSuggestions(null);
+    // Do not clear existing suggestions immediately, maybe user wants to compare
+    // setHandicapSuggestions(null); 
 
     const handicapInput: SuggestHandicapInput = {
       gameName: selectedGame.name,
       playerStats: matchPlayers.map(p => ({
         playerName: p.name,
-        winRate: p.aiWinRate / 100, 
+        winRate: p.aiWinRate / 100, // Convert percentage back to probability
         averageScore: p.aiAverageScore,
       })),
     };
@@ -222,21 +233,25 @@ export function AddResultForm() {
     const result = await handleSuggestHandicapAction(handicapInput);
     setIsSuggestingHandicap(false);
 
-    if ('error' in result) {
+    if (result && 'error' in result) {
       setHandicapError(result.error);
       toast({ title: "Handicap Suggestion Failed", description: result.error, variant: "destructive" });
-    } else {
+    } else if (result) {
       setHandicapSuggestions(result);
       toast({ title: "Handicap Suggestions Ready!", description: "AI has provided handicap recommendations." });
+    } else {
+      setHandicapError("Received an unexpected response from the AI.");
+      toast({ title: "Handicap Suggestion Error", description: "Received an unexpected response.", variant: "destructive" });
     }
   };
   
-  const availablePlayers = useMemo(() => {
+  const availablePlayersForSelection = useMemo(() => {
     if (!selectedGame) return players;
+    // If max players is set and reached, only show already selected players (to prevent adding more)
     if (selectedGame.maxPlayers && watchedSelectedPlayerIds.length >= selectedGame.maxPlayers) {
       return players.filter(p => watchedSelectedPlayerIds.includes(p.id));
     }
-    return players;
+    return players; // Otherwise show all players
   }, [players, selectedGame, watchedSelectedPlayerIds]);
 
 
@@ -302,35 +317,35 @@ export function AddResultForm() {
                   <div className="space-y-2">
                     <Select
                       onValueChange={(playerId) => {
-                        if (!playerId || field.value?.includes(playerId)) return;
-                        if (selectedGame.maxPlayers && field.value?.length >= selectedGame.maxPlayers) {
+                        if (!playerId || field.value?.includes(playerId)) return; // Don't add if already selected
+                        if (selectedGame.maxPlayers && field.value && field.value.length >= selectedGame.maxPlayers) {
                             toast({ title: "Max Players Reached", description: `This game allows a maximum of ${selectedGame.maxPlayers} players.`, variant: "default"});
                             return;
                         }
                         field.onChange([...(field.value || []), playerId]);
                       }}
-                       value="" // Reset select after choosing
+                       value="" // Keep selection box clear to act as an "add" button
                     >
                       <SelectTrigger aria-label="Add a player">
                         <SelectValue placeholder="Add a player..." />
                       </SelectTrigger>
                       <SelectContent>
-                        {availablePlayers
-                          .filter(p => !field.value?.includes(p.id))
+                        {availablePlayersForSelection
+                          .filter(p => !(field.value || []).includes(p.id)) // Filter out already selected players
                           .map(player => (
                             <SelectItem key={player.id} value={player.id}>{player.name}</SelectItem>
                           ))}
-                         {availablePlayers.filter(p => !field.value?.includes(p.id)).length === 0 && <p className="p-2 text-sm text-muted-foreground">All available players selected or no players match.</p>}
+                         {availablePlayersForSelection.filter(p => !(field.value || []).includes(p.id)).length === 0 && <p className="p-2 text-sm text-muted-foreground">All available players selected or no players match.</p>}
                       </SelectContent>
                     </Select>
                     <div className="flex flex-wrap gap-2 mt-2 min-h-[30px]">
-                      {field.value?.map(playerId => {
+                      {(field.value || []).map(playerId => {
                         const player = getPlayerById(playerId);
                         return player ? (
                           <PlayerTag 
                             key={playerId} 
                             name={player.name} 
-                            onRemove={() => field.onChange(field.value?.filter(id => id !== playerId))}
+                            onRemove={() => field.onChange((field.value || []).filter(id => id !== playerId))}
                           />
                         ) : null;
                       })}
@@ -343,7 +358,7 @@ export function AddResultForm() {
           )}
           
           {/* Winner Selection */}
-          {matchPlayers.length > 0 && (
+          {matchPlayers.length > 0 && potentialWinners.length > 0 && (
              <div className="space-y-2">
               <Label className="text-lg font-semibold">Winner(s)</Label>
                <Controller
@@ -354,33 +369,34 @@ export function AddResultForm() {
                     <Select
                       onValueChange={(winnerId) => {
                         if (!winnerId) return;
-                        const newWinners = field.value?.includes(winnerId)
-                          ? field.value?.filter(id => id !== winnerId) 
-                          : [...(field.value || []), winnerId]; 
+                        const currentWinners = field.value || [];
+                        const newWinners = currentWinners.includes(winnerId)
+                          ? currentWinners.filter(id => id !== winnerId) 
+                          : [...currentWinners, winnerId]; 
                         field.onChange(newWinners);
                       }}
-                       value="" // Reset select after choosing
+                       value="" // Keep selection box clear
                     >
                       <SelectTrigger aria-label="Select winners">
                          <SelectValue placeholder="Select winner(s)..." />
                       </SelectTrigger>
                       <SelectContent>
                         {potentialWinners.map(player => (
-                          <SelectItem key={player.id} value={player.id} className={field.value?.includes(player.id) ? 'font-bold text-primary' : ''}>
-                            {player.name} {field.value?.includes(player.id) && ' (Selected)'}
+                          <SelectItem key={player.id} value={player.id} className={(field.value || []).includes(player.id) ? 'font-bold text-primary' : ''}>
+                            {player.name} {(field.value || []).includes(player.id) && ' (Selected Winner)'}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                      <div className="flex flex-wrap gap-2 mt-2 min-h-[30px]">
-                      {field.value?.map(playerId => {
+                      {(field.value || []).map(playerId => {
                         const player = getPlayerById(playerId);
                         return player ? (
                           <PlayerTag 
                             key={playerId} 
                             name={player.name} 
                             isWinner
-                            onRemove={() => field.onChange(field.value?.filter(id => id !== playerId))}
+                            onRemove={() => field.onChange((field.value || []).filter(id => id !== playerId))}
                           />
                         ) : null;
                       })}
@@ -399,14 +415,14 @@ export function AddResultForm() {
               <div className="space-y-4">
                 <h3 className="text-xl font-semibold text-accent flex items-center gap-2"><Bot /> AI Handicap Helper</h3>
                 <p className="text-sm text-muted-foreground">
-                  Optionally, get AI-powered handicap suggestions. Adjust player stats below for more accurate recommendations. Player stats like Win Rate and Average Score are global and can be managed from the player's profile in the future. For now, you can tweak them here for this specific match's handicap calculation.
+                  Optionally, get AI-powered handicap suggestions. Adjust player stats below (Win Rate % and Average Score) for this match's handicap calculation. These adjustments are temporary for this match only.
                 </p>
                 <div className="space-y-3">
                   {matchPlayers.map((player) => (
                     <div key={player.id} className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end p-3 border rounded-md border-border">
                       <Label className="md:col-span-3 font-medium">{player.name}</Label>
                       <div>
-                        <Label htmlFor={`winRate-${player.id}`} className="text-xs">Current Win Rate (%)</Label>
+                        <Label htmlFor={`winRate-${player.id}`} className="text-xs">Temp. Win Rate (%)</Label>
                         <Input
                           id={`winRate-${player.id}`}
                           type="number"
@@ -417,7 +433,7 @@ export function AddResultForm() {
                         />
                       </div>
                        <div>
-                        <Label htmlFor={`avgScore-${player.id}`} className="text-xs">Current Avg Score</Label>
+                        <Label htmlFor={`avgScore-${player.id}`} className="text-xs">Temp. Avg Score</Label>
                         <Input
                           id={`avgScore-${player.id}`}
                           type="number"
