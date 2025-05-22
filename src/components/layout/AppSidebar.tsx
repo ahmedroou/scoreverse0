@@ -11,6 +11,7 @@ import {
   SidebarMenuButton,
   SidebarFooter,
 } from '@/components/ui/sidebar';
+import { Button } from '@/components/ui/button'; // Added this import
 import { Home, Swords, PlusCircle, BarChart3, History, Settings, Sparkles, Github, Users as UsersIcon, LayoutDashboard, Layers } from 'lucide-react'; // Added LayoutDashboard, Layers
 
 const navItems = [
