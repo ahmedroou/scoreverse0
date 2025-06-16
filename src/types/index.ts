@@ -52,3 +52,8 @@ export interface ScoreData {
   wins: number;
 }
 
+export interface UserAccount {
+  id: string;
+  username: string;
+  password?: string; // Added for password authentication
+}

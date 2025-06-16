@@ -10,13 +10,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
-import { Sparkles, LogIn, UserPlus, Info } from 'lucide-react';
+import { Sparkles, LogIn, UserPlus, Info, Eye, EyeOff } from 'lucide-react';
 import Image from 'next/image';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const formSchema = z.object({
   username: z.string().min(3, "Username must be at least 3 characters.").max(20, "Username must be 20 characters or less."),
-  // Password field is omitted for simplicity in this prototype
+  password: z.string().min(6, "Password must be at least 6 characters."),
 });
 
 type AuthFormValues = z.infer<typeof formSchema>;
@@ -25,11 +25,13 @@ export function AuthForm() {
   const { login, signup, isLoadingAuth } = useAppContext();
   const [isLoginMode, setIsLoginMode] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
   
   const form = useForm<AuthFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       username: "",
+      password: "",
     },
   });
 
@@ -37,10 +39,10 @@ export function AuthForm() {
     setError(null);
     let success = false;
     if (isLoginMode) {
-      success = login(values.username);
+      success = login(values.username, values.password);
       if (!success) setError("Login failed. User not found or incorrect credentials.");
     } else {
-      success = signup(values.username);
+      success = signup(values.username, values.password);
       if (!success) setError("Signup failed. Username might be taken.");
     }
     // Redirect is handled by AppLayoutClient's useEffect
@@ -88,6 +90,31 @@ export function AuthForm() {
             )}
           </div>
 
+          <div>
+            <Label htmlFor="password">Password</Label>
+            <div className="relative mt-1">
+              <Input
+                id="password"
+                type={showPassword ? "text" : "password"}
+                placeholder="Enter your password"
+                {...form.register('password')}
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="absolute right-1 top-1/2 -translate-y-1/2 h-7 px-2"
+                onClick={() => setShowPassword(!showPassword)}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </Button>
+            </div>
+            {form.formState.errors.password && (
+              <p className="text-sm text-destructive mt-1">{form.formState.errors.password.message}</p>
+            )}
+          </div>
+
           {error && (
             <Alert variant="destructive">
               <AlertTitle>Error</AlertTitle>
@@ -99,8 +126,9 @@ export function AuthForm() {
             <Info className="h-5 w-5 text-accent" />
             <AlertTitle className="text-accent">Prototype Hint</AlertTitle>
             <AlertDescription className="text-xs">
-              For this demo, you can use any username to sign up (e.g., "PlayerOne").
-              To log in later, use the same username. Passwords are not required for this prototype.
+              For this demo, use any username and a password (min. 6 characters) to sign up.
+              To log in, use the same credentials.
+              <strong>Important:</strong> Passwords are stored in plain text in your browser's local storage for this prototype and are not secure. Do not use real passwords.
             </AlertDescription>
           </Alert>
 
