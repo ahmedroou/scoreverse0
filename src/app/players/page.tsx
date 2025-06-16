@@ -28,7 +28,8 @@ export default function ManagePlayersPage() {
   const [editingPlayer, setEditingPlayer] = useState<Player | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isAddPlayerDialogOpen, setIsAddPlayerDialogOpen] = useState(false);
-  const [playerToDelete, setPlayerToDelete] = useState<Player | null>(null);
+  // playerToDelete state is no longer needed for dialog visibility control here.
+  // Each AlertDialog will manage its own open state.
 
   const handleEditClick = (player: Player) => {
     setEditingPlayer(player);
@@ -48,17 +49,6 @@ export default function ManagePlayersPage() {
     setIsAddPlayerDialogOpen(false);
   };
 
-  const handleDeleteClick = (player: Player) => {
-    setPlayerToDelete(player);
-  };
-
-  const confirmDelete = () => {
-    if (playerToDelete) {
-      deletePlayer(playerToDelete.id);
-      setPlayerToDelete(null); 
-    }
-  };
-  
   if (!isClient) {
     return <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin text-primary" /> <span className="ml-2">Loading players...</span></div>;
   }
@@ -113,12 +103,35 @@ export default function ManagePlayersPage() {
                       <Edit3 className="h-4 w-4 mr-1 sm:mr-2" />
                       <span className="hidden sm:inline">Edit</span>
                     </Button>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="destructive" size="sm" onClick={() => handleDeleteClick(player)} className="bg-destructive/80 hover:bg-destructive text-destructive-foreground">
-                        <Trash2 className="h-4 w-4 mr-1 sm:mr-2" />
-                         <span className="hidden sm:inline">Delete</span>
-                      </Button>
-                    </AlertDialogTrigger>
+                    
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="destructive" size="sm" className="bg-destructive/80 hover:bg-destructive text-destructive-foreground">
+                          <Trash2 className="h-4 w-4 mr-1 sm:mr-2" />
+                          <span className="hidden sm:inline">Delete</span>
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle className="flex items-center gap-2">
+                            <ShieldAlert className="text-destructive h-6 w-6"/>
+                            Are you sure you want to delete this player?
+                          </AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This action cannot be undone. Deleting "{player.name}" will remove them from the player list and all associated match records.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => deletePlayer(player.id)}
+                            className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+                          >
+                            Delete Player
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </div>
                 </li>
               ))}
@@ -146,27 +159,8 @@ export default function ManagePlayersPage() {
         onOpenChange={handleAddPlayerDialogClose}
       />
 
-      {playerToDelete && (
-        <AlertDialog open={!!playerToDelete} onOpenChange={(open) => !open && setPlayerToDelete(null)}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle className="flex items-center gap-2"><ShieldAlert className="text-destructive h-6 w-6"/>Are you sure you want to delete this player?</AlertDialogTitle>
-              <AlertDialogDescription>
-                This action cannot be undone. Deleting "{playerToDelete.name}" will remove them from the player list and all associated match records.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel onClick={() => setPlayerToDelete(null)}>Cancel</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={confirmDelete}
-                className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
-              >
-                Delete Player
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      )}
+      {/* The global AlertDialog previously here has been removed. 
+          Each player item now has its own self-contained AlertDialog. */}
     </div>
   );
 }
