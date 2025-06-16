@@ -1,0 +1,54 @@
+
+"use client";
+
+import type { Space } from '@/types';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Layers, Edit3, Trash2, CheckCircle, RadioButton } from 'lucide-react';
+
+interface SpaceCardProps {
+  space: Space;
+  isActive: boolean;
+  onSetActive: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+}
+
+export function SpaceCard({ space, isActive, onSetActive, onEdit, onDelete }: SpaceCardProps) {
+  return (
+    <Card className={`border hover:shadow-md transition-shadow duration-150 ${isActive ? 'border-primary ring-2 ring-primary bg-primary/5' : 'border-border bg-card'}`}>
+      <CardHeader className="pb-3">
+        <div className="flex justify-between items-center">
+          <CardTitle className={`text-xl font-semibold flex items-center gap-2 ${isActive ? 'text-primary' : 'text-card-foreground'}`}>
+            <Layers className={`h-5 w-5 ${isActive ? 'text-primary' : 'text-accent'}`} />
+            {space.name}
+          </CardTitle>
+          {isActive && (
+            <div className="flex items-center gap-1 text-xs text-primary font-medium px-2 py-0.5 rounded-full bg-primary/10">
+              <CheckCircle className="h-3.5 w-3.5" />
+              Active
+            </div>
+          )}
+        </div>
+      </CardHeader>
+      <CardFooter className="flex flex-col sm:flex-row justify-end gap-2 border-t border-border/50 pt-3 px-4 pb-4">
+        <Button 
+          variant={isActive ? "default" : "outline"} 
+          size="sm" 
+          onClick={onSetActive} 
+          disabled={isActive}
+          className={`${isActive ? 'bg-primary text-primary-foreground cursor-default' : 'border-accent text-accent hover:bg-accent hover:text-accent-foreground'}`}
+        >
+          {isActive ? <CheckCircle className="h-4 w-4 mr-1.5" /> : <RadioButton className="h-4 w-4 mr-1.5" />}
+          {isActive ? 'Active' : 'Set Active'}
+        </Button>
+        <Button variant="outline" size="sm" onClick={onEdit} className="border-muted-foreground/50 text-muted-foreground hover:border-accent hover:text-accent hover:bg-accent/10">
+          <Edit3 className="h-4 w-4 mr-1.5" /> Edit
+        </Button>
+        <Button variant="destructive" size="sm" onClick={onDelete} className="bg-destructive/80 hover:bg-destructive text-destructive-foreground">
+          <Trash2 className="h-4 w-4 mr-1.5" /> Delete
+        </Button>
+      </CardFooter>
+    </Card>
+  );
+}

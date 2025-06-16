@@ -11,17 +11,17 @@ import {
   SidebarMenuButton,
   SidebarFooter,
 } from '@/components/ui/sidebar';
-import { Button } from '@/components/ui/button'; // Added this import
-import { Home, Swords, PlusCircle, BarChart3, History, Settings, Sparkles, Github, Users as UsersIcon, LayoutDashboard, Layers } from 'lucide-react'; // Added LayoutDashboard, Layers
+import { Button } from '@/components/ui/button'; 
+import { Home, Swords, PlusCircle, BarChart3, History, Settings, Sparkles, Github, Users as UsersIcon, LayoutDashboard, Layers } from 'lucide-react'; 
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/games', label: 'Game Library', icon: Swords },
   { href: '/add-result', label: 'Add Game Result', icon: PlusCircle },
   { href: '/leaderboards', label: 'Leaderboards', icon: BarChart3 },
   { href: '/match-history', label: 'Match History', icon: History },
   { href: '/players', label: 'Manage Players', icon: UsersIcon },
-  { href: '/spaces', label: 'Manage Spaces', icon: Layers, disabled: true }, // Placeholder for Spaces
+  { href: '/games', label: 'Game Library', icon: Swords },
+  { href: '/spaces', label: 'Manage Spaces', icon: Layers }, 
   // { href: '/settings', label: 'Settings', icon: Settings }, // Future feature
 ];
 
@@ -63,3 +63,4 @@ export function AppSidebar() {
     </Sidebar>
   );
 }
+
