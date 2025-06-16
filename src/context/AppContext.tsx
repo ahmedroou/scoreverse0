@@ -24,8 +24,8 @@ interface AppContextType {
   getGameLeaderboard: (gameId: string) => ScoreData[];
   isClient: boolean;
   currentUser: UserAccount | null;
-  login: (username: string, password?: string) => boolean; // password is now optional for backward compatibility during transition, but required for new logins
-  signup: (username: string, password?: string) => boolean; // password is now optional for backward compatibility during transition, but required for new signups
+  login: (username: string, password?: string) => boolean; 
+  signup: (username: string, password?: string) => boolean; 
   logout: () => void;
   isLoadingAuth: boolean;
   addSpace: (name: string) => void;
@@ -34,16 +34,20 @@ interface AppContextType {
   setActiveSpaceId: (spaceId: string | null) => void;
   getSpacesForCurrentUser: () => Space[];
   getActiveSpace: () => Space | undefined;
+  authPageImageUrl: string;
+  setAuthPageImageUrl: (url: string) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 const REGISTERED_USERS_LS_KEY = 'scoreverse-registered-users';
 const CURRENT_USER_LS_KEY = 'scoreverse-current-user';
-const PLAYERS_LS_KEY_PREFIX = 'scoreverse-players-'; // Per user
-const MATCHES_LS_KEY_PREFIX = 'scoreverse-matches-'; // Per user
-const SPACES_LS_KEY_PREFIX = 'scoreverse-spaces-'; // Per user
-const ACTIVE_SPACE_LS_KEY_PREFIX = 'scoreverse-active-space-'; // Per user
+const PLAYERS_LS_KEY_PREFIX = 'scoreverse-players-'; 
+const MATCHES_LS_KEY_PREFIX = 'scoreverse-matches-'; 
+const SPACES_LS_KEY_PREFIX = 'scoreverse-spaces-'; 
+const ACTIVE_SPACE_LS_KEY_PREFIX = 'scoreverse-active-space-'; 
+const AUTH_PAGE_IMAGE_URL_LS_KEY = 'scoreverse-authPageImageUrl';
+const DEFAULT_AUTH_IMAGE_URL = 'https://placehold.co/300x200.png';
 
 const DEFAULT_SPACE_NAME = "Personal Space";
 
@@ -57,6 +61,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [currentUser, setCurrentUser] = useState<UserAccount | null>(null);
   const [registeredUsers, setRegisteredUsers] = useState<UserAccount[]>([]);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
+  const [authPageImageUrl, setAuthPageImageUrlState] = useState<string>(DEFAULT_AUTH_IMAGE_URL);
 
   const [isClient, setIsClient] = useState(false);
   const { toast } = useToast();
@@ -68,12 +73,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   useEffect(() => {
     if (isClient) {
-      // For this prototype, storing passwords in localStorage is insecure.
-      // A real application would use a secure backend authentication system.
       console.warn("PROTOTYPE SECURITY WARNING: User credentials (including passwords if implemented) are stored in localStorage for demonstration purposes only. This is not secure for production applications.");
       const savedRegisteredUsers = localStorage.getItem(REGISTERED_USERS_LS_KEY);
       if (savedRegisteredUsers) {
         setRegisteredUsers(JSON.parse(savedRegisteredUsers));
+      }
+      const savedAuthImageUrl = localStorage.getItem(AUTH_PAGE_IMAGE_URL_LS_KEY);
+      if (savedAuthImageUrl) {
+        setAuthPageImageUrlState(JSON.parse(savedAuthImageUrl));
       }
     }
   }, [isClient]);
@@ -83,11 +90,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const savedCurrentUser = localStorage.getItem(CURRENT_USER_LS_KEY);
       if (savedCurrentUser) {
         const user = JSON.parse(savedCurrentUser) as UserAccount;
-        // Verify user exists and if they have a password, it should be handled by login logic
         if (registeredUsers.find(ru => ru.id === user.id)) {
           setCurrentUser(user);
         } else {
-          // If user in localStorage isn't in registeredUsers, clear it.
           localStorage.removeItem(CURRENT_USER_LS_KEY);
           setCurrentUser(null);
         }
@@ -140,8 +145,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   useEffect(() => {
     if (isClient) {
       localStorage.setItem(REGISTERED_USERS_LS_KEY, JSON.stringify(registeredUsers));
+      localStorage.setItem(AUTH_PAGE_IMAGE_URL_LS_KEY, JSON.stringify(authPageImageUrl));
     }
-  }, [registeredUsers, isClient]);
+  }, [registeredUsers, authPageImageUrl, isClient]);
 
   useEffect(() => {
     if (isClient) {
@@ -168,16 +174,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const userExists = registeredUsers.find(u => u.username.toLowerCase() === username.toLowerCase());
 
     if (userExists) {
-      // For this prototype, we check the insecurely stored password.
-      // Users created before password implementation might not have a password field.
-      // This logic assumes new users WILL have passwords.
       if (userExists.password === password) {
         setCurrentUser(userExists); 
         toast({ title: "Logged In", description: `Welcome back, ${username}!` });
         setIsLoadingAuth(false);
         return true;
       } else if (!userExists.password && !password) {
-         // Fallback for users created before password system, allowing login if no password was set and none provided
         console.warn(`User ${username} logged in without a password. This is a legacy case.`);
         setCurrentUser(userExists);
         toast({ title: "Logged In (Legacy)", description: `Welcome back, ${username}! Consider re-registering with a password for future compatibility.` });
@@ -204,7 +206,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       setIsLoadingAuth(false);
       return false;
     }
-    const newUser: UserAccount = { id: `user-${Date.now()}`, username, password }; // Password is stored here
+    const newUser: UserAccount = { id: `user-${Date.now()}`, username, password }; 
     
     const initialPlayers = INITIAL_MOCK_PLAYERS;
     const initialMatches: Match[] = [];
@@ -242,11 +244,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         toast({ title: "Logged Out", description: "You have been logged out." });
     }
     router.push('/auth');
-    // Clear user-specific data upon logout for privacy in a shared browser scenario
-    // (though players/matches might ideally persist if a user logs back in)
-    // For this prototype, a full clear for the logged-out user is simpler.
-    // However, we only clear localStorage for current_user_ls_key, and rely on 
-    // the currentUser guard in useEffects to not load/save other data.
     setIsLoadingAuth(false);
   }, [toast, router, currentUser]);
 
@@ -321,7 +318,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const game = getGameById(newMatch.gameId);
       if (game) {
           const updatedPlayers = players.map(p => {
-            let playerClone = { ...p }; 
             if (newMatch.playerIds.includes(p.id)) {
               const allMatchesForPlayerInThisGame = updatedMatches
                 .filter(m => 
@@ -333,12 +329,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
               const totalGamesPlayedInThisGame = allMatchesForPlayerInThisGame.length;
               const totalWinsInThisGame = allMatchesForPlayerInThisGame.filter(m => m.winnerIds.includes(p.id)).length;
               
-              // Create a new object for the player to ensure state update
-              const updatedPlayer = { ...p };
-              updatedPlayer.winRate = totalGamesPlayedInThisGame > 0 ? totalWinsInThisGame / totalGamesPlayedInThisGame : (p.winRate || 0);
-              return updatedPlayer;
+              const playerCopy = { ...p };
+              playerCopy.winRate = totalGamesPlayedInThisGame > 0 ? totalWinsInThisGame / totalGamesPlayedInThisGame : (p.winRate || 0);
+              return playerCopy;
             }
-            return p; // Return original player object if not involved in this match
+            return p; 
           });
           setPlayers(updatedPlayers); 
       }
@@ -378,7 +373,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     filteredMatchesForCalc.forEach(match => {
       match.playerIds.forEach(playerId => {
-        const player = getPlayerById(playerId); // getPlayerById is already a dependency of calculateScores
+        const player = getPlayerById(playerId); 
         if (player) { 
             if (!playerScores[playerId]) { 
                  playerScores[playerId] = { playerId: player.id, playerName: player.name, totalPoints: 0, gamesPlayed: 0, wins: 0 };
@@ -505,6 +500,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return spaces.find(s => s.id === activeSpaceId && s.ownerId === currentUser.id);
   }, [currentUser, activeSpaceId, spaces]);
 
+  const setAuthPageImageUrl = useCallback((url: string) => {
+    if (!url) {
+        setAuthPageImageUrlState(DEFAULT_AUTH_IMAGE_URL);
+        toast({ title: "Image URL Reset", description: "Auth page image reset to default."});
+    } else {
+        setAuthPageImageUrlState(url);
+        toast({ title: "Image URL Updated", description: "Auth page image has been changed."});
+    }
+  }, [toast]);
+
 
   return (
     <AppContext.Provider value={{ 
@@ -532,7 +537,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       deleteSpace,
       setActiveSpaceId,
       getSpacesForCurrentUser,
-      getActiveSpace
+      getActiveSpace,
+      authPageImageUrl,
+      setAuthPageImageUrl,
     }}>
       {children}
       <Toaster />

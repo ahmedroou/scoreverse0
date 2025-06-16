@@ -2,15 +2,23 @@
 "use client";
 
 import { useAppContext } from '@/context/AppContext';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'; // Added CardDescription
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { PlusCircle, BarChart3, History, Users, Swords, Layers, LayoutDashboard, UserCircle, Settings } from 'lucide-react';
+import { PlusCircle, BarChart3, History, Users, Swords, Layers, LayoutDashboard, UserCircle, Settings, Image as ImageIcon, Check } from 'lucide-react';
 import Image from 'next/image';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import React, { useState } from 'react'; // Added useState
 
 export default function DashboardPage() {
-  const { currentUser, isClient, getActiveSpace, isLoadingAuth } = useAppContext(); // Moved isLoadingAuth here
+  const { currentUser, isClient, getActiveSpace, isLoadingAuth, authPageImageUrl, setAuthPageImageUrl } = useAppContext();
   const activeSpace = getActiveSpace();
+  const [newAuthImageUrl, setNewAuthImageUrl] = useState(authPageImageUrl);
+
+  const handleAuthImageChange = () => {
+    setAuthPageImageUrl(newAuthImageUrl);
+  };
 
   if (!isClient || isLoadingAuth) { 
     return (
@@ -77,14 +85,12 @@ export default function DashboardPage() {
               <p className="text-sm text-muted-foreground mb-4">{item.description}</p>
             </CardContent>
             <CardContent className="pt-0">
-               <Link href={item.disabled ? "#" : item.href} passHref legacyBehavior>
+               <Link href={item.href} passHref legacyBehavior>
                 <Button 
                     variant="default" 
-                    className={`w-full ${item.disabled ? 'bg-muted hover:bg-muted text-muted-foreground cursor-not-allowed' : 'bg-primary hover:bg-primary/90 text-primary-foreground'}`}
-                    disabled={item.disabled}
-                    aria-disabled={item.disabled}
+                    className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
                 >
-                  {item.disabled ? "Coming Soon" : `Go to ${item.title}`}
+                  Go to {item.title}
                 </Button>
               </Link>
             </CardContent>
@@ -116,7 +122,39 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {currentUser && (
+        <Card className="mt-12">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-xl text-primary"><ImageIcon /> Customize Auth Page Image</CardTitle>
+            <CardDescription>Change the image displayed on the login/signup page. Use a 300x200px image URL for best results.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div>
+              <Label htmlFor="authImageUrlInput">Image URL</Label>
+              <Input 
+                id="authImageUrlInput"
+                type="url"
+                value={newAuthImageUrl}
+                onChange={(e) => setNewAuthImageUrl(e.target.value)}
+                placeholder="Enter image URL (e.g., https://example.com/image.png)"
+                className="mt-1"
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Current image: <Link href={authPageImageUrl} target="_blank" rel="noopener noreferrer" className="underline hover:text-accent">{authPageImageUrl}</Link>
+            </p>
+            {authPageImageUrl !== 'https://placehold.co/300x200.png' && (
+                 <img src={authPageImageUrl} alt="Current Auth Page Image" width="150" height="100" className="rounded border border-border object-cover my-2" />
+            )}
+          </CardContent>
+          <CardContent className="pt-0 border-t border-border mt-4 pt-4">
+            <Button onClick={handleAuthImageChange} className="bg-primary hover:bg-primary/90">
+              <Check className="mr-2 h-4 w-4" /> Save Image URL
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
     </div>
   );
 }
-

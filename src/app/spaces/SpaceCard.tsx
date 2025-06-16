@@ -4,7 +4,7 @@
 import type { Space } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Layers, Edit3, Trash2, CheckCircle, RadioButton } from 'lucide-react';
+import { Layers, Edit3, Trash2, CheckCircle, Radio } from 'lucide-react';
 
 interface SpaceCardProps {
   space: Space;
@@ -39,7 +39,7 @@ export function SpaceCard({ space, isActive, onSetActive, onEdit, onDelete }: Sp
           disabled={isActive}
           className={`${isActive ? 'bg-primary text-primary-foreground cursor-default' : 'border-accent text-accent hover:bg-accent hover:text-accent-foreground'}`}
         >
-          {isActive ? <CheckCircle className="h-4 w-4 mr-1.5" /> : <RadioButton className="h-4 w-4 mr-1.5" />}
+          {isActive ? <CheckCircle className="h-4 w-4 mr-1.5" /> : <Radio className="h-4 w-4 mr-1.5" />}
           {isActive ? 'Active' : 'Set Active'}
         </Button>
         <Button variant="outline" size="sm" onClick={onEdit} className="border-muted-foreground/50 text-muted-foreground hover:border-accent hover:text-accent hover:bg-accent/10">
