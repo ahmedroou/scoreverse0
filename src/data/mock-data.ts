@@ -1,5 +1,7 @@
+
+import React from 'react';
 import type { Game, Player } from '@/types';
-import { Swords, Users, Dices, HelpCircle, Medal, Bot } from 'lucide-react'; // Using Bot for Billiards as a placeholder
+import { Swords, Users, Dices, HelpCircle, Medal } from 'lucide-react';
 
 // For Billiards, as lucide-react doesn't have a direct icon.
 // A simple circle SVG can represent a billiard ball.

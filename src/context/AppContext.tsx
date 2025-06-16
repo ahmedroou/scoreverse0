@@ -3,10 +3,11 @@
 import type { ReactNode } from 'react';
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import type { Game, Player, Match, ScoreData, Space, UserAccount } from '@/types';
-import { MOCK_GAMES, MOCK_PLAYERS as INITIAL_MOCK_PLAYERS } from '@/data/mock-data';
+import { MOCK_GAMES as INITIAL_MOCK_GAMES, MOCK_PLAYERS as INITIAL_MOCK_PLAYERS } from '@/data/mock-data';
 import { Toaster } from '@/components/ui/toaster';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
+import { HelpCircle } from 'lucide-react'; // For default game icon
 
 interface AppContextType {
   games: Game[];
@@ -16,7 +17,7 @@ interface AppContextType {
   activeSpaceId: string | null;
   addPlayer: (name: string) => void;
   deletePlayer: (playerId: string) => void;
-  addMatch: (matchData: Omit<Match, 'id' | 'date' | 'spaceId'>) => void; // spaceId will be added internally
+  addMatch: (matchData: Omit<Match, 'id' | 'date' | 'spaceId'>) => void;
   updatePlayer: (playerId: string, newName: string) => void;
   getGameById: (gameId: string) => Game | undefined;
   getPlayerById: (playerId: string) => Player | undefined;
@@ -36,6 +37,9 @@ interface AppContextType {
   getActiveSpace: () => Space | undefined;
   authPageImageUrl: string;
   setAuthPageImageUrl: (url: string) => void;
+  addGame: (gameData: Omit<Game, 'id' | 'icon'>) => void;
+  updateGame: (gameId: string, gameData: Partial<Omit<Game, 'id' | 'icon'>>) => void;
+  deleteGame: (gameId: string) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -47,12 +51,13 @@ const MATCHES_LS_KEY_PREFIX = 'scoreverse-matches-';
 const SPACES_LS_KEY_PREFIX = 'scoreverse-spaces-'; 
 const ACTIVE_SPACE_LS_KEY_PREFIX = 'scoreverse-active-space-'; 
 const AUTH_PAGE_IMAGE_URL_LS_KEY = 'scoreverse-authPageImageUrl';
+const GAMES_LS_KEY_PREFIX = 'scoreverse-games-'; // New key for games
 const DEFAULT_AUTH_IMAGE_URL = 'https://placehold.co/300x200.png';
 
 const DEFAULT_SPACE_NAME = "Personal Space";
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [games, setGames] = useState<Game[]>(MOCK_GAMES);
+  const [games, setGames] = useState<Game[]>(INITIAL_MOCK_GAMES);
   const [players, setPlayers] = useState<Player[]>([]);
   const [matches, setMatches] = useState<Match[]>([]);
   const [spaces, setSpaces] = useState<Space[]>([]);
@@ -107,12 +112,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const matchesKey = `${MATCHES_LS_KEY_PREFIX}${currentUser.id}`;
       const spacesKey = `${SPACES_LS_KEY_PREFIX}${currentUser.id}`;
       const activeSpaceKey = `${ACTIVE_SPACE_LS_KEY_PREFIX}${currentUser.id}`;
+      const gamesKey = `${GAMES_LS_KEY_PREFIX}${currentUser.id}`;
 
       const savedPlayers = localStorage.getItem(playersKey);
       setPlayers(savedPlayers ? JSON.parse(savedPlayers) : INITIAL_MOCK_PLAYERS);
 
       const savedMatches = localStorage.getItem(matchesKey);
       setMatches(savedMatches ? JSON.parse(savedMatches) : []);
+
+      const savedGames = localStorage.getItem(gamesKey);
+      setGames(savedGames ? JSON.parse(savedGames) : INITIAL_MOCK_GAMES);
+
 
       const savedSpaces = localStorage.getItem(spacesKey);
       let userSpaces: Space[] = savedSpaces ? JSON.parse(savedSpaces) : [];
@@ -135,6 +145,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     } else if (isClient && !currentUser) { 
       setPlayers(INITIAL_MOCK_PLAYERS); 
+      setGames(INITIAL_MOCK_GAMES);
       setMatches([]);
       setSpaces([]);
       setActiveSpaceIdState(null);
@@ -165,8 +176,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       localStorage.setItem(`${MATCHES_LS_KEY_PREFIX}${currentUser.id}`, JSON.stringify(matches));
       localStorage.setItem(`${SPACES_LS_KEY_PREFIX}${currentUser.id}`, JSON.stringify(spaces));
       localStorage.setItem(`${ACTIVE_SPACE_LS_KEY_PREFIX}${currentUser.id}`, JSON.stringify(activeSpaceId));
+      localStorage.setItem(`${GAMES_LS_KEY_PREFIX}${currentUser.id}`, JSON.stringify(games));
     }
-  }, [players, matches, spaces, activeSpaceId, isClient, currentUser]);
+  }, [players, matches, spaces, activeSpaceId, games, isClient, currentUser]);
 
 
   const login = useCallback((username: string, password?: string): boolean => {
@@ -179,7 +191,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         toast({ title: "Logged In", description: `Welcome back, ${username}!` });
         setIsLoadingAuth(false);
         return true;
-      } else if (!userExists.password && !password) {
+      } else if (!userExists.password && !password) { // Legacy: user might exist without password
         console.warn(`User ${username} logged in without a password. This is a legacy case.`);
         setCurrentUser(userExists);
         toast({ title: "Logged In (Legacy)", description: `Welcome back, ${username}! Consider re-registering with a password for future compatibility.` });
@@ -208,22 +220,27 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
     const newUser: UserAccount = { id: `user-${Date.now()}`, username, password }; 
     
-    const initialPlayers = INITIAL_MOCK_PLAYERS;
-    const initialMatches: Match[] = [];
+    // Initialize with default data for the new user
+    const initialUserPlayers = INITIAL_MOCK_PLAYERS;
+    const initialUserGames = INITIAL_MOCK_GAMES;
+    const initialUserMatches: Match[] = [];
     const defaultSpaceId = `space-default-${newUser.id}-${Date.now()}`;
     const defaultSpace: Space = { id: defaultSpaceId, name: DEFAULT_SPACE_NAME, ownerId: newUser.id };
-    const initialSpaces = [defaultSpace];
+    const initialUserSpaces = [defaultSpace];
 
     if(isClient) {
-        localStorage.setItem(`${PLAYERS_LS_KEY_PREFIX}${newUser.id}`, JSON.stringify(initialPlayers));
-        localStorage.setItem(`${MATCHES_LS_KEY_PREFIX}${newUser.id}`, JSON.stringify(initialMatches));
-        localStorage.setItem(`${SPACES_LS_KEY_PREFIX}${newUser.id}`, JSON.stringify(initialSpaces));
+        localStorage.setItem(`${PLAYERS_LS_KEY_PREFIX}${newUser.id}`, JSON.stringify(initialUserPlayers));
+        localStorage.setItem(`${GAMES_LS_KEY_PREFIX}${newUser.id}`, JSON.stringify(initialUserGames));
+        localStorage.setItem(`${MATCHES_LS_KEY_PREFIX}${newUser.id}`, JSON.stringify(initialUserMatches));
+        localStorage.setItem(`${SPACES_LS_KEY_PREFIX}${newUser.id}`, JSON.stringify(initialUserSpaces));
         localStorage.setItem(`${ACTIVE_SPACE_LS_KEY_PREFIX}${newUser.id}`, JSON.stringify(defaultSpaceId));
     }
     
-    setPlayers(initialPlayers);
-    setMatches(initialMatches);
-    setSpaces(initialSpaces);
+    // Set state for the newly signed up user directly (will be overwritten if they log out and back in, but good for immediate use)
+    setPlayers(initialUserPlayers);
+    setGames(initialUserGames);
+    setMatches(initialUserMatches);
+    setSpaces(initialUserSpaces);
     setActiveSpaceIdState(defaultSpaceId);
     
     setRegisteredUsers(prev => [...prev, newUser]);
@@ -238,6 +255,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setIsLoadingAuth(true);
     const currentUsername = currentUser?.username;
     setCurrentUser(null); 
+    // Reset local state to defaults, ready for next login or to clear sensitive data
+    setPlayers(INITIAL_MOCK_PLAYERS);
+    setGames(INITIAL_MOCK_GAMES);
+    setMatches([]);
+    setSpaces([]);
+    setActiveSpaceIdState(null);
+
     if (currentUsername) {
         toast({ title: "Logged Out", description: `Goodbye, ${currentUsername}!` });
     } else {
@@ -315,32 +339,36 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     
     setMatches(prevMatches => {
       const updatedMatches = [...prevMatches, newMatch];
+      // Update player win rates (simplified example, might need more robust logic for specific games)
       const game = getGameById(newMatch.gameId);
       if (game) {
           const updatedPlayers = players.map(p => {
             if (newMatch.playerIds.includes(p.id)) {
-              const allMatchesForPlayerInThisGame = updatedMatches
+              // Recalculate win rate for players involved in this match, for this game type, within the current space context
+              const allMatchesForPlayerInThisGameAndSpace = updatedMatches
                 .filter(m => 
                     m.playerIds.includes(p.id) && 
                     m.gameId === newMatch.gameId &&
-                    m.spaceId === (activeSpaceId || undefined) 
+                    m.spaceId === (activeSpaceId || undefined) // Filter by active space or global if no space active
                 );
 
-              const totalGamesPlayedInThisGame = allMatchesForPlayerInThisGame.length;
-              const totalWinsInThisGame = allMatchesForPlayerInThisGame.filter(m => m.winnerIds.includes(p.id)).length;
+              const totalGamesPlayedInThisGameAndSpace = allMatchesForPlayerInThisGameAndSpace.length;
+              const totalWinsInThisGameAndSpace = allMatchesForPlayerInThisGameAndSpace.filter(m => m.winnerIds.includes(p.id)).length;
               
               const playerCopy = { ...p };
-              playerCopy.winRate = totalGamesPlayedInThisGame > 0 ? totalWinsInThisGame / totalGamesPlayedInThisGame : (p.winRate || 0);
+              // Potentially merge with existing winRate if it's an overall stat, or make it game-specific
+              playerCopy.winRate = totalGamesPlayedInThisGameAndSpace > 0 ? totalWinsInThisGameAndSpace / totalGamesPlayedInThisGameAndSpace : (p.winRate || 0);
+              // Average score update would need more context on how scores are recorded per match
               return playerCopy;
             }
             return p; 
           });
-          setPlayers(updatedPlayers); 
+          setPlayers(updatedPlayers); // Persist updated player stats
       }
       return updatedMatches;
     });
 
-  }, [currentUser, toast, players, getGameById, activeSpaceId]); 
+  }, [currentUser, toast, players, getGameById, activeSpaceId]); // Added activeSpaceId dependency
 
   const updatePlayer = useCallback((playerId: string, newName: string) => {
     if (!currentUser) {
@@ -458,29 +486,32 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setSpaces(prevSpaces => {
       const remainingSpaces = prevSpaces.filter(s => {
           if (s.id === spaceIdToDelete && s.ownerId === currentUser.id) {
+              // If the deleted space was active, set active space to another user-owned space or null
               if (activeSpaceId === spaceIdToDelete) {
                   const otherUserSpaces = prevSpaces.filter(os => os.id !== spaceIdToDelete && os.ownerId === currentUser.id);
                   setActiveSpaceIdState(otherUserSpaces.length > 0 ? otherUserSpaces[0].id : null);
               }
-              return false; 
+              return false; // Remove the space
           }
-          return true; 
+          return true; // Keep other spaces
       });
       return remainingSpaces;
     });
     
+    // Also remove matches associated with the deleted space
     setMatches(prevMatches => prevMatches.filter(m => m.spaceId !== spaceIdToDelete));
     toast({ title: "Space Deleted", description: "The space and its associated matches have been deleted." });
-  }, [currentUser, toast, spaces, activeSpaceId, matches]); 
+  }, [currentUser, toast, spaces, activeSpaceId, matches]); // Added matches dependency
   
   const setActiveSpaceId = useCallback((newActiveSpaceId: string | null) => {
     if (!currentUser) {
         setActiveSpaceIdState(null);
         return;
     }
+    // Allow setting to null (global context) or to a space owned by the user
     const spaceExists = newActiveSpaceId === null || spaces.some(s => s.id === newActiveSpaceId && s.ownerId === currentUser.id);
     if (spaceExists) {
-        if (newActiveSpaceId !== activeSpaceId) { 
+        if (newActiveSpaceId !== activeSpaceId) { // Only update and toast if it's a change
             setActiveSpaceIdState(newActiveSpaceId);
             const spaceName = newActiveSpaceId ? spaces.find(s=>s.id === newActiveSpaceId)?.name : "Global (No Space)";
             toast({ title: "Active Space Changed", description: `Now viewing: ${spaceName}`});
@@ -501,7 +532,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, [currentUser, activeSpaceId, spaces]);
 
   const setAuthPageImageUrl = useCallback((url: string) => {
-    if (!url) {
+    if (!url) { // If URL is empty, reset to default
         setAuthPageImageUrlState(DEFAULT_AUTH_IMAGE_URL);
         toast({ title: "Image URL Reset", description: "Auth page image reset to default."});
     } else {
@@ -509,6 +540,54 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         toast({ title: "Image URL Updated", description: "Auth page image has been changed."});
     }
   }, [toast]);
+
+  const addGame = useCallback((gameData: Omit<Game, 'id' | 'icon'>) => {
+    if (!currentUser) {
+      toast({ title: "Error", description: "You must be logged in to add games.", variant: "destructive" });
+      return;
+    }
+    const newGame: Game = {
+      ...gameData,
+      id: `game-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+      icon: HelpCircle, // Default icon for user-added games
+    };
+    setGames(prevGames => [...prevGames, newGame]);
+    toast({ title: "Game Added", description: `${newGame.name} has been added to the library.` });
+  }, [currentUser, toast]);
+
+  const updateGame = useCallback((gameId: string, gameData: Partial<Omit<Game, 'id' | 'icon'>>) => {
+    if (!currentUser) {
+      toast({ title: "Error", description: "You must be logged in to update games.", variant: "destructive" });
+      return;
+    }
+    setGames(prevGames =>
+      prevGames.map(game =>
+        game.id === gameId ? { ...game, ...gameData } : game
+      )
+    );
+    toast({ title: "Game Updated", description: "Game details have been updated." });
+  }, [currentUser, toast]);
+
+  const deleteGame = useCallback((gameId: string) => {
+    if (!currentUser) {
+      toast({ title: "Error", description: "You must be logged in to delete games.", variant: "destructive" });
+      return;
+    }
+    const isGameUsed = matches.some(match => match.gameId === gameId);
+    if (isGameUsed) {
+      toast({
+        title: "Cannot Delete Game",
+        description: "This game is used in recorded matches and cannot be deleted.",
+        variant: "destructive",
+      });
+      return;
+    }
+    const gameToDelete = games.find(g => g.id === gameId);
+    setGames(prevGames => prevGames.filter(game => game.id !== gameId));
+    if (gameToDelete) {
+        toast({ title: "Game Deleted", description: `${gameToDelete.name} has been removed from the library.` });
+    }
+  }, [currentUser, matches, games, toast]);
 
 
   return (
@@ -540,6 +619,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       getActiveSpace,
       authPageImageUrl,
       setAuthPageImageUrl,
+      addGame,
+      updateGame,
+      deleteGame,
     }}>
       {children}
       <Toaster />
@@ -554,3 +636,5 @@ export const useAppContext = (): AppContextType => {
   }
   return context;
 };
+
+    
