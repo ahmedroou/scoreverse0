@@ -1,4 +1,3 @@
-
 import React from 'react';
 import type { Game, Player } from '@/types';
 import { Swords, Users, Dices, HelpCircle, Medal } from 'lucide-react';
@@ -28,4 +27,3 @@ export const MOCK_PLAYERS: Player[] = [
   { id: 'player4', name: 'Golden Flash', winRate: 0.3, averageScore: 100 },
   { id: 'player5', name: 'Mystic Blade', winRate: 0.55, averageScore: 140 },
 ];
-
