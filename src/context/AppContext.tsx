@@ -34,8 +34,6 @@ interface AppContextType {
   setActiveSpaceId: (spaceId: string | null) => void;
   getSpacesForCurrentUser: () => Space[];
   getActiveSpace: () => Space | undefined;
-  authPageImageUrl: string;
-  setAuthPageImageUrl: (url: string) => void;
   addGame: (gameData: Omit<Game, 'id' | 'icon'>) => void;
   updateGame: (gameId: string, gameData: Partial<Omit<Game, 'id' | 'icon'>>) => void;
   deleteGame: (gameId: string) => void;
@@ -49,9 +47,7 @@ const PLAYERS_LS_KEY_PREFIX = 'scoreverse-players-';
 const MATCHES_LS_KEY_PREFIX = 'scoreverse-matches-'; 
 const SPACES_LS_KEY_PREFIX = 'scoreverse-spaces-'; 
 const ACTIVE_SPACE_LS_KEY_PREFIX = 'scoreverse-active-space-'; 
-const AUTH_PAGE_IMAGE_URL_LS_KEY = 'scoreverse-authPageImageUrl';
 const GAMES_LS_KEY_PREFIX = 'scoreverse-games-'; // New key for games
-const DEFAULT_AUTH_IMAGE_URL = 'https://placehold.co/300x200.png';
 
 const DEFAULT_SPACE_NAME = "Personal Space";
 
@@ -65,7 +61,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [currentUser, setCurrentUser] = useState<UserAccount | null>(null);
   const [registeredUsers, setRegisteredUsers] = useState<UserAccount[]>([]);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
-  const [authPageImageUrl, setAuthPageImageUrlState] = useState<string>(DEFAULT_AUTH_IMAGE_URL);
 
   const [isClient, setIsClient] = useState(false);
   const { toast } = useToast();
@@ -81,10 +76,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const savedRegisteredUsers = localStorage.getItem(REGISTERED_USERS_LS_KEY);
       if (savedRegisteredUsers) {
         setRegisteredUsers(JSON.parse(savedRegisteredUsers));
-      }
-      const savedAuthImageUrl = localStorage.getItem(AUTH_PAGE_IMAGE_URL_LS_KEY);
-      if (savedAuthImageUrl) {
-        setAuthPageImageUrlState(JSON.parse(savedAuthImageUrl));
       }
     }
   }, [isClient]);
@@ -156,9 +147,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   useEffect(() => {
     if (isClient) {
       localStorage.setItem(REGISTERED_USERS_LS_KEY, JSON.stringify(registeredUsers));
-      localStorage.setItem(AUTH_PAGE_IMAGE_URL_LS_KEY, JSON.stringify(authPageImageUrl));
     }
-  }, [registeredUsers, authPageImageUrl, isClient]);
+  }, [registeredUsers, isClient]);
 
   useEffect(() => {
     if (isClient) {
@@ -651,16 +641,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return spaces.find(s => s.id === activeSpaceId && s.ownerId === currentUser.id);
   }, [currentUser, activeSpaceId, spaces]);
 
-  const setAuthPageImageUrl = useCallback((url: string) => {
-    if (!url) { // If URL is empty, reset to default
-        setAuthPageImageUrlState(DEFAULT_AUTH_IMAGE_URL);
-        toast({ title: "Image URL Reset", description: "Auth page image reset to default."});
-    } else {
-        setAuthPageImageUrlState(url);
-        toast({ title: "Image URL Updated", description: "Auth page image has been changed."});
-    }
-  }, [toast]);
-
   const addGame = useCallback((gameData: Omit<Game, 'id' | 'icon'>) => {
     if (!currentUser) {
       toast({ title: "Error", description: "You must be logged in to add games.", variant: "destructive" });
@@ -738,8 +718,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       setActiveSpaceId,
       getSpacesForCurrentUser,
       getActiveSpace,
-      authPageImageUrl,
-      setAuthPageImageUrl,
       addGame,
       updateGame,
       deleteGame,

@@ -11,7 +11,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Sparkles, LogIn, UserPlus, Info, Eye, EyeOff } from 'lucide-react';
-import Image from 'next/image';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const formSchema = z.object({
@@ -22,7 +21,7 @@ const formSchema = z.object({
 type AuthFormValues = z.infer<typeof formSchema>;
 
 export function AuthForm() {
-  const { login, signup, isLoadingAuth, authPageImageUrl } = useAppContext();
+  const { login, signup, isLoadingAuth } = useAppContext();
   const [isLoginMode, setIsLoginMode] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
@@ -51,8 +50,6 @@ export function AuthForm() {
     }
   };
 
-  const currentAuthImage = authPageImageUrl || 'https://placehold.co/300x200.png';
-
   return (
     <Card className="w-full max-w-md shadow-xl bg-card border-border">
       <CardHeader className="text-center">
@@ -67,17 +64,6 @@ export function AuthForm() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        <div className="mx-auto w-full max-w-[300px] aspect-[3/2] rounded-md overflow-hidden my-4">
-            <Image 
-                src={currentAuthImage} 
-                alt="Fun gaming illustration" 
-                width={300} 
-                height={200} 
-                className="object-cover"
-                data-ai-hint="cartoon fun"
-                key={currentAuthImage} // Add key to force re-render if src changes
-            />
-        </div>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
           <div>
             <Label htmlFor="username">Username</Label>
