@@ -76,31 +76,37 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setIsClient(true);
   }, []);
 
+  // Effect to load user data from localStorage and initialize auth state
   useEffect(() => {
     if (isClient) {
-      console.warn("PROTOTYPE SECURITY WARNING: User credentials (including passwords if implemented) are stored in localStorage for demonstration purposes only. This is not secure for production applications.");
-      const savedRegisteredUsers = localStorage.getItem(REGISTERED_USERS_LS_KEY);
-      if (savedRegisteredUsers) {
-        setRegisteredUsers(JSON.parse(savedRegisteredUsers));
-      }
-    }
-  }, [isClient]);
-  
-  useEffect(() => {
-    if (isClient) {
-      const savedCurrentUser = localStorage.getItem(CURRENT_USER_LS_KEY);
-      if (savedCurrentUser) {
-        const user = JSON.parse(savedCurrentUser) as UserAccount;
-        if (registeredUsers.find(ru => ru.id === user.id)) {
-          setCurrentUser(user);
+      console.warn("PROTOTYPE SECURITY WARNING: User credentials are stored in localStorage for demonstration purposes only. This is not secure for production applications.");
+
+      // 1. Load all registered users first.
+      const savedRegisteredUsersJSON = localStorage.getItem(REGISTERED_USERS_LS_KEY);
+      const allUsers = savedRegisteredUsersJSON ? (JSON.parse(savedRegisteredUsersJSON) as UserAccount[]) : [];
+      setRegisteredUsers(allUsers);
+
+      // 2. Load the current user's data.
+      const savedCurrentUserJSON = localStorage.getItem(CURRENT_USER_LS_KEY);
+      if (savedCurrentUserJSON) {
+        const potentialUser = JSON.parse(savedCurrentUserJSON) as UserAccount;
+
+        // 3. Validate the current user against the list of all users.
+        const isValidUser = allUsers.some(u => u.id === potentialUser.id && u.username === potentialUser.username);
+
+        if (isValidUser) {
+          setCurrentUser(potentialUser);
         } else {
+          // If the saved user is not in the registered list, clear the invalid session.
           localStorage.removeItem(CURRENT_USER_LS_KEY);
           setCurrentUser(null);
         }
       }
-      setIsLoadingAuth(false); 
+      
+      // 4. Signal that authentication loading is complete.
+      setIsLoadingAuth(false);
     }
-  }, [isClient, registeredUsers]); 
+  }, [isClient]);
 
   // Main data loading and scoping effect
   useEffect(() => {
