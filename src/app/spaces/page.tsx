@@ -34,6 +34,7 @@ export default function ManageSpacesPage() {
     getSpacesForCurrentUser,
     shareSpace,
     unshareSpace,
+    getUserById,
   } = useAppContext();
 
   const [isAddSpaceDialogOpen, setIsAddSpaceDialogOpen] = useState(false);
@@ -102,8 +103,7 @@ export default function ManageSpacesPage() {
             <Layers /> Manage Your Spaces
           </CardTitle>
           <CardDescription>
-            Create, edit, and organize your game tracking into different spaces. 
-            The active space determines which matches and leaderboards are shown.
+            {currentUser.isAdmin ? "Viewing all spaces across the platform." : "Create, edit, and organize your game tracking into different spaces. The active space determines which matches and leaderboards are shown."}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -116,17 +116,23 @@ export default function ManageSpacesPage() {
             <p className="text-muted-foreground text-center py-4">No spaces found. Create your first space to get started!</p>
           ) : (
             <div className="space-y-4">
-              {userSpaces.map((space) => (
-                <SpaceCard
-                  key={space.id}
-                  space={space}
-                  isActive={space.id === activeSpaceId}
-                  onSetActive={() => setActiveSpaceId(space.id)}
-                  onEdit={() => handleEditClick(space)}
-                  onDelete={() => handleDeleteClick(space)}
-                  onShare={() => handleShareClick(space)}
-                />
-              ))}
+              {userSpaces.map((space) => {
+                 const owner = currentUser.isAdmin ? getUserById(space.ownerId) : null;
+                 const canEdit = currentUser.isAdmin || currentUser.id === space.ownerId;
+                 return (
+                    <SpaceCard
+                      key={space.id}
+                      space={space}
+                      isActive={space.id === activeSpaceId}
+                      onSetActive={() => setActiveSpaceId(space.id)}
+                      onEdit={() => canEdit && handleEditClick(space)}
+                      onDelete={() => canEdit && handleDeleteClick(space)}
+                      onShare={() => handleShareClick(space)}
+                      ownerUsername={owner?.username}
+                      canEdit={canEdit}
+                    />
+                 )
+              })}
             </div>
           )}
         </CardContent>
@@ -173,7 +179,7 @@ export default function ManageSpacesPage() {
               <AlertDialogTitle className="flex items-center gap-2"><ShieldAlert className="text-destructive h-6 w-6"/>Are you sure?</AlertDialogTitle>
               <AlertDialogDescription>
                 This will delete the space "{spaceToDelete.name}" and all matches associated with it. This action cannot be undone.
-                {userSpaces.length <= 1 && " You must always have at least one space."}
+                {!currentUser.isAdmin && userSpaces.length <= 1 && " You must always have at least one space."}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -181,7 +187,7 @@ export default function ManageSpacesPage() {
               <AlertDialogAction
                 onClick={confirmDelete}
                 className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
-                disabled={userSpaces.length <= 1 && userSpaces.find(s => s.id === spaceToDelete.id) !== undefined}
+                disabled={!currentUser.isAdmin && userSpaces.length <= 1 && userSpaces.find(s => s.id === spaceToDelete.id) !== undefined}
               >
                 Delete Space
               </AlertDialogAction>

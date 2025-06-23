@@ -42,7 +42,6 @@ export function EditPlayerForm({ player, isOpen, onOpenChange }: EditPlayerFormP
   });
 
   useEffect(() => {
-    // Reset form if player changes or dialog reopens
     form.reset({
       name: player.name,
       avatarUrl: player.avatarUrl || '',
@@ -54,7 +53,7 @@ export function EditPlayerForm({ player, isOpen, onOpenChange }: EditPlayerFormP
       name: values.name,
       avatarUrl: values.avatarUrl || undefined,
     });
-    onOpenChange(false); // Close dialog on submit
+    onOpenChange(false);
   };
 
   return (

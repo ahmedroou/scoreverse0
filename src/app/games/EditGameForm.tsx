@@ -67,7 +67,7 @@ export function EditGameForm({ game, isOpen, onOpenChange }: EditGameFormProps) 
   }, [game, isOpen, form]);
 
   const onSubmit = (values: z.infer<typeof formSchema>) => {
-    const gameData: Partial<Omit<Game, 'id' | 'icon'>> = {
+    const gameData: Partial<Omit<Game, 'id' | 'icon' | 'ownerId'>> = {
         name: values.name,
         pointsPerWin: values.pointsPerWin,
         minPlayers: values.minPlayers,
@@ -131,5 +131,3 @@ export function EditGameForm({ game, isOpen, onOpenChange }: EditGameFormProps) 
     </Dialog>
   );
 }
-
-    

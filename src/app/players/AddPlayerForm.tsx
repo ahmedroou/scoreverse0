@@ -41,11 +41,10 @@ export function AddPlayerForm({ isOpen, onOpenChange }: AddPlayerFormProps) {
 
   const onSubmit = (values: z.infer<typeof formSchema>) => {
     addPlayer(values.name, values.avatarUrl || undefined);
-    form.reset(); // Reset form fields
-    onOpenChange(false); // Close dialog on submit
+    form.reset();
+    onOpenChange(false);
   };
 
-  // Reset form when dialog opens/closes to clear previous input
   React.useEffect(() => {
     if (!isOpen) {
       form.reset();

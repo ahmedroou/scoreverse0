@@ -4,7 +4,7 @@ import type { Game } from '@/types';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { Users, PlayCircle, Edit3, Trash2 } from 'lucide-react';
+import { Users, PlayCircle, Edit3, Trash2, UserCog } from 'lucide-react';
 import { getGameIcon } from './icons';
 
 interface GameCardProps {
@@ -12,16 +12,17 @@ interface GameCardProps {
   showAdminControls?: boolean;
   onEdit?: () => void;
   onDelete?: () => void;
+  ownerUsername?: string;
 }
 
-export function GameCard({ game, showAdminControls = false, onEdit, onDelete }: GameCardProps) {
+export function GameCard({ game, showAdminControls = false, onEdit, onDelete, ownerUsername }: GameCardProps) {
   const IconComponent = getGameIcon(game.icon);
 
   return (
     <Card className="flex flex-col h-full hover:shadow-lg transition-shadow duration-200 ease-in-out bg-card border-border hover:border-primary/70">
       <CardHeader className="flex flex-row items-start gap-4 pb-3">
         <IconComponent className="w-10 h-10 text-primary mt-1 flex-shrink-0" />
-        <div className="flex-1 min-w-0"> {/* Added min-w-0 for better truncation */}
+        <div className="flex-1 min-w-0">
           <CardTitle className="text-2xl font-bold text-card-foreground truncate" title={game.name}>{game.name}</CardTitle>
           {game.description && <CardDescription className="text-sm text-muted-foreground mt-1 line-clamp-2">{game.description}</CardDescription>}
         </div>
@@ -36,6 +37,12 @@ export function GameCard({ game, showAdminControls = false, onEdit, onDelete }: 
             </span>
           </div>
           <p>Points per win: <span className="font-semibold text-accent">{game.pointsPerWin}</span></p>
+           {ownerUsername && (
+            <div className="flex items-center gap-2 text-xs pt-1">
+                <UserCog className="w-3.5 h-3.5" />
+                <span>Owner: {ownerUsername}</span>
+            </div>
+          )}
         </div>
       </CardContent>
       <CardFooter className="border-t border-border pt-4 flex flex-col gap-2">

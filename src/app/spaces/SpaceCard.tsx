@@ -3,8 +3,8 @@
 
 import type { Space } from '@/types';
 import { Button } from '@/components/ui/button';
-import { Card, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Layers, Edit3, Trash2, CheckCircle, Radio, Share2 } from 'lucide-react';
+import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
+import { Layers, Edit3, Trash2, CheckCircle, Radio, Share2, UserCog } from 'lucide-react';
 
 interface SpaceCardProps {
   space: Space;
@@ -13,19 +13,29 @@ interface SpaceCardProps {
   onEdit: () => void;
   onDelete: () => void;
   onShare: () => void;
+  ownerUsername?: string;
+  canEdit?: boolean;
 }
 
-export function SpaceCard({ space, isActive, onSetActive, onEdit, onDelete, onShare }: SpaceCardProps) {
+export function SpaceCard({ space, isActive, onSetActive, onEdit, onDelete, onShare, ownerUsername, canEdit = true }: SpaceCardProps) {
   return (
     <Card className={`border hover:shadow-md transition-shadow duration-150 ${isActive ? 'border-primary ring-2 ring-primary bg-primary/5' : 'border-border bg-card'}`}>
       <CardHeader className="pb-3">
-        <div className="flex justify-between items-center">
-          <CardTitle className={`text-xl font-semibold flex items-center gap-2 ${isActive ? 'text-primary' : 'text-card-foreground'}`}>
-            <Layers className={`h-5 w-5 ${isActive ? 'text-primary' : 'text-accent'}`} />
-            {space.name}
-          </CardTitle>
+        <div className="flex justify-between items-start">
+          <div className="flex-1">
+            <CardTitle className={`text-xl font-semibold flex items-center gap-2 ${isActive ? 'text-primary' : 'text-card-foreground'}`}>
+              <Layers className={`h-5 w-5 ${isActive ? 'text-primary' : 'text-accent'}`} />
+              {space.name}
+            </CardTitle>
+            {ownerUsername && (
+                <div className="text-xs text-muted-foreground flex items-center gap-1 pt-1">
+                    <UserCog className="h-3 w-3"/>
+                    Owner: {ownerUsername}
+                </div>
+            )}
+          </div>
           {isActive && (
-            <div className="flex items-center gap-1 text-xs text-primary font-medium px-2 py-0.5 rounded-full bg-primary/10">
+            <div className="flex items-center gap-1 text-xs text-primary font-medium px-2 py-0.5 rounded-full bg-primary/10 whitespace-nowrap">
               <CheckCircle className="h-3.5 w-3.5" />
               Active
             </div>
@@ -52,12 +62,16 @@ export function SpaceCard({ space, isActive, onSetActive, onEdit, onDelete, onSh
           {isActive ? <CheckCircle className="h-4 w-4 mr-1.5" /> : <Radio className="h-4 w-4 mr-1.5" />}
           {isActive ? 'Active' : 'Set Active'}
         </Button>
-        <Button variant="outline" size="sm" onClick={onEdit} className="border-muted-foreground/50 text-muted-foreground hover:border-accent hover:text-accent hover:bg-accent/10">
-          <Edit3 className="h-4 w-4 mr-1.5" /> Edit
-        </Button>
-        <Button variant="destructive" size="sm" onClick={onDelete} className="bg-destructive/80 hover:bg-destructive text-destructive-foreground">
-          <Trash2 className="h-4 w-4 mr-1.5" /> Delete
-        </Button>
+        {canEdit && (
+            <>
+                <Button variant="outline" size="sm" onClick={onEdit} className="border-muted-foreground/50 text-muted-foreground hover:border-accent hover:text-accent hover:bg-accent/10">
+                <Edit3 className="h-4 w-4 mr-1.5" /> Edit
+                </Button>
+                <Button variant="destructive" size="sm" onClick={onDelete} className="bg-destructive/80 hover:bg-destructive text-destructive-foreground">
+                <Trash2 className="h-4 w-4 mr-1.5" /> Delete
+                </Button>
+            </>
+        )}
       </CardFooter>
     </Card>
   );

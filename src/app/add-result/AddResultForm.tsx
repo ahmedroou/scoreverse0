@@ -202,7 +202,7 @@ export function AddResultForm() {
     toast({
       title: "Match Recorded!",
       description: `${game.name} result has been saved.`,
-      action: <ThumbsUp className="h-5 w-5 text-green-400" />, // Changed icon color for visibility
+      action: <ThumbsUp className="h-5 w-5 text-green-400" />,
     });
   };
 
@@ -218,9 +218,6 @@ export function AddResultForm() {
 
     setIsSuggestingHandicap(true);
     setHandicapError(null);
-    // Do not clear existing suggestions immediately, maybe user wants to compare
-    // setHandicapSuggestions(null); 
-
     const handicapInput: SuggestHandicapInput = {
       gameName: selectedGame.name,
       playerStats: matchPlayers.map(p => ({
@@ -317,25 +314,25 @@ export function AddResultForm() {
                   <div className="space-y-2">
                     <Select
                       onValueChange={(playerId) => {
-                        if (!playerId || field.value?.includes(playerId)) return; // Don't add if already selected
+                        if (!playerId || field.value?.includes(playerId)) return;
                         if (selectedGame.maxPlayers && field.value && field.value.length >= selectedGame.maxPlayers) {
                             toast({ title: "Max Players Reached", description: `This game allows a maximum of ${selectedGame.maxPlayers} players.`, variant: "default"});
                             return;
                         }
                         field.onChange([...(field.value || []), playerId]);
                       }}
-                       value="" // Keep selection box clear to act as an "add" button
+                       value=""
                     >
                       <SelectTrigger aria-label="Add a player">
                         <SelectValue placeholder="Add a player..." />
                       </SelectTrigger>
                       <SelectContent>
                         {availablePlayersForSelection
-                          .filter(p => !(field.value || []).includes(p.id)) // Filter out already selected players
+                          .filter(p => !(field.value || []).includes(p.id)) 
                           .map(player => (
                             <SelectItem key={player.id} value={player.id}>{player.name}</SelectItem>
                           ))}
-                         {availablePlayersForSelection.filter(p => !(field.value || []).includes(p.id)).length === 0 && <p className="p-2 text-sm text-muted-foreground">All available players selected or no players match.</p>}
+                         {availablePlayersForSelection.filter(p => !(field.value || []).includes(p.id)).length === 0 && <p className="p-2 text-sm text-muted-foreground">All available players selected.</p>}
                       </SelectContent>
                     </Select>
                     <div className="flex flex-wrap gap-2 mt-2 min-h-[30px]">
@@ -375,7 +372,7 @@ export function AddResultForm() {
                           : [...currentWinners, winnerId]; 
                         field.onChange(newWinners);
                       }}
-                       value="" // Keep selection box clear
+                       value=""
                     >
                       <SelectTrigger aria-label="Select winners">
                          <SelectValue placeholder="Select winner(s)..." />
@@ -415,7 +412,7 @@ export function AddResultForm() {
               <div className="space-y-4">
                 <h3 className="text-xl font-semibold text-accent flex items-center gap-2"><Bot /> AI Handicap Helper</h3>
                 <p className="text-sm text-muted-foreground">
-                  Optionally, get AI-powered handicap suggestions. Adjust player stats below (Win Rate % and Average Score) for this match's handicap calculation. These adjustments are temporary for this match only.
+                  Optionally, get AI-powered handicap suggestions. Adjust player stats below for this match's handicap calculation.
                 </p>
                 <div className="space-y-3">
                   {matchPlayers.map((player) => (

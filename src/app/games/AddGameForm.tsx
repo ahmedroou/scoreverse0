@@ -19,16 +19,16 @@ import {
   DialogFooter,
   DialogClose,
 } from '@/components/ui/dialog';
-import type { Game } from '@/types'; // Omit is not needed here as we define the full schema
+import type { Game } from '@/types';
 
 const formSchema = z.object({
   name: z.string().min(1, "Game name cannot be empty.").max(50, "Game name is too long (max 50 chars)."),
   pointsPerWin: z.coerce.number().min(0, "Points per win must be non-negative."),
-  minPlayers: z.coerce.number().min(1, "Minimum players must be at least 1.").max(100, "Max value for min players is 100."), // Added max for sanity
-  maxPlayers: z.coerce.number().min(0, "Max players cannot be negative.").max(100, "Max value for max players is 100.").optional().or(z.literal('')), // Optional, allow empty string
+  minPlayers: z.coerce.number().min(1, "Minimum players must be at least 1.").max(100, "Max value for min players is 100."),
+  maxPlayers: z.coerce.number().min(0, "Max players cannot be negative.").max(100, "Max value for max players is 100.").optional().or(z.literal('')),
   description: z.string().max(200, "Description is too long (max 200 chars).").optional(),
 }).refine(data => {
-    if (data.maxPlayers && typeof data.maxPlayers === 'number' && data.maxPlayers !== 0) { // Max players 0 means no limit
+    if (data.maxPlayers && typeof data.maxPlayers === 'number' && data.maxPlayers !== 0) {
         return data.maxPlayers >= data.minPlayers;
     }
     return true;
@@ -51,13 +51,13 @@ export function AddGameForm({ isOpen, onOpenChange }: AddGameFormProps) {
       name: "",
       pointsPerWin: 1,
       minPlayers: 2,
-      maxPlayers: undefined, // Or "" if you prefer empty string for optional number
+      maxPlayers: undefined,
       description: "",
     },
   });
 
   const onSubmit = (values: z.infer<typeof formSchema>) => {
-    const gameData: Omit<Game, 'id' | 'icon'> = {
+    const gameData: Omit<Game, 'id' | 'icon' | 'ownerId'> = {
         name: values.name,
         pointsPerWin: values.pointsPerWin,
         minPlayers: values.minPlayers,
@@ -128,5 +128,3 @@ export function AddGameForm({ isOpen, onOpenChange }: AddGameFormProps) {
     </Dialog>
   );
 }
-
-    

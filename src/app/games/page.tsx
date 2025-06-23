@@ -24,7 +24,7 @@ import Link from 'next/link';
 
 
 export default function GameLibraryPage() {
-  const { games: contextGames, isClient, currentUser, deleteGame, matches } = useAppContext();
+  const { games: contextGames, isClient, currentUser, deleteGame, matches, getUserById } = useAppContext();
   const [searchTerm, setSearchTerm] = useState('');
   const [isAddGameOpen, setIsAddGameOpen] = useState(false);
   const [isEditGameOpen, setIsEditGameOpen] = useState(false);
@@ -50,12 +50,7 @@ export default function GameLibraryPage() {
 
   const confirmDeleteGame = () => {
     if (gameToDelete) {
-      const isUsed = matches.some(match => match.gameId === gameToDelete.id);
-      if (isUsed) {
-        // Toast is handled by context, but good to have a direct feedback mechanism if needed
-      } else {
-        deleteGame(gameToDelete.id);
-      }
+      deleteGame(gameToDelete.id);
       setGameToDelete(null);
     }
   };
@@ -89,7 +84,7 @@ export default function GameLibraryPage() {
       <header className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-4xl font-bold tracking-tight text-primary mb-2 flex items-center gap-2"><Swords/> Game Library</h1>
-          <p className="text-lg text-muted-foreground">Browse, add, or manage games available for tracking.</p>
+          <p className="text-lg text-muted-foreground">{currentUser.isAdmin ? "Viewing all games across the platform." : "Browse, add, or manage games available for tracking."}</p>
         </div>
         <Button onClick={() => setIsAddGameOpen(true)} className="bg-primary hover:bg-primary/90 text-primary-foreground whitespace-nowrap">
           <PlusCircle className="mr-2 h-5 w-5" /> Add New Game
@@ -105,15 +100,20 @@ export default function GameLibraryPage() {
       
       {filteredGames.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredGames.map((game) => (
-            <GameCard 
-              key={game.id} 
-              game={game}
-              showAdminControls={true}
-              onEdit={() => handleEditClick(game)}
-              onDelete={() => handleDeleteClick(game)}
-            />
-          ))}
+          {filteredGames.map((game) => {
+            const owner = currentUser.isAdmin ? getUserById(game.ownerId) : null;
+            const canEdit = currentUser.isAdmin || currentUser.id === game.ownerId;
+            return (
+              <GameCard 
+                key={game.id} 
+                game={game}
+                showAdminControls={canEdit}
+                onEdit={() => handleEditClick(game)}
+                onDelete={() => handleDeleteClick(game)}
+                ownerUsername={owner?.username}
+              />
+            )
+          })}
         </div>
       ) : (
         <div className="text-center py-10 bg-card border border-border rounded-lg shadow">
@@ -156,7 +156,7 @@ export default function GameLibraryPage() {
               <AlertDialogDescription>
                 Are you sure you want to delete the game "{gameToDelete.name}"?
                 {matches.some(match => match.gameId === gameToDelete.id) 
-                  ? " This game is used in recorded matches and cannot be deleted. You can edit it instead."
+                  ? " This game is used in recorded matches and cannot be deleted."
                   : " This action cannot be undone."
                 }
               </AlertDialogDescription>
@@ -178,5 +178,3 @@ export default function GameLibraryPage() {
     </div>
   );
 }
-
-    

@@ -9,7 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { EditPlayerForm } from './EditPlayerForm';
 import { AddPlayerForm } from './AddPlayerForm';
 import type { Player } from '@/types';
-import { Loader2, Users, Edit3, UserPlus, Trash2, ShieldAlert, BarChartHorizontal } from 'lucide-react';
+import { Loader2, Users, Edit3, UserPlus, Trash2, ShieldAlert, BarChartHorizontal, UserCog } from 'lucide-react';
 import Link from 'next/link';
 import {
   AlertDialog,
@@ -35,7 +35,7 @@ const stringToHslColor = (str: string, s: number, l: number): string => {
 
 
 export default function ManagePlayersPage() {
-  const { players, deletePlayer, isClient, currentUser } = useAppContext();
+  const { players, deletePlayer, isClient, currentUser, getUserById } = useAppContext();
   const [editingPlayer, setEditingPlayer] = useState<Player | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isAddPlayerDialogOpen, setIsAddPlayerDialogOpen] = useState(false);
@@ -88,7 +88,7 @@ export default function ManagePlayersPage() {
             <Users /> Manage Players
           </CardTitle>
           <CardDescription>
-            View, edit, add, or delete players in ScoreVerse.
+            {currentUser.isAdmin ? "Viewing all players across the platform." : "View, edit, add, or delete players in your roster."}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -96,7 +96,10 @@ export default function ManagePlayersPage() {
             <p className="text-muted-foreground text-center py-4">No players found. Start by adding some!</p>
           ) : (
             <ul className="space-y-3">
-              {players.map((player) => (
+              {players.map((player) => {
+                const owner = currentUser.isAdmin ? getUserById(player.ownerId) : null;
+                const canEdit = currentUser.isAdmin || currentUser.id === player.ownerId;
+                return (
                 <li
                   key={player.id}
                   className="flex items-center justify-between p-3 border border-border rounded-lg hover:bg-muted/30 transition-colors"
@@ -108,7 +111,15 @@ export default function ManagePlayersPage() {
                         {player.name.substring(0, 2).toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
-                    <span className="font-medium text-lg text-card-foreground truncate">{player.name}</span>
+                    <div className="truncate">
+                        <span className="font-medium text-lg text-card-foreground truncate">{player.name}</span>
+                        {owner && (
+                            <div className="text-xs text-muted-foreground flex items-center gap-1">
+                                <UserCog className="h-3 w-3"/>
+                                Owner: {owner.username}
+                            </div>
+                        )}
+                    </div>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
                      <Link href={`/stats/${player.id}`} passHref legacyBehavior>
@@ -117,11 +128,14 @@ export default function ManagePlayersPage() {
                             <span className="hidden sm:inline">Stats</span>
                         </Button>
                     </Link>
+                    {canEdit && (
                     <Button variant="outline" size="sm" onClick={() => handleEditClick(player)} className="border-accent text-accent hover:bg-accent hover:text-accent-foreground">
                       <Edit3 className="h-4 w-4 mr-1 sm:mr-2" />
                       <span className="hidden sm:inline">Edit</span>
                     </Button>
+                    )}
                     
+                    {canEdit && (
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
                         <Button variant="destructive" size="sm" className="bg-destructive/80 hover:bg-destructive text-destructive-foreground">
@@ -136,7 +150,7 @@ export default function ManagePlayersPage() {
                             Are you sure you want to delete this player?
                           </AlertDialogTitle>
                           <AlertDialogDescription>
-                            This action cannot be undone. Deleting "{player.name}" will remove them from the player list and all associated match records.
+                            This action cannot be undone. Deleting "{player.name}" will remove them from the player list and all associated match records for their owner.
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
@@ -150,9 +164,10 @@ export default function ManagePlayersPage() {
                         </AlertDialogFooter>
                       </AlertDialogContent>
                     </AlertDialog>
+                    )}
                   </div>
                 </li>
-              ))}
+              )})}
             </ul>
           )}
         </CardContent>

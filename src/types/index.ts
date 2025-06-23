@@ -9,6 +9,7 @@ export interface Game {
   description?: string;
   minPlayers: number;
   maxPlayers?: number;
+  ownerId: string;
 }
 
 export interface Player {
@@ -18,6 +19,7 @@ export interface Player {
   // For AI Handicap Suggestions & potential future stats display
   winRate?: number; // 0 to 1, represents probability
   averageScore?: number;
+  ownerId: string;
 }
 
 // Extends Player for form-specific input where winRate might be 0-100
@@ -28,7 +30,7 @@ export interface MatchPlayer extends Player {
 
 export interface Space {
   id: string;
-  name: string;
+  name:string;
   ownerId: string; // ID of the user who owns this space
   shareId?: string; // Optional: A unique ID for public sharing
 }
@@ -57,6 +59,7 @@ export interface UserAccount {
   id: string;
   username: string;
   password?: string; // Added for password authentication
+  isAdmin?: boolean;
 }
 
 export interface PlayerGameStats {
