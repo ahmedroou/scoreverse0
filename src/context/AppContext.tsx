@@ -152,13 +152,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const gamesKey = `${GAMES_LS_KEY_PREFIX}${currentUser.id}`;
 
       const savedPlayers = localStorage.getItem(playersKey);
-      setPlayers(savedPlayers ? JSON.parse(savedPlayers) : INITIAL_MOCK_PLAYERS.map(p => ({...p, id: `player-${p.id.replace('player','')}-${currentUser.id}-${Math.random().toString(36).substring(2, 7)}`, ownerId: currentUser.id})));
+      setPlayers(savedPlayers ? JSON.parse(savedPlayers) : INITIAL_MOCK_PLAYERS.map(p => ({...p, id: `${p.id}-${currentUser.id}-${Math.random().toString(36).substring(2, 9)}`, ownerId: currentUser.id})));
 
       const savedMatches = localStorage.getItem(matchesKey);
       setMatches(savedMatches ? JSON.parse(savedMatches) : []);
 
       const savedGames = localStorage.getItem(gamesKey);
-      setGames(savedGames ? JSON.parse(savedGames) : INITIAL_MOCK_GAMES.map(g => ({...g, id: `game-${g.id}-${currentUser.id}-${Math.random().toString(36).substring(2, 7)}`, ownerId: currentUser.id})));
+      setGames(savedGames ? JSON.parse(savedGames) : INITIAL_MOCK_GAMES.map(g => ({...g, id: `${g.id}-${currentUser.id}-${Math.random().toString(36).substring(2, 9)}`, ownerId: currentUser.id})));
 
       const savedSpaces = localStorage.getItem(spacesKey);
       let userSpaces: Space[] = savedSpaces ? JSON.parse(savedSpaces) : [];
@@ -236,9 +236,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         newUser.isAdmin = true;
     }
     
-    // Initialize with default data for the new user
-    const initialUserPlayers = INITIAL_MOCK_PLAYERS.map(p => ({...p, id: `player-${p.id.replace('player','')}-${newUser.id}-${Math.random().toString(36).substring(2, 7)}`, ownerId: newUser.id}));
-    const initialUserGames = INITIAL_MOCK_GAMES.map(g => ({...g, id: `game-${g.id.replace('custom', 'game')}-${newUser.id}-${Math.random().toString(36).substring(2, 7)}`, ownerId: newUser.id}));
+    // Initialize with default data for the new user with unique IDs
+    const initialUserPlayers = INITIAL_MOCK_PLAYERS.map(p => ({...p, id: `${p.id}-${newUser.id}-${Math.random().toString(36).substring(2, 9)}`, ownerId: newUser.id}));
+    const initialUserGames = INITIAL_MOCK_GAMES.map(g => ({...g, id: `${g.id}-${newUser.id}-${Math.random().toString(36).substring(2, 9)}`, ownerId: newUser.id}));
     const initialUserMatches: Match[] = [];
     const defaultSpaceId = `space-default-${newUser.id}-${Date.now()}`;
     const defaultSpace: Space = { id: defaultSpaceId, name: DEFAULT_SPACE_NAME, ownerId: newUser.id };
@@ -605,13 +605,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     
     toast({ title: "Space Updated", description: "Space name has been changed." });
   }, [currentUser, toast, isClient]);
-
+  
   const getSpacesForCurrentUser = useCallback((): Space[] => {
     if (!currentUser) return [];
     if (currentUser.isAdmin) return spaces;
     return spaces.filter(s => s.ownerId === currentUser.id);
   }, [currentUser, spaces]);
-  
+
   const deleteSpace = useCallback((spaceIdToDelete: string) => {
      if (!currentUser) {
       toast({ title: "Error", description: "Login required.", variant: "destructive"});
@@ -626,7 +626,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
     
     // For regular users, prevent deleting the last space.
-    const userOwnedSpaces = spaces.filter(s => s.ownerId === spaceToDelete.ownerId);
+    const userOwnedSpaces = getSpacesForCurrentUser();
     if (!currentUser.isAdmin && userOwnedSpaces.length <= 1) {
         toast({ title: "Cannot Delete", description: "You must have at least one space.", variant: "destructive"});
         return;
@@ -653,15 +653,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
      }
 
     if (activeSpaceId === spaceIdToDelete) {
-      if(currentUser.isAdmin){
-        setActiveSpaceIdState(null);
-      } else {
-        const remainingUserSpaces = remainingSpaces.filter(s => s.ownerId === currentUser.id);
-        setActiveSpaceIdState(remainingUserSpaces[0]?.id || null);
-      }
+      const remainingUserSpacesAfterDelete = remainingSpaces.filter(s => s.ownerId === currentUser.id);
+      const newActiveId = currentUser.isAdmin ? null : (remainingUserSpacesAfterDelete[0]?.id || null);
+      setActiveSpaceIdState(newActiveId);
     }
     toast({ title: "Space Deleted", description: `The space "${spaceToDelete.name}" and its matches have been deleted.` });
-  }, [currentUser, toast, spaces, activeSpaceId, isClient]);
+  }, [currentUser, toast, spaces, activeSpaceId, isClient, getSpacesForCurrentUser]);
   
   const setActiveSpaceId = useCallback((newActiveSpaceId: string | null) => {
     if (!currentUser) {
@@ -832,5 +829,7 @@ export const useAppContext = (): AppContextType => {
   }
   return context;
 };
+
+    
 
     
