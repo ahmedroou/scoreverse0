@@ -52,4 +52,3 @@ export function SpaceCard({ space, isActive, onSetActive, onEdit, onDelete }: Sp
     </Card>
   );
 }
-
