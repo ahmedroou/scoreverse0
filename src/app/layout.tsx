@@ -8,7 +8,6 @@ import { Toaster } from '@/components/ui/toaster';
 export const metadata: Metadata = {
   title: 'ScoreVerse - Track Your Games',
   description: 'A modern app to track scores for your favorite multiplayer games.',
-  manifest: '/manifest.json',
 };
 
 export default function RootLayout({
