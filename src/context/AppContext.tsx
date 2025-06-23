@@ -152,13 +152,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const gamesKey = `${GAMES_LS_KEY_PREFIX}${currentUser.id}`;
 
       const savedPlayers = localStorage.getItem(playersKey);
-      setPlayers(savedPlayers ? JSON.parse(savedPlayers) : INITIAL_MOCK_PLAYERS.map(p => ({...p, ownerId: currentUser.id})));
+      setPlayers(savedPlayers ? JSON.parse(savedPlayers) : INITIAL_MOCK_PLAYERS.map(p => ({...p, id: `player-${p.id.replace('player','')}-${currentUser.id}-${Math.random().toString(36).substring(2, 7)}`, ownerId: currentUser.id})));
 
       const savedMatches = localStorage.getItem(matchesKey);
       setMatches(savedMatches ? JSON.parse(savedMatches) : []);
 
       const savedGames = localStorage.getItem(gamesKey);
-      setGames(savedGames ? JSON.parse(savedGames) : INITIAL_MOCK_GAMES.map(g => ({...g, ownerId: currentUser.id})));
+      setGames(savedGames ? JSON.parse(savedGames) : INITIAL_MOCK_GAMES.map(g => ({...g, id: `game-${g.id}-${currentUser.id}-${Math.random().toString(36).substring(2, 7)}`, ownerId: currentUser.id})));
 
       const savedSpaces = localStorage.getItem(spacesKey);
       let userSpaces: Space[] = savedSpaces ? JSON.parse(savedSpaces) : [];
@@ -206,6 +206,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             userToLogin.isAdmin = true;
         }
         setCurrentUser(userToLogin); 
+        localStorage.setItem(CURRENT_USER_LS_KEY, JSON.stringify(userToLogin));
         toast({ title: "Logged In", description: `Welcome back, ${username}!` });
         setIsLoadingAuth(false);
         return true;
@@ -236,8 +237,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
     
     // Initialize with default data for the new user
-    const initialUserPlayers = INITIAL_MOCK_PLAYERS.map(p => ({...p, ownerId: newUser.id}));
-    const initialUserGames = INITIAL_MOCK_GAMES.map(g => ({...g, ownerId: newUser.id}));
+    const initialUserPlayers = INITIAL_MOCK_PLAYERS.map(p => ({...p, id: `player-${p.id.replace('player','')}-${newUser.id}-${Math.random().toString(36).substring(2, 7)}`, ownerId: newUser.id}));
+    const initialUserGames = INITIAL_MOCK_GAMES.map(g => ({...g, id: `game-${g.id.replace('custom', 'game')}-${newUser.id}-${Math.random().toString(36).substring(2, 7)}`, ownerId: newUser.id}));
     const initialUserMatches: Match[] = [];
     const defaultSpaceId = `space-default-${newUser.id}-${Date.now()}`;
     const defaultSpace: Space = { id: defaultSpaceId, name: DEFAULT_SPACE_NAME, ownerId: newUser.id };
@@ -258,6 +259,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     });
 
     setCurrentUser(newUser); 
+    localStorage.setItem(CURRENT_USER_LS_KEY, JSON.stringify(newUser));
     
     toast({ title: "Account Created", description: `Welcome, ${username}!` });
     setIsLoadingAuth(false);
@@ -434,7 +436,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     
     if (isClient && ownerId) {
         const playersKey = `${PLAYERS_LS_KEY_PREFIX}${ownerId}`;
-        const currentPlayers: Player[] = JSON.parse(localStorage.getItem(playersKey) || '[]');
+        const currentPlayers: Player[] = JSON.parse(localStorage.getItem(playersKey) || '[]') as Player[];
         const updatedPlayers = currentPlayers.map(p => p.id === playerId ? { ...p, ...playerData } : p);
         localStorage.setItem(playersKey, JSON.stringify(updatedPlayers));
     }
@@ -596,7 +598,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     
     if (isClient && ownerId) {
         const spacesKey = `${SPACES_LS_KEY_PREFIX}${ownerId}`;
-        const currentSpaces: Space[] = JSON.parse(localStorage.getItem(spacesKey) || '[]');
+        const currentSpaces: Space[] = JSON.parse(localStorage.getItem(spacesKey) || '[]') as Space[];
         const updatedSpaces = currentSpaces.map(s => s.id === spaceId ? { ...s, name: newName } : s);
         localStorage.setItem(spacesKey, JSON.stringify(updatedSpaces));
     }
@@ -604,6 +606,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     toast({ title: "Space Updated", description: "Space name has been changed." });
   }, [currentUser, toast, isClient]);
 
+  const getSpacesForCurrentUser = useCallback((): Space[] => {
+    if (!currentUser) return [];
+    if (currentUser.isAdmin) return spaces;
+    return spaces.filter(s => s.ownerId === currentUser.id);
+  }, [currentUser, spaces]);
+  
   const deleteSpace = useCallback((spaceIdToDelete: string) => {
      if (!currentUser) {
       toast({ title: "Error", description: "Login required.", variant: "destructive"});
@@ -624,28 +632,35 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         return;
     }
     
+    const ownerId = spaceToDelete.ownerId;
+    const remainingSpaces = spaces.filter(s => s.id !== spaceIdToDelete);
+
     // State update
-    setSpaces(prev => prev.filter(s => s.id !== spaceIdToDelete));
+    setSpaces(remainingSpaces);
     setMatches(prev => prev.filter(m => m.spaceId !== spaceIdToDelete));
 
     // Persist to correct user's localStorage
      if (isClient) {
-        const ownerId = spaceToDelete.ownerId;
         const spacesKey = `${SPACES_LS_KEY_PREFIX}${ownerId}`;
-        const currentSpaces = JSON.parse(localStorage.getItem(spacesKey) || '[]') as Space[];
-        const updatedSpaces = currentSpaces.filter(s => s.id !== spaceIdToDelete);
-        localStorage.setItem(spacesKey, JSON.stringify(updatedSpaces));
+        const currentSpacesInStorage = JSON.parse(localStorage.getItem(spacesKey) || '[]') as Space[];
+        const updatedSpacesInStorage = currentSpacesInStorage.filter(s => s.id !== spaceIdToDelete);
+        localStorage.setItem(spacesKey, JSON.stringify(updatedSpacesInStorage));
 
         const matchesKey = `${MATCHES_LS_KEY_PREFIX}${ownerId}`;
-        const currentMatches = JSON.parse(localStorage.getItem(matchesKey) || '[]') as Match[];
-        const updatedMatches = currentMatches.filter(m => m.spaceId !== spaceIdToDelete);
-        localStorage.setItem(matchesKey, JSON.stringify(updatedMatches));
+        const currentMatchesInStorage = JSON.parse(localStorage.getItem(matchesKey) || '[]') as Match[];
+        const updatedMatchesInStorage = currentMatchesInStorage.filter(m => m.spaceId !== spaceIdToDelete);
+        localStorage.setItem(matchesKey, JSON.stringify(updatedMatchesInStorage));
      }
 
     if (activeSpaceId === spaceIdToDelete) {
-      setActiveSpaceIdState(currentUser.isAdmin ? null : getSpacesForCurrentUser()[0]?.id || null);
+      if(currentUser.isAdmin){
+        setActiveSpaceIdState(null);
+      } else {
+        const remainingUserSpaces = remainingSpaces.filter(s => s.ownerId === currentUser.id);
+        setActiveSpaceIdState(remainingUserSpaces[0]?.id || null);
+      }
     }
-    toast({ title: "Space Deleted", description: "The space and its matches have been deleted." });
+    toast({ title: "Space Deleted", description: `The space "${spaceToDelete.name}" and its matches have been deleted.` });
   }, [currentUser, toast, spaces, activeSpaceId, isClient]);
   
   const setActiveSpaceId = useCallback((newActiveSpaceId: string | null) => {
@@ -654,17 +669,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         return;
     }
     setActiveSpaceIdState(newActiveSpaceId);
+    if(isClient){
+      localStorage.setItem(`${ACTIVE_SPACE_LS_KEY_PREFIX}${currentUser.id}`, JSON.stringify(newActiveSpaceId));
+    }
     if (!currentUser.isAdmin) { // Admins don't need space changed toasts
         const spaceName = newActiveSpaceId ? spaces.find(s=>s.id === newActiveSpaceId)?.name : "Global (No Space)";
         toast({ title: "Active Space Changed", description: `Now viewing: ${spaceName}`});
     }
-  }, [currentUser, spaces, toast]);
-
-  const getSpacesForCurrentUser = useCallback((): Space[] => {
-    if (!currentUser) return [];
-    if (currentUser.isAdmin) return spaces;
-    return spaces.filter(s => s.ownerId === currentUser.id);
-  }, [currentUser, spaces]);
+  }, [currentUser, spaces, toast, isClient]);
   
   const getActiveSpace = useCallback((): Space | undefined => {
     if (!activeSpaceId) return undefined;
@@ -704,7 +716,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     
     if (isClient && ownerId) {
         const gamesKey = `${GAMES_LS_KEY_PREFIX}${ownerId}`;
-        const currentGames: Game[] = JSON.parse(localStorage.getItem(gamesKey) || '[]');
+        const currentGames: Game[] = JSON.parse(localStorage.getItem(gamesKey) || '[]') as Game[];
         const updatedGames = currentGames.map(g => g.id === gameId ? { ...g, ...gameData } : g);
         localStorage.setItem(gamesKey, JSON.stringify(updatedGames));
     }
@@ -820,3 +832,5 @@ export const useAppContext = (): AppContextType => {
   }
   return context;
 };
+
+    
