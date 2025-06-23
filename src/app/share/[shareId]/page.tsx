@@ -95,6 +95,12 @@ export default function SharedLeaderboardPage() {
     const gameMatches = data.matches.filter(match => match.gameId === gameId);
     return calculateScores(gameMatches, data.players);
   };
+  
+  const relevantGames = useMemo(() => {
+    if (!data) return [];
+    const gameIdsInMatches = new Set(data.matches.map(m => m.gameId));
+    return data.games.filter(g => gameIdsInMatches.has(g.id));
+  }, [data]);
 
 
   if (isLoading) {
@@ -115,12 +121,6 @@ export default function SharedLeaderboardPage() {
       </div>
     );
   }
-  
-  const relevantGames = useMemo(() => {
-    const gameIdsInMatches = new Set(data.matches.map(m => m.gameId));
-    return data.games.filter(g => gameIdsInMatches.has(g.id));
-  }, [data.matches, data.games]);
-
 
   return (
      <div className="container mx-auto py-8">
