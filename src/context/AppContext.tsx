@@ -2,9 +2,8 @@
 "use client";
 import type { ReactNode } from 'react';
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import type { Game, Player, Match, ScoreData, Space, UserAccount } from '@/types';
+import type { Game, Player, Match, ScoreData, Space, UserAccount, PlayerStats } from '@/types';
 import { INITIAL_MOCK_GAMES, INITIAL_MOCK_PLAYERS } from '@/data/mock-data.tsx';
-import { Toaster } from '@/components/ui/toaster';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 
@@ -22,6 +21,7 @@ interface AppContextType {
   getPlayerById: (playerId: string) => Player | undefined;
   getOverallLeaderboard: () => ScoreData[];
   getGameLeaderboard: (gameId: string) => ScoreData[];
+  getPlayerStats: (playerId: string) => PlayerStats | null;
   isClient: boolean;
   currentUser: UserAccount | null;
   login: (username: string, password?: string) => boolean; 
@@ -447,6 +447,119 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         : matches.filter(match => match.gameId === gameId && match.spaceId === undefined);
     return calculateScores(gameMatches);
   }, [matches, calculateScores, currentUser, isClient, activeSpaceId]);
+  
+  const getPlayerStats = useCallback((playerId: string): PlayerStats | null => {
+    const player = getPlayerById(playerId);
+    if (!player) return null;
+
+    const relevantMatches = activeSpaceId 
+        ? matches.filter(m => m.spaceId === activeSpaceId) 
+        : matches.filter(m => m.spaceId === undefined);
+
+    const playerMatches = relevantMatches
+        .filter(m => m.playerIds.includes(playerId))
+        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+    if (playerMatches.length === 0) {
+        return {
+            player,
+            totalGames: 0,
+            totalWins: 0,
+            totalLosses: 0,
+            winRate: 0,
+            currentStreak: { type: 'W', count: 0 },
+            longestWinStreak: 0,
+            longestLossStreak: 0,
+            totalPoints: 0,
+            averagePointsPerMatch: 0,
+            gameStats: [],
+        };
+    }
+
+    let totalWins = 0;
+    let totalPoints = 0;
+    
+    let currentWinStreak = 0;
+    let currentLossStreak = 0;
+    let longestWinStreak = 0;
+    let longestLossStreak = 0;
+    let lastResult: 'W' | 'L' | null = null;
+    
+    playerMatches.forEach(match => {
+        const isWinner = match.winnerIds.includes(playerId);
+        
+        if (isWinner) {
+            totalWins++;
+            currentWinStreak++;
+            currentLossStreak = 0;
+            if (currentWinStreak > longestWinStreak) {
+                longestWinStreak = currentWinStreak;
+            }
+            lastResult = 'W';
+        } else {
+            currentLossStreak++;
+            currentWinStreak = 0;
+            if (currentLossStreak > longestLossStreak) {
+                longestLossStreak = currentLossStreak;
+            }
+            lastResult = 'L';
+        }
+
+        const pointsData = match.pointsAwarded.find(p => p.playerId === playerId);
+        if (pointsData) {
+          totalPoints += pointsData.points;
+        }
+    });
+
+    const totalGames = playerMatches.length;
+    const totalLosses = totalGames - totalWins;
+    const winRate = totalGames > 0 ? totalWins / totalGames : 0;
+
+    const currentStreak = !lastResult ? { type: 'W', count: 0 } 
+      : (lastResult === 'W' 
+        ? { type: 'W' as const, count: currentWinStreak }
+        : { type: 'L' as const, count: currentLossStreak });
+
+    const averagePointsPerMatch = totalGames > 0 ? totalPoints / totalGames : 0;
+
+    const gameStatsMap = new Map<string, { game: Game; wins: number; losses: number; gamesPlayed: number }>();
+    
+    playerMatches.forEach(match => {
+        const game = getGameById(match.gameId);
+        if (!game) return;
+
+        if (!gameStatsMap.has(game.id)) {
+            gameStatsMap.set(game.id, { game, wins: 0, losses: 0, gamesPlayed: 0 });
+        }
+        
+        const stats = gameStatsMap.get(game.id)!;
+        stats.gamesPlayed++;
+        if (match.winnerIds.includes(playerId)) {
+            stats.wins++;
+        } else {
+            stats.losses++;
+        }
+    });
+
+    const gameStats = Array.from(gameStatsMap.values()).map(s => ({
+        ...s,
+        winRate: s.gamesPlayed > 0 ? s.wins / s.gamesPlayed : 0,
+    }));
+    
+    return {
+        player,
+        totalGames,
+        totalWins,
+        totalLosses,
+        winRate,
+        currentStreak,
+        longestWinStreak,
+        longestLossStreak,
+        totalPoints,
+        averagePointsPerMatch,
+        gameStats,
+    };
+  }, [matches, activeSpaceId, getPlayerById, getGameById]);
 
   const addSpace = useCallback((name: string) => {
     if (!currentUser) {
@@ -612,6 +725,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       getPlayerById,
       getOverallLeaderboard,
       getGameLeaderboard,
+      getPlayerStats,
       isClient,
       currentUser,
       login,
@@ -631,7 +745,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       deleteGame,
     }}>
       {children}
-      <Toaster />
     </AppContext.Provider>
   );
 };

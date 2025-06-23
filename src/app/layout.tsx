@@ -3,6 +3,7 @@ import { GeistSans } from 'geist/font/sans';
 import { GeistMono } from 'geist/font/mono';
 import './globals.css';
 import { AppLayoutClient } from '@/components/layout/AppLayoutClient';
+import { Toaster } from '@/components/ui/toaster';
 
 export const metadata: Metadata = {
   title: 'ScoreVerse - Track Your Games',
@@ -20,6 +21,7 @@ export default function RootLayout({
         <AppLayoutClient>
           {children}
         </AppLayoutClient>
+        <Toaster />
       </body>
     </html>
   );

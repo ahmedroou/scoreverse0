@@ -9,7 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { EditPlayerForm } from './EditPlayerForm';
 import { AddPlayerForm } from './AddPlayerForm';
 import type { Player } from '@/types';
-import { Loader2, Users, Edit3, UserPlus, Trash2, ShieldAlert } from 'lucide-react';
+import { Loader2, Users, Edit3, UserPlus, Trash2, ShieldAlert, BarChartHorizontal } from 'lucide-react';
 import Link from 'next/link';
 import {
   AlertDialog,
@@ -82,7 +82,7 @@ export default function ManagePlayersPage() {
 
   return (
     <div className="container mx-auto py-8">
-      <Card className="w-full max-w-3xl mx-auto shadow-xl bg-card">
+      <Card className="w-full max-w-4xl mx-auto shadow-xl bg-card">
         <CardHeader>
           <CardTitle className="text-3xl font-bold text-primary flex items-center gap-2">
             <Users /> Manage Players
@@ -111,6 +111,12 @@ export default function ManagePlayersPage() {
                     <span className="font-medium text-lg text-card-foreground truncate">{player.name}</span>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
+                     <Link href={`/stats/${player.id}`} passHref legacyBehavior>
+                        <Button variant="outline" size="sm" className="border-primary/50 text-primary/90 hover:bg-primary/10 hover:text-primary">
+                            <BarChartHorizontal className="h-4 w-4 mr-1 sm:mr-2" />
+                            <span className="hidden sm:inline">Stats</span>
+                        </Button>
+                    </Link>
                     <Button variant="outline" size="sm" onClick={() => handleEditClick(player)} className="border-accent text-accent hover:bg-accent hover:text-accent-foreground">
                       <Edit3 className="h-4 w-4 mr-1 sm:mr-2" />
                       <span className="hidden sm:inline">Edit</span>

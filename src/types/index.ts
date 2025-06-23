@@ -58,3 +58,25 @@ export interface UserAccount {
   username: string;
   password?: string; // Added for password authentication
 }
+
+export interface PlayerGameStats {
+  game: Game;
+  wins: number;
+  losses: number;
+  gamesPlayed: number;
+  winRate: number;
+}
+
+export interface PlayerStats {
+  player: Player;
+  totalGames: number;
+  totalWins: number;
+  totalLosses: number;
+  winRate: number;
+  currentStreak: { type: 'W' | 'L'; count: number };
+  longestWinStreak: number;
+  longestLossStreak: number;
+  totalPoints: number;
+  averagePointsPerMatch: number;
+  gameStats: PlayerGameStats[];
+}

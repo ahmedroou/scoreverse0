@@ -11,7 +11,10 @@ import {
   TableCaption,
 } from '@/components/ui/table';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Medal, ShieldQuestion } from 'lucide-react';
+import { Medal, ShieldQuestion, ArrowUp, ArrowDown } from 'lucide-react';
+import Link from 'next/link';
+import { cn } from '@/lib/utils';
+import { Badge } from './ui/badge';
 
 interface LeaderboardTableProps {
   scores: ScoreData[];
@@ -29,10 +32,10 @@ const stringToHslColor = (str: string, s: number, l: number): string => {
 };
 
 const getRankIndicator = (rank: number) => {
-  if (rank === 1) return <Medal className="h-6 w-6 text-yellow-400" />;
-  if (rank === 2) return <Medal className="h-6 w-6 text-gray-400" />;
-  if (rank === 3) return <Medal className="h-6 w-6 text-orange-500" />; // Brighter orange
-  return <span className="font-semibold text-muted-foreground text-lg">{rank}</span>;
+  if (rank === 1) return <Medal className="h-7 w-7 text-yellow-400" />;
+  if (rank === 2) return <Medal className="h-7 w-7 text-gray-400" />;
+  if (rank === 3) return <Medal className="h-7 w-7 text-orange-500" />;
+  return <span className="font-semibold text-muted-foreground text-xl">{rank}</span>;
 };
 
 const getWinRatePercentage = (wins: number, gamesPlayed: number) => {
@@ -58,43 +61,62 @@ export function LeaderboardTable({ scores, title }: LeaderboardTableProps) {
 
   return (
     <div className="overflow-x-auto">
-      <Table className="bg-card border-border shadow-md rounded-lg min-w-[600px]">
-        {title && <TableCaption className="text-xl font-bold py-3 text-primary bg-card-foreground/5 rounded-t-lg">{title}</TableCaption>}
+      <Table className="bg-card border-border shadow-md rounded-lg min-w-[700px]">
+        {title && <TableCaption className="text-xl font-bold py-4 text-primary bg-card-foreground/5 rounded-t-lg">{title}</TableCaption>}
         <TableHeader className="bg-muted/30">
           <TableRow className="hover:bg-muted/40 border-b-2 border-border">
-            <TableHead className="w-[80px] text-center text-primary-foreground/90 font-semibold text-base">Rank</TableHead>
-            <TableHead className="text-primary-foreground/90 font-semibold text-base">Player</TableHead>
-            <TableHead className="text-center text-primary-foreground/90 font-semibold text-base">Total Points</TableHead>
-            <TableHead className="text-center text-primary-foreground/90 font-semibold text-base">Games Played</TableHead>
-            <TableHead className="text-center text-primary-foreground/90 font-semibold text-base">Wins</TableHead>
-            <TableHead className="text-center text-primary-foreground/90 font-semibold text-base">Win Rate</TableHead>
+            <TableHead className="w-[80px] text-center font-semibold text-base">Rank</TableHead>
+            <TableHead className="font-semibold text-base">Player</TableHead>
+            <TableHead className="text-center font-semibold text-base">Total Points</TableHead>
+            <TableHead className="text-center font-semibold text-base">Games Played</TableHead>
+            <TableHead className="text-center font-semibold text-base">Wins / Losses</TableHead>
+            <TableHead className="text-center font-semibold text-base">Win Rate</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {scores.map((score, index) => (
-            <TableRow key={score.playerId} className="hover:bg-muted/20 transition-colors border-b border-border last:border-b-0">
-              <TableCell className="text-center font-medium">
-                  <div className="flex items-center justify-center h-full">
-                      {getRankIndicator(index + 1)}
+          {scores.map((score, index) => {
+            const rank = index + 1;
+            return (
+              <TableRow 
+                key={score.playerId} 
+                className={cn("transition-colors border-b border-border last:border-b-0", 
+                  rank === 1 && "bg-yellow-500/10 hover:bg-yellow-500/20",
+                  rank === 2 && "bg-slate-400/10 hover:bg-slate-400/20",
+                  rank === 3 && "bg-orange-500/10 hover:bg-orange-500/20"
+                )}
+              >
+                <TableCell className="text-center font-medium">
+                    <div className="flex items-center justify-center h-full">
+                        {getRankIndicator(rank)}
+                    </div>
+                </TableCell>
+                <TableCell>
+                  <Link href={`/stats/${score.playerId}`} className="group flex items-center gap-3 py-2 rounded-md transition-colors hover:bg-primary/10 -m-2 p-2">
+                    <Avatar className="h-12 w-12 border-2 border-primary/30 group-hover:border-primary">
+                      <AvatarImage src={score.avatarUrl} alt={score.playerName} />
+                      <AvatarFallback style={{ backgroundColor: stringToHslColor(score.playerName, 50, 60) }}>
+                        {score.playerName.substring(0, 2).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="font-medium text-lg text-card-foreground group-hover:text-primary">{score.playerName}</span>
+                  </Link>
+                </TableCell>
+                <TableCell className="text-center font-bold text-2xl text-accent">{score.totalPoints}</TableCell>
+                <TableCell className="text-center text-lg text-muted-foreground">{score.gamesPlayed}</TableCell>
+                <TableCell className="text-center text-lg">
+                  <div className="flex items-center justify-center gap-2">
+                    <Badge variant="default" className="bg-green-600/80 hover:bg-green-600 text-white gap-1">
+                      <ArrowUp className="h-3 w-3"/>{score.wins}
+                    </Badge>
+                     <Badge variant="destructive" className="bg-red-600/70 hover:bg-red-600 text-white gap-1">
+                       <ArrowDown className="h-3 w-3"/>{score.gamesPlayed - score.wins}
+                    </Badge>
                   </div>
-              </TableCell>
-              <TableCell>
-                <div className="flex items-center gap-3 py-2">
-                  <Avatar className="h-10 w-10 border-2 border-primary/30">
-                    <AvatarImage src={score.avatarUrl} alt={score.playerName} />
-                    <AvatarFallback style={{ backgroundColor: stringToHslColor(score.playerName, 50, 60) }}>
-                      {score.playerName.substring(0, 2).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                  <span className="font-medium text-lg text-card-foreground">{score.playerName}</span>
-                </div>
-              </TableCell>
-              <TableCell className="text-center font-bold text-xl text-accent">{score.totalPoints}</TableCell>
-              <TableCell className="text-center text-lg text-muted-foreground">{score.gamesPlayed}</TableCell>
-              <TableCell className="text-center text-lg text-green-500 font-medium">{score.wins}</TableCell>
-              <TableCell className="text-center text-lg text-muted-foreground">{getWinRatePercentage(score.wins, score.gamesPlayed)}</TableCell>
-            </TableRow>
-          ))}
+                </TableCell>
+                <TableCell className="text-center text-xl font-semibold text-muted-foreground">{getWinRatePercentage(score.wins, score.gamesPlayed)}</TableCell>
+              </TableRow>
+            );
+          })}
         </TableBody>
       </Table>
     </div>

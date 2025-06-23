@@ -12,12 +12,13 @@ import {
   SidebarFooter,
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button'; 
-import { Home, Swords, PlusCircle, BarChart3, History, Settings, Sparkles, Github, Users as UsersIcon, LayoutDashboard, Layers } from 'lucide-react'; 
+import { Home, Swords, PlusCircle, BarChart3, History, Settings, Sparkles, Github, Users as UsersIcon, LayoutDashboard, Layers, BarChartHorizontal } from 'lucide-react'; 
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/add-result', label: 'Add Game Result', icon: PlusCircle },
   { href: '/leaderboards', label: 'Leaderboards', icon: BarChart3 },
+  { href: '/stats', label: 'Player Stats', icon: BarChartHorizontal },
   { href: '/match-history', label: 'Match History', icon: History },
   { href: '/players', label: 'Manage Players', icon: UsersIcon },
   { href: '/games', label: 'Game Library', icon: Swords },
@@ -63,4 +64,3 @@ export function AppSidebar() {
     </Sidebar>
   );
 }
-
