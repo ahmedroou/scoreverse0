@@ -3,8 +3,8 @@
 
 import type { Space } from '@/types';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Layers, Edit3, Trash2, CheckCircle, Radio } from 'lucide-react';
+import { Card, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Layers, Edit3, Trash2, CheckCircle, Radio, Share2 } from 'lucide-react';
 
 interface SpaceCardProps {
   space: Space;
@@ -12,9 +12,10 @@ interface SpaceCardProps {
   onSetActive: () => void;
   onEdit: () => void;
   onDelete: () => void;
+  onShare: () => void;
 }
 
-export function SpaceCard({ space, isActive, onSetActive, onEdit, onDelete }: SpaceCardProps) {
+export function SpaceCard({ space, isActive, onSetActive, onEdit, onDelete, onShare }: SpaceCardProps) {
   return (
     <Card className={`border hover:shadow-md transition-shadow duration-150 ${isActive ? 'border-primary ring-2 ring-primary bg-primary/5' : 'border-border bg-card'}`}>
       <CardHeader className="pb-3">
@@ -32,6 +33,15 @@ export function SpaceCard({ space, isActive, onSetActive, onEdit, onDelete }: Sp
         </div>
       </CardHeader>
       <CardFooter className="flex flex-col sm:flex-row justify-end gap-2 border-t border-border/50 pt-3 px-4 pb-4">
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={onShare}
+          className="border-blue-500/50 text-blue-500 hover:bg-blue-500/10 hover:text-blue-400"
+        >
+          <Share2 className="h-4 w-4 mr-1.5" /> Share
+        </Button>
+        <div className="flex-grow"></div>
         <Button 
           variant={isActive ? "default" : "outline"} 
           size="sm" 

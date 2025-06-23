@@ -7,6 +7,8 @@ import { INITIAL_MOCK_GAMES, INITIAL_MOCK_PLAYERS } from '@/data/mock-data.tsx';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 
+const PUBLIC_SHARES_LS_KEY = 'scoreverse-public-shares';
+
 interface AppContextType {
   games: Game[];
   players: Player[];
@@ -37,6 +39,8 @@ interface AppContextType {
   addGame: (gameData: Omit<Game, 'id' | 'icon'>) => void;
   updateGame: (gameId: string, gameData: Partial<Omit<Game, 'id' | 'icon'>>) => void;
   deleteGame: (gameId: string) => void;
+  shareSpace: (spaceId: string) => string | null;
+  unshareSpace: (spaceId: string) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -47,7 +51,7 @@ const PLAYERS_LS_KEY_PREFIX = 'scoreverse-players-';
 const MATCHES_LS_KEY_PREFIX = 'scoreverse-matches-'; 
 const SPACES_LS_KEY_PREFIX = 'scoreverse-spaces-'; 
 const ACTIVE_SPACE_LS_KEY_PREFIX = 'scoreverse-active-space-'; 
-const GAMES_LS_KEY_PREFIX = 'scoreverse-games-'; // New key for games
+const GAMES_LS_KEY_PREFIX = 'scoreverse-games-';
 
 const DEFAULT_SPACE_NAME = "Personal Space";
 
@@ -688,6 +692,69 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         toast({ title: "Game Deleted", description: `${gameToDelete.name} has been removed from the library.` });
     }
   }, [currentUser, matches, games, toast]);
+  
+  const shareSpace = useCallback((spaceId: string): string | null => {
+    if (!currentUser || !isClient) return null;
+    const spaceToShare = spaces.find(s => s.id === spaceId);
+    if (!spaceToShare) return null;
+
+    const shareId = spaceToShare.shareId || `share-${Date.now()}`;
+    const updatedSpace = { ...spaceToShare, shareId };
+    
+    setSpaces(prev => prev.map(s => s.id === spaceId ? updatedSpace : s));
+
+    const spaceMatches = matches.filter(m => m.spaceId === spaceId);
+    const playerIdsInSpace = new Set<string>();
+    const gameIdsInSpace = new Set<string>();
+    spaceMatches.forEach(m => {
+        m.playerIds.forEach(pid => playerIdsInSpace.add(pid));
+        gameIdsInSpace.add(m.gameId);
+    });
+
+    const spacePlayers = players.filter(p => playerIdsInSpace.has(p.id));
+    const spaceGames = games.filter(g => gameIdsInSpace.has(g.id));
+
+    const sharedDataPayload = {
+        space: updatedSpace,
+        players: spacePlayers,
+        matches: spaceMatches,
+        games: spaceGames
+    };
+    
+    try {
+        const allShares = JSON.parse(localStorage.getItem(PUBLIC_SHARES_LS_KEY) || '{}');
+        allShares[shareId] = sharedDataPayload;
+        localStorage.setItem(PUBLIC_SHARES_LS_KEY, JSON.stringify(allShares));
+    } catch(e) {
+        console.error("Failed to save shared data to localStorage", e);
+        toast({ title: "Sharing Error", description: "Could not save sharing data. Your browser might be in private mode or storage is full.", variant: "destructive"});
+        return null;
+    }
+    
+    return shareId;
+  }, [isClient, currentUser, spaces, matches, players, games, toast]);
+
+  const unshareSpace = useCallback((spaceId: string) => {
+    if (!currentUser || !isClient) return;
+    
+    const spaceToUnshare = spaces.find(s => s.id === spaceId);
+    if (!spaceToUnshare || !spaceToUnshare.shareId) return;
+
+    const shareId = spaceToUnshare.shareId;
+    // We create a new object and delete the `shareId` property.
+    const { shareId: _, ...rest } = spaceToUnshare;
+    const updatedSpace: Space = rest;
+    
+    setSpaces(prev => prev.map(s => s.id === spaceId ? updatedSpace : s));
+    
+     try {
+        const allShares = JSON.parse(localStorage.getItem(PUBLIC_SHARES_LS_KEY) || '{}');
+        delete allShares[shareId];
+        localStorage.setItem(PUBLIC_SHARES_LS_KEY, JSON.stringify(allShares));
+    } catch(e) {
+        console.error("Failed to update shared data in localStorage", e);
+    }
+  }, [isClient, currentUser, spaces]);
 
 
   return (
@@ -721,6 +788,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       addGame,
       updateGame,
       deleteGame,
+      shareSpace,
+      unshareSpace,
     }}>
       {children}
     </AppContext.Provider>

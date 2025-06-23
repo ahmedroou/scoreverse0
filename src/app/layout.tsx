@@ -8,6 +8,7 @@ import { Toaster } from '@/components/ui/toaster';
 export const metadata: Metadata = {
   title: 'ScoreVerse - Track Your Games',
   description: 'A modern app to track scores for your favorite multiplayer games.',
+  manifest: '/manifest.json',
 };
 
 export default function RootLayout({
@@ -17,6 +18,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="dark">
+      <head>
+        <meta name="theme-color" content="#A050BE" />
+      </head>
       <body className={`${GeistSans.variable} ${GeistMono.variable} antialiased font-sans bg-background text-foreground`}>
         <AppLayoutClient>
           {children}

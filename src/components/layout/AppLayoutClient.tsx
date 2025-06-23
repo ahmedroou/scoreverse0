@@ -17,7 +17,8 @@ function ProtectedLayout({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!isLoadingAuth) {
-      if (!currentUser && pathname !== '/auth') {
+      const isPublicPath = pathname.startsWith('/share');
+      if (!currentUser && pathname !== '/auth' && !isPublicPath) {
         router.push('/auth');
       } else if (currentUser && pathname === '/auth') {
         router.push('/dashboard'); // Redirect to dashboard if logged in and on auth page
@@ -25,7 +26,7 @@ function ProtectedLayout({ children }: { children: ReactNode }) {
     }
   }, [currentUser, isLoadingAuth, pathname, router]);
 
-  if (isLoadingAuth) {
+  if (isLoadingAuth && !pathname.startsWith('/share')) {
     return (
       <div className="flex flex-col min-h-screen items-center justify-center bg-background text-foreground">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -34,9 +35,12 @@ function ProtectedLayout({ children }: { children: ReactNode }) {
     );
   }
   
-  // If user is not logged in and we are trying to access a protected page (not /auth)
+  const isAuthPage = pathname === '/auth';
+  const isPublicPage = pathname.startsWith('/share');
+
+  // If user is not logged in and we are trying to access a protected page
   // and not yet redirected, show loading or null to prevent flashing content.
-  if (!currentUser && pathname !== '/auth') {
+  if (!currentUser && !isAuthPage && !isPublicPage) {
      return (
       <div className="flex flex-col min-h-screen items-center justify-center bg-background text-foreground">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -46,7 +50,7 @@ function ProtectedLayout({ children }: { children: ReactNode }) {
   }
 
   // If user is logged in and on /auth page, show loading until redirected.
-  if (currentUser && pathname === '/auth') {
+  if (currentUser && isAuthPage) {
     return (
       <div className="flex flex-col min-h-screen items-center justify-center bg-background text-foreground">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -56,10 +60,10 @@ function ProtectedLayout({ children }: { children: ReactNode }) {
   }
 
 
-  // Render auth page without sidebar/header if on /auth
-  if (pathname === '/auth') {
+  // Render pages without sidebar/header if on /auth or a public /share page
+  if (isAuthPage || isPublicPage) {
     return (
-      <main className="flex-1 p-4 sm:p-6 lg:p-8 bg-background text-foreground min-h-screen flex items-center justify-center">
+      <main className="flex-1 p-4 sm:p-6 lg:p-8 bg-background text-foreground min-h-screen">
          {children}
       </main>
     );

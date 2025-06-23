@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Loader2, Layers, PlusCircle, ShieldAlert } from 'lucide-react';
 import { AddSpaceForm } from './AddSpaceForm';
 import { EditSpaceForm } from './EditSpaceForm';
+import { ShareSpaceDialog } from './ShareSpaceDialog';
 import { SpaceCard } from './SpaceCard';
 import type { Space } from '@/types';
 import Link from 'next/link';
@@ -20,26 +21,28 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
 export default function ManageSpacesPage() {
   const { 
     spaces, 
-    addSpace, 
-    updateSpace, 
     deleteSpace, 
     activeSpaceId, 
     setActiveSpaceId, 
     isClient, 
     currentUser,
-    getSpacesForCurrentUser
+    getSpacesForCurrentUser,
+    shareSpace,
+    unshareSpace,
   } = useAppContext();
 
   const [isAddSpaceDialogOpen, setIsAddSpaceDialogOpen] = useState(false);
   const [isEditSpaceDialogOpen, setIsEditSpaceDialogOpen] = useState(false);
+  const [isShareSpaceDialogOpen, setIsShareSpaceDialogOpen] = useState(false);
+  
   const [editingSpace, setEditingSpace] = useState<Space | null>(null);
   const [spaceToDelete, setSpaceToDelete] = useState<Space | null>(null);
+  const [spaceToShare, setSpaceToShare] = useState<Space | null>(null);
 
   const userSpaces = useMemo(() => getSpacesForCurrentUser(), [getSpacesForCurrentUser]);
 
@@ -50,6 +53,11 @@ export default function ManageSpacesPage() {
 
   const handleDeleteClick = (space: Space) => {
     setSpaceToDelete(space);
+  };
+
+  const handleShareClick = (space: Space) => {
+    setSpaceToShare(space);
+    setIsShareSpaceDialogOpen(true);
   };
 
   const confirmDelete = () => {
@@ -116,6 +124,7 @@ export default function ManageSpacesPage() {
                   onSetActive={() => setActiveSpaceId(space.id)}
                   onEdit={() => handleEditClick(space)}
                   onDelete={() => handleDeleteClick(space)}
+                  onShare={() => handleShareClick(space)}
                 />
               ))}
             </div>
@@ -141,6 +150,19 @@ export default function ManageSpacesPage() {
             setIsEditSpaceDialogOpen(open);
             if (!open) setEditingSpace(null);
           }}
+        />
+      )}
+      
+      {spaceToShare && (
+        <ShareSpaceDialog
+            space={spaceToShare}
+            isOpen={isShareSpaceDialogOpen}
+            onOpenChange={(open) => {
+                setIsShareSpaceDialogOpen(open);
+                if (!open) setSpaceToShare(null);
+            }}
+            onShareSpace={shareSpace}
+            onUnshareSpace={unshareSpace}
         />
       )}
 
