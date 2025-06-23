@@ -3,8 +3,9 @@
 import type { Match, Game, Player } from '@/types';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'; // Removed CardFooter as it's not used
 import { Badge } from '@/components/ui/badge';
-import { Users, Trophy, CalendarDays, Bot, Star, Info } from 'lucide-react'; // Added Info for unknown game
+import { Users, Trophy, CalendarDays, Bot, Star } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
+import { getGameIcon } from './icons';
 
 interface MatchHistoryCardProps {
   match: Match;
@@ -14,7 +15,7 @@ interface MatchHistoryCardProps {
 
 export function MatchHistoryCard({ match, game, getPlayerById }: MatchHistoryCardProps) {
   const gameName = game?.name || 'Unknown Game';
-  const GameIconComponent = game?.icon || Info;
+  const GameIconComponent = getGameIcon(game?.icon);
 
   const participantNames = match.playerIds.map(id => getPlayerById(id)?.name || 'Unknown Player');
   const winnerNames = match.winnerIds.map(id => getPlayerById(id)?.name || 'Unknown Player');

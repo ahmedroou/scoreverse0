@@ -7,7 +7,6 @@ import { INITIAL_MOCK_GAMES, INITIAL_MOCK_PLAYERS } from '@/data/mock-data.tsx';
 import { Toaster } from '@/components/ui/toaster';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import { HelpCircle } from 'lucide-react'; // For default game icon
 
 interface AppContextType {
   games: Game[];
@@ -557,7 +556,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const newGame: Game = {
       ...gameData,
       id: `game-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
-      icon: HelpCircle, // Default icon for user-added games
+      icon: 'HelpCircle',
     };
     setGames(prevGames => [...prevGames, newGame]);
     toast({ title: "Game Added", description: `${newGame.name} has been added to the library.` });

@@ -4,7 +4,8 @@ import type { Game } from '@/types';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { Users, Info, PlayCircle, Edit3, Trash2 } from 'lucide-react';
+import { Users, PlayCircle, Edit3, Trash2 } from 'lucide-react';
+import { getGameIcon } from './icons';
 
 interface GameCardProps {
   game: Game;
@@ -14,7 +15,7 @@ interface GameCardProps {
 }
 
 export function GameCard({ game, showAdminControls = false, onEdit, onDelete }: GameCardProps) {
-  const IconComponent = game.icon || Info;
+  const IconComponent = getGameIcon(game.icon);
 
   return (
     <Card className="flex flex-col h-full hover:shadow-lg transition-shadow duration-200 ease-in-out bg-card border-border hover:border-primary/70">
@@ -58,5 +59,3 @@ export function GameCard({ game, showAdminControls = false, onEdit, onDelete }: 
     </Card>
   );
 }
-
-    

@@ -4,7 +4,7 @@ import type { SuggestHandicapOutput } from "@/ai/flows/suggest-handicap";
 export interface Game {
   id: string;
   name: string;
-  icon?: LucideIcon | React.ComponentType<React.SVGProps<SVGSVGElement>>;
+  icon?: string;
   pointsPerWin: number;
   description?: string;
   minPlayers: number;
