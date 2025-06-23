@@ -23,13 +23,22 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
+// Helper function to generate a consistent "random" color from a string
+const stringToHslColor = (str: string, s: number, l: number): string => {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const h = hash % 360;
+  return `hsl(${h}, ${s}%, ${l}%)`;
+};
+
+
 export default function ManagePlayersPage() {
   const { players, deletePlayer, isClient, currentUser } = useAppContext();
   const [editingPlayer, setEditingPlayer] = useState<Player | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isAddPlayerDialogOpen, setIsAddPlayerDialogOpen] = useState(false);
-  // playerToDelete state is no longer needed for dialog visibility control here.
-  // Each AlertDialog will manage its own open state.
 
   const handleEditClick = (player: Player) => {
     setEditingPlayer(player);
@@ -62,6 +71,9 @@ export default function ManagePlayersPage() {
                 </CardHeader>
                 <CardContent>
                     <p className="text-muted-foreground">Please log in to manage players.</p>
+                     <Link href="/auth" passHref legacyBehavior>
+                        <Button className="mt-4 w-full">Go to Login</Button>
+                     </Link>
                 </CardContent>
             </Card>
         </div>
@@ -89,16 +101,16 @@ export default function ManagePlayersPage() {
                   key={player.id}
                   className="flex items-center justify-between p-3 border border-border rounded-lg hover:bg-muted/30 transition-colors"
                 >
-                  <Link href={`/profile/${player.id}`} passHref legacyBehavior>
-                    <a className="flex items-center gap-3 cursor-pointer hover:underline flex-grow">
-                      <Avatar className="h-10 w-10">
-                        <AvatarImage src={`https://placehold.co/40x40.png?text=${player.name.substring(0,1)}`} alt={player.name} data-ai-hint="avatar user"/>
-                        <AvatarFallback>{player.name.substring(0, 2).toUpperCase()}</AvatarFallback>
-                      </Avatar>
-                      <span className="font-medium text-lg text-card-foreground">{player.name}</span>
-                    </a>
-                  </Link>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-3 flex-grow min-w-0">
+                    <Avatar className="h-10 w-10">
+                      <AvatarImage src={player.avatarUrl} alt={player.name} />
+                      <AvatarFallback style={{ backgroundColor: stringToHslColor(player.name, 50, 60) }}>
+                        {player.name.substring(0, 2).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="font-medium text-lg text-card-foreground truncate">{player.name}</span>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
                     <Button variant="outline" size="sm" onClick={() => handleEditClick(player)} className="border-accent text-accent hover:bg-accent hover:text-accent-foreground">
                       <Edit3 className="h-4 w-4 mr-1 sm:mr-2" />
                       <span className="hidden sm:inline">Edit</span>
@@ -158,9 +170,6 @@ export default function ManagePlayersPage() {
         isOpen={isAddPlayerDialogOpen}
         onOpenChange={handleAddPlayerDialogClose}
       />
-
-      {/* The global AlertDialog previously here has been removed. 
-          Each player item now has its own self-contained AlertDialog. */}
     </div>
   );
 }

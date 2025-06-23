@@ -1,4 +1,3 @@
-
 import type { LucideIcon } from "lucide-react";
 import type { SuggestHandicapOutput } from "@/ai/flows/suggest-handicap";
 
@@ -15,6 +14,7 @@ export interface Game {
 export interface Player {
   id: string;
   name: string;
+  avatarUrl?: string;
   // For AI Handicap Suggestions & potential future stats display
   winRate?: number; // 0 to 1, represents probability
   averageScore?: number;
@@ -47,6 +47,7 @@ export interface Match {
 export interface ScoreData {
   playerId: string;
   playerName: string;
+  avatarUrl?: string;
   totalPoints: number;
   gamesPlayed: number;
   wins: number;

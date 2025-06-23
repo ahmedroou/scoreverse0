@@ -11,12 +11,22 @@ import {
   TableCaption,
 } from '@/components/ui/table';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Medal, TrendingUp, TrendingDown, Minus, Trophy, ShieldQuestion } from 'lucide-react'; // Added ShieldQuestion for no scores
+import { Medal, ShieldQuestion } from 'lucide-react';
 
 interface LeaderboardTableProps {
   scores: ScoreData[];
   title?: string;
 }
+
+// Helper function to generate a consistent "random" color from a string
+const stringToHslColor = (str: string, s: number, l: number): string => {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const h = hash % 360;
+  return `hsl(${h}, ${s}%, ${l}%)`;
+};
 
 const getRankIndicator = (rank: number) => {
   if (rank === 1) return <Medal className="h-6 w-6 text-yellow-400" />;
@@ -71,8 +81,10 @@ export function LeaderboardTable({ scores, title }: LeaderboardTableProps) {
               <TableCell>
                 <div className="flex items-center gap-3 py-2">
                   <Avatar className="h-10 w-10 border-2 border-primary/30">
-                    <AvatarImage src={`https://placehold.co/40x40.png?text=${score.playerName.substring(0,1)}`} alt={score.playerName} data-ai-hint="avatar user" />
-                    <AvatarFallback className="bg-primary/20 text-primary font-semibold">{score.playerName.substring(0, 2).toUpperCase()}</AvatarFallback>
+                    <AvatarImage src={score.avatarUrl} alt={score.playerName} />
+                    <AvatarFallback style={{ backgroundColor: stringToHslColor(score.playerName, 50, 60) }}>
+                      {score.playerName.substring(0, 2).toUpperCase()}
+                    </AvatarFallback>
                   </Avatar>
                   <span className="font-medium text-lg text-card-foreground">{score.playerName}</span>
                 </div>

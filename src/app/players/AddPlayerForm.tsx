@@ -21,6 +21,7 @@ import {
 
 const formSchema = z.object({
   name: z.string().min(1, "Player name cannot be empty.").max(50, "Player name is too long (max 50 characters)."),
+  avatarUrl: z.string().url("Please enter a valid URL.").optional().or(z.literal('')),
 });
 
 interface AddPlayerFormProps {
@@ -34,11 +35,12 @@ export function AddPlayerForm({ isOpen, onOpenChange }: AddPlayerFormProps) {
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: "",
+      avatarUrl: "",
     },
   });
 
   const onSubmit = (values: z.infer<typeof formSchema>) => {
-    addPlayer(values.name);
+    addPlayer(values.name, values.avatarUrl || undefined);
     form.reset(); // Reset form fields
     onOpenChange(false); // Close dialog on submit
   };
@@ -56,22 +58,34 @@ export function AddPlayerForm({ isOpen, onOpenChange }: AddPlayerFormProps) {
         <DialogHeader>
           <DialogTitle className="text-primary">Add New Player</DialogTitle>
           <DialogDescription>
-            Enter the name for the new player. Click add when you're done.
+            Enter the details for the new player. Click add when you're done.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
           <div className="space-y-2">
-            <Label htmlFor="new-player-name" className="text-right">
+            <Label htmlFor="new-player-name">
               Player Name
             </Label>
             <Input
               id="new-player-name"
               {...form.register('name')}
-              className="col-span-3"
               placeholder="E.g., 'Shadow Striker'"
             />
             {form.formState.errors.name && (
               <p className="text-sm text-destructive">{form.formState.errors.name.message}</p>
+            )}
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="new-player-avatar">
+              Avatar URL (Optional)
+            </Label>
+            <Input
+              id="new-player-avatar"
+              {...form.register('avatarUrl')}
+              placeholder="https://example.com/avatar.png"
+            />
+            {form.formState.errors.avatarUrl && (
+              <p className="text-sm text-destructive">{form.formState.errors.avatarUrl.message}</p>
             )}
           </div>
           <DialogFooter>

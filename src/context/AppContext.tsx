@@ -3,7 +3,7 @@
 import type { ReactNode } from 'react';
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import type { Game, Player, Match, ScoreData, Space, UserAccount } from '@/types';
-import { INITIAL_MOCK_GAMES, INITIAL_MOCK_PLAYERS } from '@/data/mock-data.tsx'; // Ensure .tsx is used if resolver needs it, or remove if not.
+import { INITIAL_MOCK_GAMES, INITIAL_MOCK_PLAYERS } from '@/data/mock-data.tsx';
 import { Toaster } from '@/components/ui/toaster';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
@@ -15,10 +15,10 @@ interface AppContextType {
   matches: Match[];
   spaces: Space[];
   activeSpaceId: string | null;
-  addPlayer: (name: string) => void;
+  addPlayer: (name: string, avatarUrl?: string) => void;
   deletePlayer: (playerId: string) => void;
   addMatch: (matchData: Omit<Match, 'id' | 'date' | 'spaceId'>) => void;
-  updatePlayer: (playerId: string, newName: string) => void;
+  updatePlayer: (playerId: string, playerData: Partial<Omit<Player, 'id'>>) => void;
   getGameById: (gameId: string) => Game | undefined;
   getPlayerById: (playerId: string) => Player | undefined;
   getOverallLeaderboard: () => ScoreData[];
@@ -57,7 +57,7 @@ const DEFAULT_AUTH_IMAGE_URL = 'https://placehold.co/300x200.png';
 const DEFAULT_SPACE_NAME = "Personal Space";
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [games, setGames] = useState<Game[]>(INITIAL_MOCK_GAMES);
+  const [games, setGames] = useState<Game[]>([]);
   const [players, setPlayers] = useState<Player[]>([]);
   const [matches, setMatches] = useState<Match[]>([]);
   const [spaces, setSpaces] = useState<Space[]>([]);
@@ -144,8 +144,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       setActiveSpaceIdState(validActiveSpace ? validActiveSpace.id : (userSpaces[0]?.id || null));
 
     } else if (isClient && !currentUser) { 
-      setPlayers(INITIAL_MOCK_PLAYERS); 
-      setGames(INITIAL_MOCK_GAMES);
+      // When logged out, clear user-specific data from state
+      setPlayers([]); 
+      setGames([]);
       setMatches([]);
       setSpaces([]);
       setActiveSpaceIdState(null);
@@ -256,8 +257,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const currentUsername = currentUser?.username;
     setCurrentUser(null); 
     // Reset local state to defaults, ready for next login or to clear sensitive data
-    setPlayers(INITIAL_MOCK_PLAYERS);
-    setGames(INITIAL_MOCK_GAMES);
+    setPlayers([]);
+    setGames([]);
     setMatches([]);
     setSpaces([]);
     setActiveSpaceIdState(null);
@@ -271,7 +272,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setIsLoadingAuth(false);
   }, [toast, router, currentUser]);
 
-  const addPlayer = useCallback((name: string) => {
+  const addPlayer = useCallback((name: string, avatarUrl?: string) => {
     if (!currentUser) {
       toast({ title: "Error", description: "You must be logged in to add players.", variant: "destructive"});
       return;
@@ -279,6 +280,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const newPlayer: Player = {
       id: `player-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
       name,
+      avatarUrl,
       winRate: 0, 
       averageScore: 0, 
     };
@@ -370,19 +372,24 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   }, [currentUser, toast, players, getGameById, activeSpaceId]); // Added activeSpaceId dependency
 
-  const updatePlayer = useCallback((playerId: string, newName: string) => {
+  const updatePlayer = useCallback((playerId: string, playerData: Partial<Omit<Player, 'id'>>) => {
     if (!currentUser) {
       toast({ title: "Error", description: "You must be logged in to update players.", variant: "destructive"});
       return;
     }
+    let oldName = '';
     setPlayers(prevPlayers => 
-      prevPlayers.map(p => 
-        p.id === playerId ? { ...p, name: newName } : p
-      )
+      prevPlayers.map(p => {
+        if (p.id === playerId) {
+          oldName = p.name;
+          return { ...p, ...playerData };
+        }
+        return p;
+      })
     );
     toast({
       title: "Player Updated",
-      description: `Player name changed to ${newName}.`,
+      description: `Details for ${playerData.name || oldName} have been updated.`,
     });
   }, [currentUser, toast]);
 
@@ -392,7 +399,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     players.forEach(player => { 
       playerScores[player.id] = { 
         playerId: player.id, 
-        playerName: player.name, 
+        playerName: player.name,
+        avatarUrl: player.avatarUrl,
         totalPoints: 0, 
         gamesPlayed: 0, 
         wins: 0 
@@ -404,7 +412,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         const player = getPlayerById(playerId); 
         if (player) { 
             if (!playerScores[playerId]) { 
-                 playerScores[playerId] = { playerId: player.id, playerName: player.name, totalPoints: 0, gamesPlayed: 0, wins: 0 };
+                 playerScores[playerId] = { playerId: player.id, playerName: player.name, avatarUrl: player.avatarUrl, totalPoints: 0, gamesPlayed: 0, wins: 0 };
             }
             playerScores[playerId].gamesPlayed += 1;
         }
@@ -636,5 +644,3 @@ export const useAppContext = (): AppContextType => {
   }
   return context;
 };
-
-    
