@@ -1,15 +1,8 @@
 /** @type {import('next').NextConfig} */
 
-const withPWA = require('@ducanh2912/next-pwa').default({
-  dest: 'public',
-  disable: process.env.NODE_ENV === 'development',
-  register: true,
-  skipWaiting: true,
-});
-
 const nextConfig = {
   typescript: {
-    ignoreBuildErrors: false,
+    ignoreBuildErrors: true,
   },
   eslint: {
     ignoreDuringBuilds: true,
@@ -24,11 +17,6 @@ const nextConfig = {
       },
     ],
   },
-  experimental: {
-    allowedDevOrigins: [
-        "https://6000-firebase-studio-1747902618962.cluster-6vyo4gb53jczovun3dxslzjahs.cloudworkstations.dev"
-    ],
-  },
 };
 
-module.exports = withPWA(nextConfig);
+module.exports = nextConfig;

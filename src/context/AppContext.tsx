@@ -206,7 +206,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             userToLogin.isAdmin = true;
         }
         setCurrentUser(userToLogin); 
-        localStorage.setItem(CURRENT_USER_LS_KEY, JSON.stringify(userToLogin));
+        if (isClient) {
+          localStorage.setItem(CURRENT_USER_LS_KEY, JSON.stringify(userToLogin));
+        }
         toast({ title: "Logged In", description: `Welcome back, ${username}!` });
         setIsLoadingAuth(false);
         return true;
@@ -215,7 +217,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     toast({ title: "Login Failed", description: "Invalid username or password.", variant: "destructive" });
     setIsLoadingAuth(false);
     return false;
-  }, [registeredUsers, toast]);
+  }, [registeredUsers, toast, isClient]);
 
   const signup = useCallback((username: string, password?: string): boolean => {
     setIsLoadingAuth(true);
@@ -231,35 +233,31 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       setIsLoadingAuth(false);
       return false;
     }
-    const newUser: UserAccount = { id: `user-${Date.now()}`, username, password }; 
+    const newUser: UserAccount = { id: `user-${Date.now()}`, username, password };
     if(newUser.username.toLowerCase() === ADMIN_USERNAME.toLowerCase()){
         newUser.isAdmin = true;
     }
     
-    // Initialize with default data for the new user with unique IDs
-    const initialUserPlayers = INITIAL_MOCK_PLAYERS.map(p => ({...p, id: `${p.id}-${newUser.id}-${Math.random().toString(36).substring(2, 9)}`, ownerId: newUser.id}));
-    const initialUserGames = INITIAL_MOCK_GAMES.map(g => ({...g, id: `${g.id}-${newUser.id}-${Math.random().toString(36).substring(2, 9)}`, ownerId: newUser.id}));
-    const initialUserMatches: Match[] = [];
-    const defaultSpaceId = `space-default-${newUser.id}-${Date.now()}`;
-    const defaultSpace: Space = { id: defaultSpaceId, name: DEFAULT_SPACE_NAME, ownerId: newUser.id };
-    const initialUserSpaces = [defaultSpace];
+    const updatedRegisteredUsers = [...registeredUsers, newUser];
+    setRegisteredUsers(updatedRegisteredUsers);
+    setCurrentUser(newUser);
 
     if(isClient) {
+        const initialUserPlayers = INITIAL_MOCK_PLAYERS.map(p => ({...p, id: `player-${p.id}-${newUser.id}-${Math.random().toString(36).substring(2, 9)}`, ownerId: newUser.id}));
+        const initialUserGames = INITIAL_MOCK_GAMES.map(g => ({...g, id: `game-${g.id}-${newUser.id}-${Math.random().toString(36).substring(2, 9)}`, ownerId: newUser.id}));
+        const initialUserMatches: Match[] = [];
+        const defaultSpaceId = `space-default-${newUser.id}-${Date.now()}`;
+        const defaultSpace: Space = { id: defaultSpaceId, name: DEFAULT_SPACE_NAME, ownerId: newUser.id };
+        const initialUserSpaces = [defaultSpace];
+
         localStorage.setItem(`${PLAYERS_LS_KEY_PREFIX}${newUser.id}`, JSON.stringify(initialUserPlayers));
         localStorage.setItem(`${GAMES_LS_KEY_PREFIX}${newUser.id}`, JSON.stringify(initialUserGames));
         localStorage.setItem(`${MATCHES_LS_KEY_PREFIX}${newUser.id}`, JSON.stringify(initialUserMatches));
         localStorage.setItem(`${SPACES_LS_KEY_PREFIX}${newUser.id}`, JSON.stringify(initialUserSpaces));
         localStorage.setItem(`${ACTIVE_SPACE_LS_KEY_PREFIX}${newUser.id}`, JSON.stringify(defaultSpaceId));
+        localStorage.setItem(REGISTERED_USERS_LS_KEY, JSON.stringify(updatedRegisteredUsers));
+        localStorage.setItem(CURRENT_USER_LS_KEY, JSON.stringify(newUser));
     }
-    
-    setRegisteredUsers(prev => {
-        const updatedUsers = [...prev, newUser];
-        localStorage.setItem(REGISTERED_USERS_LS_KEY, JSON.stringify(updatedUsers));
-        return updatedUsers;
-    });
-
-    setCurrentUser(newUser); 
-    localStorage.setItem(CURRENT_USER_LS_KEY, JSON.stringify(newUser));
     
     toast({ title: "Account Created", description: `Welcome, ${username}!` });
     setIsLoadingAuth(false);
@@ -269,7 +267,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const logout = useCallback(() => {
     setIsLoadingAuth(true);
     const currentUsername = currentUser?.username;
-    localStorage.removeItem(CURRENT_USER_LS_KEY);
+    if (isClient) {
+      localStorage.removeItem(CURRENT_USER_LS_KEY);
+    }
     setCurrentUser(null); 
     setPlayers([]);
     setGames([]);
@@ -284,7 +284,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
     router.push('/auth');
     setIsLoadingAuth(false);
-  }, [toast, router, currentUser]);
+  }, [toast, router, currentUser, isClient]);
 
   const addPlayer = useCallback((name: string, avatarUrl?: string) => {
     if (!currentUser) {
@@ -625,21 +625,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         return;
     }
     
-    // For regular users, prevent deleting the last space.
     const userOwnedSpaces = getSpacesForCurrentUser();
-    if (!currentUser.isAdmin && userOwnedSpaces.length <= 1) {
+    if (!currentUser.isAdmin && userOwnedSpaces.length <= 1 && userOwnedSpaces.find(s => s.id === spaceIdToDelete)) {
         toast({ title: "Cannot Delete", description: "You must have at least one space.", variant: "destructive"});
         return;
     }
     
     const ownerId = spaceToDelete.ownerId;
-    const remainingSpaces = spaces.filter(s => s.id !== spaceIdToDelete);
-
-    // State update
-    setSpaces(remainingSpaces);
+    
+    setSpaces(prev => prev.filter(s => s.id !== spaceIdToDelete));
     setMatches(prev => prev.filter(m => m.spaceId !== spaceIdToDelete));
 
-    // Persist to correct user's localStorage
      if (isClient) {
         const spacesKey = `${SPACES_LS_KEY_PREFIX}${ownerId}`;
         const currentSpacesInStorage = JSON.parse(localStorage.getItem(spacesKey) || '[]') as Space[];
@@ -653,7 +649,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
      }
 
     if (activeSpaceId === spaceIdToDelete) {
-      const remainingUserSpacesAfterDelete = remainingSpaces.filter(s => s.ownerId === currentUser.id);
+      const remainingUserSpacesAfterDelete = spaces.filter(s => s.id !== spaceIdToDelete && s.ownerId === currentUser.id);
       const newActiveId = currentUser.isAdmin ? null : (remainingUserSpacesAfterDelete[0]?.id || null);
       setActiveSpaceIdState(newActiveId);
     }
@@ -773,13 +769,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     const sharedDataPayload = { space: updatedSpace, players: spacePlayers, matches: spaceMatches, games: spaceGames };
     
-    try {
-        const allShares = JSON.parse(localStorage.getItem(PUBLIC_SHARES_LS_KEY) || '{}');
-        allShares[shareId] = sharedDataPayload;
-        localStorage.setItem(PUBLIC_SHARES_LS_KEY, JSON.stringify(allShares));
-    } catch(e) {
-        toast({ title: "Sharing Error", description: "Could not save sharing data.", variant: "destructive"});
-        return null;
+    if (isClient) {
+      try {
+          const allShares = JSON.parse(localStorage.getItem(PUBLIC_SHARES_LS_KEY) || '{}');
+          allShares[shareId] = sharedDataPayload;
+          localStorage.setItem(PUBLIC_SHARES_LS_KEY, JSON.stringify(allShares));
+      } catch(e) {
+          toast({ title: "Sharing Error", description: "Could not save sharing data.", variant: "destructive"});
+          return null;
+      }
     }
     
     return shareId;
@@ -797,11 +795,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     
     setSpaces(prev => prev.map(s => s.id === spaceId ? updatedSpace : s));
     
-     try {
-        const allShares = JSON.parse(localStorage.getItem(PUBLIC_SHARES_LS_KEY) || '{}');
-        delete allShares[shareId];
-        localStorage.setItem(PUBLIC_SHARES_LS_KEY, JSON.stringify(allShares));
-    } catch(e) { console.error("Failed to update shared data in localStorage", e); }
+    if (isClient) {
+      try {
+          const allShares = JSON.parse(localStorage.getItem(PUBLIC_SHARES_LS_KEY) || '{}');
+          delete allShares[shareId];
+          localStorage.setItem(PUBLIC_SHARES_LS_KEY, JSON.stringify(allShares));
+      } catch(e) { console.error("Failed to update shared data in localStorage", e); }
+    }
   }, [isClient, currentUser, spaces]);
   
   const getUserById = useCallback((userId: string) => {
@@ -829,3 +829,5 @@ export const useAppContext = (): AppContextType => {
   }
   return context;
 };
+
+    
