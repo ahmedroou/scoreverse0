@@ -90,30 +90,6 @@ export default function DashboardPage() {
           </Card>
         ))}
       </div>
-      
-      <div className="mt-12 p-6 bg-card border border-border rounded-lg shadow-md flex flex-col md:flex-row items-center gap-6">
-        <div className="w-full md:w-1/3 flex justify-center">
-            <Image 
-                src="https://placehold.co/300x250.png" 
-                alt="Fun gaming dashboard illustration" 
-                width={300} 
-                height={250} 
-                className="object-contain rounded-md"
-                data-ai-hint="gaming community"
-            />
-        </div>
-        <div className="w-full md:w-2/3">
-            <h2 className="text-2xl font-semibold text-primary mb-3">What's Next?</h2>
-            <p className="text-muted-foreground mb-4">
-                Explore your spaces, record new matches, or dive into the leaderboards. Use the "Manage Spaces" card to create new contexts for your games or switch between existing ones.
-            </p>
-            <Link href="/spaces" passHref legacyBehavior>
-                <Button variant="outline" className="border-accent text-accent hover:bg-accent hover:text-accent-foreground">
-                    <Layers className="mr-2 h-4 w-4" /> Manage Your Spaces
-                </Button>
-            </Link>
-        </div>
-      </div>
 
     </div>
   );
