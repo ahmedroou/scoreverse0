@@ -256,19 +256,6 @@ export function AddResultForm() {
     return <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin text-primary" /> <span className="ml-2">Loading form...</span></div>;
   }
 
-  if (!currentUser) {
-    return (
-        <Card className="w-full max-w-2xl mx-auto shadow-xl bg-card">
-            <CardHeader>
-                <CardTitle className="text-2xl font-bold text-primary">Access Denied</CardTitle>
-            </CardHeader>
-            <CardContent>
-                <p className="text-muted-foreground">Please log in to record game results.</p>
-            </CardContent>
-        </Card>
-    );
-  }
-
   return (
     <Card className="w-full max-w-2xl mx-auto shadow-xl bg-card">
       <CardHeader>
