@@ -3,7 +3,7 @@
 import type { ReactNode } from 'react';
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import type { Game, Player, Match, ScoreData, Space, UserAccount, PlayerStats } from '@/types';
-import { INITIAL_MOCK_GAMES, INITIAL_MOCK_PLAYERS } from '@/data/mock-data.tsx';
+import { INITIAL_MOCK_GAMES, INITIAL_MOCK_PLAYERS } from '@/data/mock-data';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 
@@ -567,6 +567,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         gameStats: Array.from(gameStatsMap.values()).map(s => ({...s, winRate: s.gamesPlayed > 0 ? s.wins / s.gamesPlayed : 0})),
     };
   }, [matches, activeSpaceId, getPlayerById, getGameById, currentUser]);
+  
+  const getSpacesForCurrentUser = useCallback((): Space[] => {
+    if (!currentUser) return [];
+    if (currentUser.isAdmin) return spaces;
+    return spaces.filter(s => s.ownerId === currentUser.id);
+  }, [currentUser, spaces]);
 
   const addSpace = useCallback((name: string) => {
     if (!currentUser) {
@@ -605,12 +611,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     
     toast({ title: "Space Updated", description: "Space name has been changed." });
   }, [currentUser, toast, isClient]);
-  
-  const getSpacesForCurrentUser = useCallback((): Space[] => {
-    if (!currentUser) return [];
-    if (currentUser.isAdmin) return spaces;
-    return spaces.filter(s => s.ownerId === currentUser.id);
-  }, [currentUser, spaces]);
 
   const deleteSpace = useCallback((spaceIdToDelete: string) => {
      if (!currentUser) {
@@ -633,7 +633,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     
     const ownerId = spaceToDelete.ownerId;
     
-    setSpaces(prev => prev.filter(s => s.id !== spaceIdToDelete));
+    const newSpaces = spaces.filter(s => s.id !== spaceIdToDelete);
+    setSpaces(newSpaces);
     setMatches(prev => prev.filter(m => m.spaceId !== spaceIdToDelete));
 
      if (isClient) {
@@ -649,8 +650,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
      }
 
     if (activeSpaceId === spaceIdToDelete) {
-      const remainingUserSpacesAfterDelete = spaces.filter(s => s.id !== spaceIdToDelete && s.ownerId === currentUser.id);
-      const newActiveId = currentUser.isAdmin ? null : (remainingUserSpacesAfterDelete[0]?.id || null);
+      const newActiveId = currentUser.isAdmin ? null : (newSpaces.filter(s => s.ownerId === currentUser.id)[0]?.id || null);
       setActiveSpaceIdState(newActiveId);
     }
     toast({ title: "Space Deleted", description: `The space "${spaceToDelete.name}" and its matches have been deleted.` });
