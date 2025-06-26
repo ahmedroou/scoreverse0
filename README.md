@@ -4,19 +4,31 @@ This is a NextJS starter in Firebase Studio.
 
 To get started, take a look at src/app/page.tsx.
 
-## Configuring AI Features (Gemini API)
+---
+## ACTION REQUIRED: How to Fix the "API Key Not Valid" Error
 
-To enable the AI-powered features in this application (like handicap and matchup suggestions), you need to provide a Google AI API key.
+The application's AI features are currently disabled because the required `GOOGLE_API_KEY` is missing. The editor for the `.env` file is "read-only" for security reasons.
 
-1.  **Get your API key:** Visit [Google AI Studio](https://aistudio.google.com/) and create a new API key.
-2.  **Set the environment variable:** Open the `.env` file in the root of this project. You will see a line like this:
-    ```
-    GOOGLE_API_KEY=YOUR_GOOGLE_AI_API_KEY_HERE
-    ```
-3.  **Update the file:** Replace `YOUR_GOOGLE_AI_API_KEY_HERE` with the actual API key you copied from Google AI Studio.
-4.  **Restart the application:** Stop and restart the development server for the changes to take effect.
+**To fix this, you must create an API key in your Google Cloud project and ensure it is enabled.**
 
-### API Usage Example
+### Step-by-Step Instructions
+
+1.  **Go to the Credentials Page for Your Project:**
+    *   **[Click this direct link to open the Google Cloud Console for project `scoreverse-kgk6y`](https://console.cloud.google.com/apis/credentials?project=scoreverse-kgk6y)**
+
+2.  **Create a New API Key:**
+    *   At the top of the page, click **"+ CREATE CREDENTIALS"**.
+    *   Select **"API key"** from the dropdown menu.
+    *   A new key will be created and displayed in a popup window.
+
+3.  **Copy Your New API Key:**
+    *   Click the copy icon next to the key to copy it to your clipboard. **Do not share this key with anyone.**
+
+4.  **No further action is needed in this editor.** By creating the key in your Google Cloud project, Firebase services associated with that project should automatically be able to use it. Please **restart the application** for the changes to take effect.
+
+---
+
+### API Usage Example (For Reference)
 
 Here is an example of how to call the Gemini API using cURL. Remember to replace `GOOGLE_API_KEY` with your actual API key.
 
