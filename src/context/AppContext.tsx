@@ -32,6 +32,7 @@ interface AppContextType {
   matches: Match[];
   spaces: Space[];
   tournaments: Tournament[];
+  allUsers: UserAccount[]; // For admin
   activeSpaceId: string | null;
   addPlayer: (name: string, avatarUrl?: string) => Promise<void>;
   deletePlayer: (playerId: string) => Promise<void>;
@@ -59,6 +60,7 @@ interface AppContextType {
   deleteGame: (gameId: string) => Promise<void>;
   shareSpace: (spaceId: string) => string | null;
   getUserById: (userId: string) => UserAccount | undefined; // Admin function, needs all users
+  deleteUserAccount: (userId: string) => Promise<void>; // Admin function
   addTournament: (tournamentData: Omit<Tournament, 'id' | 'status' | 'ownerId' | 'winnerPlayerId' | 'dateCompleted'>) => Promise<void>;
   updateTournament: (tournamentId: string, tournamentData: Partial<Omit<Tournament, 'id' | 'ownerId'>>) => Promise<void>;
   deleteTournament: (tournamentId: string) => Promise<void>;
@@ -184,6 +186,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setMatches([]);
         setSpaces([]);
         setTournaments([]);
+        setAllUsers([]);
         setActiveSpaceIdState(null);
         setIsLoadingAuth(false);
       }
@@ -232,9 +235,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       return { success: true };
     } catch (error: any) {
       console.error("Login failed:", error);
-      const err = "Invalid email or password.";
-      setError(err);
-      return { success: false, error: err };
+      let errMessage = "Invalid email or password.";
+      if (error.code === 'auth/invalid-credential') {
+        errMessage = "Invalid email or password provided.";
+      }
+      setError(errMessage);
+      return { success: false, error: errMessage };
     }
   };
 
@@ -254,7 +260,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const username = email.split('@')[0];
 
       // Create user profile document in Firestore
-      const userDocData: UserAccount = { id: newUser.uid, username, isAdmin: false };
+      const userDocData: UserAccount = { id: newUser.uid, username, email: newUser.email, isAdmin: false };
       await setDoc(doc(db, "users", newUser.uid), userDocData);
 
       // Create initial data (default space, players, games) in a batch
@@ -424,9 +430,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     toast({ title: "Tournament Deleted" });
   };
 
-  const getGameById = useCallback((gameId: string) => games.find(g => g.id === gameId), [games]);
-  const getPlayerById = useCallback((playerId: string) => players.find(p => p.id === playerId), [players]);
-  
   const calculateScores = useCallback((filteredMatchesForCalc: Match[]): ScoreData[] => {
     const playerScores: Record<string, ScoreData> = {};
     const relevantPlayerIds = new Set(filteredMatchesForCalc.flatMap(m => m.playerIds));
@@ -487,6 +490,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   }, [firebaseUser, activeSpaceId, matches, tournaments, toast, calculateScores, getPlayerById]);
 
+  const getGameById = useCallback((gameId: string) => games.find(g => g.id === gameId), [games]);
+  const getPlayerById = useCallback((playerId: string) => players.find(p => p.id === playerId), [players]);
+  
   const getOverallLeaderboard = useCallback(() => {
     const filtered = activeSpaceId ? matches.filter(m => m.spaceId === activeSpaceId) : matches.filter(m => m.spaceId === undefined);
     return calculateScores(filtered);
@@ -546,7 +552,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   
   const getSpacesForCurrentUser = useCallback(() => {
     if (!currentUser) return [];
-    // Admins currently see their own spaces, not all spaces, to avoid complexity. This could be changed.
+    if (currentUser.isAdmin) return spaces;
     return spaces.filter(s => s.ownerId === currentUser.id);
   }, [currentUser, spaces]);
   
@@ -585,14 +591,52 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return allUsers.find(u => u.id === userId);
   }, [allUsers]);
 
+  const deleteUserAccount = async (userIdToDelete: string) => {
+    if (!currentUser?.isAdmin) {
+      toast({ title: "Permission Denied", description: "You do not have permission to delete users.", variant: "destructive" });
+      return;
+    }
+    if (currentUser.id === userIdToDelete) {
+        toast({ title: "Action Not Allowed", description: "You cannot delete your own account.", variant: "destructive" });
+        return;
+    }
+
+    try {
+        const batch = writeBatch(db);
+
+        // Delete main user document
+        const userDocRef = doc(db, 'users', userIdToDelete);
+        batch.delete(userDocRef);
+
+        // Delete all documents in user's subcollections
+        const subcollections = ['players', 'games', 'matches', 'spaces', 'tournaments'];
+        for (const sub of subcollections) {
+            const subcollectionRef = collection(db, 'users', userIdToDelete, sub);
+            const snapshot = await getDocs(subcollectionRef);
+            snapshot.forEach(doc => {
+                batch.delete(doc.ref);
+            });
+        }
+        
+        await batch.commit();
+
+        toast({ title: "User Account Deleted", description: "The user's account and all associated data have been deleted from the database." });
+        // NOTE: The user still exists in Firebase Auth. Deleting from Auth requires admin privileges on the backend (e.g., Cloud Function)
+        // and cannot be done securely from the client.
+    } catch (error) {
+        console.error("Error deleting user account:", error);
+        toast({ title: "Error", description: "Failed to delete user account. See console for details.", variant: "destructive" });
+    }
+  };
+
 
   return (
     <AppContext.Provider value={{ 
-      games, players, matches, spaces, tournaments, activeSpaceId, addPlayer, deletePlayer, addMatch, updatePlayer, 
+      games, players, matches, spaces, tournaments, allUsers, activeSpaceId, addPlayer, deletePlayer, addMatch, updatePlayer, 
       getGameById, getPlayerById, getOverallLeaderboard, getGameLeaderboard, getPlayerStats, isClient,
       currentUser, login, signup, logout, isLoadingAuth, addSpace, updateSpace, deleteSpace, 
       setActiveSpaceId, getSpacesForCurrentUser, getActiveSpace, addGame, updateGame, deleteGame,
-      shareSpace, getUserById, addTournament, updateTournament, deleteTournament,
+      shareSpace, getUserById, deleteUserAccount, addTournament, updateTournament, deleteTournament,
       firebaseConfigured: isFirebaseConfigured()
     }}>
       {children}
@@ -607,4 +651,3 @@ export const useAppContext = (): AppContextType => {
   }
   return context;
 };
-

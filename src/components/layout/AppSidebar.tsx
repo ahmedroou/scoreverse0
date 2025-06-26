@@ -11,25 +11,30 @@ import {
   SidebarFooter,
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button'; 
-import { Home, Swords, PlusCircle, BarChart3, History, Settings, Sparkles, Github, Users as UsersIcon, LayoutDashboard, Layers, BarChartHorizontal, Trophy, Award, Shuffle } from 'lucide-react'; 
-
-const navItems = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/add-result', label: 'Add Game Result', icon: PlusCircle },
-  { href: '/draw', label: 'Generate Draw', icon: Shuffle },
-  { href: '/leaderboards', label: 'Leaderboards', icon: BarChart3 },
-  { href: '/stats', label: 'Player Stats', icon: BarChartHorizontal },
-  { href: '/match-history', label: 'Match History', icon: History },
-  { href: '/tournaments', label: 'Tournaments', icon: Trophy },
-  { href: '/trophies', label: 'Trophy Room', icon: Award },
-  { href: '/players', label: 'Manage Players', icon: UsersIcon },
-  { href: '/games', label: 'Game Library', icon: Swords },
-  { href: '/spaces', label: 'Manage Spaces', icon: Layers }, 
-  // { href: '/settings', label: 'Settings', icon: Settings }, // Future feature
-];
+import { Home, Swords, PlusCircle, BarChart3, History, Settings, Sparkles, Github, Users as UsersIcon, LayoutDashboard, Layers, BarChartHorizontal, Trophy, Award, Shuffle, UserCog } from 'lucide-react'; 
+import { useAppContext } from '@/context/AppContext';
 
 export function AppSidebar() {
   const pathname = usePathname();
+  const { currentUser } = useAppContext();
+
+  const navItems = [
+    { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { href: '/add-result', label: 'Add Game Result', icon: PlusCircle },
+    { href: '/draw', label: 'Generate Draw', icon: Shuffle },
+    { href: '/leaderboards', label: 'Leaderboards', icon: BarChart3 },
+    { href: '/stats', label: 'Player Stats', icon: BarChartHorizontal },
+    { href: '/match-history', label: 'Match History', icon: History },
+    { href: '/tournaments', label: 'Tournaments', icon: Trophy },
+    { href: '/trophies', label: 'Trophy Room', icon: Award },
+    { href: '/players', label: 'Manage Players', icon: UsersIcon },
+    { href: '/games', label: 'Game Library', icon: Swords },
+    { href: '/spaces', label: 'Manage Spaces', icon: Layers }, 
+    { href: '/users', label: 'Manage Users', icon: UserCog, adminOnly: true },
+  ];
+
+  const visibleNavItems = navItems.filter(item => !item.adminOnly || currentUser?.isAdmin);
+
 
   return (
     <Sidebar collapsible="icon" side="left" variant="sidebar">
@@ -38,7 +43,7 @@ export function AppSidebar() {
       </SidebarHeader>
       <SidebarContent>
         <SidebarMenu>
-          {navItems.map((item) => (
+          {visibleNavItems.map((item) => (
             <SidebarMenuItem key={item.href}>
               <Link href={item.disabled ? "#" : item.href} legacyBehavior passHref>
                 <SidebarMenuButton

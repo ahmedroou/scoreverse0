@@ -58,6 +58,7 @@ export interface ScoreData {
 export interface UserAccount {
   id: string;
   username: string;
+  email?: string;
   isAdmin?: boolean;
 }
 
