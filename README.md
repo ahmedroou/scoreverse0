@@ -27,6 +27,23 @@ The application's AI features are currently disabled because the required `GOOGL
 4.  **No further action is needed in this editor.** By creating the key in your Google Cloud project, Firebase services associated with that project should automatically be able to use it. Please **restart the application** for the changes to take effect.
 
 ---
+### Final Troubleshooting: Still Seeing the "API Key Invalid" Error?
+
+If you have already created an API key using the link above and the error persists, there are a few common reasons this can happen. Please check the following:
+
+1.  **Restart the Application:** Sometimes, changes in your Google Cloud project (like adding a new key) can take a moment to become active. A simple restart of the application can often resolve the issue.
+
+2.  **Enable the "Generative Language API":** Creating a key is not enough; the specific API it needs to access must also be enabled for your project.
+    *   **[Click this link to enable the API for project `scoreverse-kgk6y`](https://console.cloud.google.com/apis/library/generativelanguage.googleapis.com?project=scoreverse-kgk6y)**
+    *   If the page shows a blue **"ENABLE"** button, click it. If it says **"MANAGE"**, the API is already enabled, and you can move to the next step.
+
+3.  **Link a Billing Account:** Many Google Cloud APIs, including the Gemini API, require a billing account to be linked to your project, even to use the free tier. This is to prevent abuse.
+    *   **[Click here to check the billing status for project `scoreverse-kgk6y`](https://console.cloud.google.com/billing/linkedaccount?project=scoreverse-kgk6y)**
+    *   If the page says "This project has no billing account," you will need to link one. Google provides a generous free tier, so you are unlikely to be charged for normal use of this application.
+
+Completing these steps should resolve any remaining issues with the API key.
+
+---
 
 ### API Usage Example (For Reference)
 
