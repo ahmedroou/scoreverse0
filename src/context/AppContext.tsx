@@ -6,8 +6,7 @@ import type { Game, Player, Match, ScoreData, Space, UserAccount, PlayerStats } 
 import { INITIAL_MOCK_GAMES, INITIAL_MOCK_PLAYERS } from '@/data/mock-data';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-
-const PUBLIC_SHARES_LS_KEY = 'scoreverse-public-shares';
+import pako from 'pako';
 
 interface AppContextType {
   games: Game[];
@@ -40,7 +39,6 @@ interface AppContextType {
   updateGame: (gameId: string, gameData: Partial<Omit<Game, 'id' | 'icon' | 'ownerId'>>) => void;
   deleteGame: (gameId: string) => void;
   shareSpace: (spaceId: string) => string | null;
-  unshareSpace: (spaceId: string) => void;
   getUserById: (userId: string) => UserAccount | undefined;
 }
 
@@ -756,14 +754,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, [currentUser, matches, games, toast, isClient]);
   
   const shareSpace = useCallback((spaceId: string): string | null => {
-    if (!currentUser || !isClient) return null;
+    if (!isClient) return null;
     const spaceToShare = spaces.find(s => s.id === spaceId);
     if (!spaceToShare) return null;
-
-    const shareId = spaceToShare.shareId || `share-${Date.now()}`;
-    const updatedSpace = { ...spaceToShare, shareId };
-    
-    setSpaces(prev => prev.map(s => s.id === spaceId ? updatedSpace : s));
 
     const spaceMatches = matches.filter(m => m.spaceId === spaceId);
     const playerIdsInSpace = new Set<string>();
@@ -773,42 +766,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const gameIdsInSpace = new Set(spaceMatches.map(m => m.gameId));
     const spaceGames = games.filter(g => gameIdsInSpace.has(g.id));
 
-    const sharedDataPayload = { space: updatedSpace, players: spacePlayers, matches: spaceMatches, games: spaceGames };
+    const sharedDataPayload = { space: spaceToShare, players: spacePlayers, matches: spaceMatches, games: spaceGames };
     
-    if (isClient) {
-      try {
-          const allShares = JSON.parse(localStorage.getItem(PUBLIC_SHARES_LS_KEY) || '{}');
-          allShares[shareId] = sharedDataPayload;
-          localStorage.setItem(PUBLIC_SHARES_LS_KEY, JSON.stringify(allShares));
-      } catch(e) {
-          toast({ title: "Sharing Error", description: "Could not save sharing data.", variant: "destructive"});
-          return null;
-      }
+    try {
+      const jsonString = JSON.stringify(sharedDataPayload);
+      const compressed = pako.deflate(jsonString, { to: 'string' });
+      const encoded = btoa(compressed); // Base64 encode
+      return `${window.location.origin}/share?data=${encodeURIComponent(encoded)}`;
+    } catch (e) {
+      console.error("Failed to create share link:", e);
+      toast({ title: "Sharing Error", description: "Could not create sharing data.", variant: "destructive"});
+      return null;
     }
-    
-    return shareId;
-  }, [isClient, currentUser, spaces, matches, players, games, toast]);
-
-  const unshareSpace = useCallback((spaceId: string) => {
-    if (!currentUser || !isClient) return;
-    
-    const spaceToUnshare = spaces.find(s => s.id === spaceId);
-    if (!spaceToUnshare || !spaceToUnshare.shareId) return;
-
-    const shareId = spaceToUnshare.shareId;
-    const { shareId: _, ...rest } = spaceToUnshare;
-    const updatedSpace: Space = rest;
-    
-    setSpaces(prev => prev.map(s => s.id === spaceId ? updatedSpace : s));
-    
-    if (isClient) {
-      try {
-          const allShares = JSON.parse(localStorage.getItem(PUBLIC_SHARES_LS_KEY) || '{}');
-          delete allShares[shareId];
-          localStorage.setItem(PUBLIC_SHARES_LS_KEY, JSON.stringify(allShares));
-      } catch(e) { console.error("Failed to update shared data in localStorage", e); }
-    }
-  }, [isClient, currentUser, spaces]);
+  }, [isClient, spaces, matches, players, games, toast]);
   
   const getUserById = useCallback((userId: string) => {
     return registeredUsers.find(u => u.id === userId);
@@ -821,7 +791,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       getGameById, getPlayerById, getOverallLeaderboard, getGameLeaderboard, getPlayerStats, isClient,
       currentUser, login, signup, logout, isLoadingAuth, addSpace, updateSpace, deleteSpace, 
       setActiveSpaceId, getSpacesForCurrentUser, getActiveSpace, addGame, updateGame, deleteGame,
-      shareSpace, unshareSpace, getUserById
+      shareSpace, getUserById
     }}>
       {children}
     </AppContext.Provider>
@@ -835,5 +805,3 @@ export const useAppContext = (): AppContextType => {
   }
   return context;
 };
-
-    

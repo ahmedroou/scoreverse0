@@ -33,7 +33,6 @@ export default function ManageSpacesPage() {
     currentUser,
     getSpacesForCurrentUser,
     shareSpace,
-    unshareSpace,
     getUserById,
   } = useAppContext();
 
@@ -168,7 +167,6 @@ export default function ManageSpacesPage() {
                 if (!open) setSpaceToShare(null);
             }}
             onShareSpace={shareSpace}
-            onUnshareSpace={unshareSpace}
         />
       )}
 

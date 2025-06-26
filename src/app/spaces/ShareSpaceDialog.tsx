@@ -15,44 +15,41 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import type { Space } from '@/types';
-import { Copy, Check, Share2, Link2Off } from 'lucide-react';
+import { Copy, Check, Share2, Loader2 } from 'lucide-react';
 
 interface ShareSpaceDialogProps {
   space: Space;
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   onShareSpace: (spaceId: string) => string | null;
-  onUnshareSpace: (spaceId: string) => void;
 }
 
-export function ShareSpaceDialog({ space, isOpen, onOpenChange, onShareSpace, onUnshareSpace }: ShareSpaceDialogProps) {
+export function ShareSpaceDialog({ space, isOpen, onOpenChange, onShareSpace }: ShareSpaceDialogProps) {
   const { toast } = useToast();
   const [shareUrl, setShareUrl] = useState('');
   const [isCopied, setIsCopied] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    if (space.shareId && typeof window !== 'undefined') {
-      setShareUrl(`${window.location.origin}/share/${space.shareId}`);
-    } else {
-      setShareUrl('');
-    }
+    // Reset state when dialog opens or space changes
+    setShareUrl('');
     setIsCopied(false);
-  }, [space, isOpen]);
+    setIsLoading(false);
+  }, [isOpen, space]);
 
   const handleShare = () => {
-    const newShareId = onShareSpace(space.id);
-    if (newShareId) {
-      setShareUrl(`${window.location.origin}/share/${newShareId}`);
-      toast({ title: "Sharing Enabled", description: "A public link for this space has been created." });
-    } else {
-      toast({ title: "Error", description: "Could not create a share link.", variant: "destructive" });
-    }
-  };
-  
-  const handleUnshare = () => {
-    onUnshareSpace(space.id);
-    setShareUrl('');
-    toast({ title: "Sharing Disabled", description: "The public link for this space has been revoked." });
+    setIsLoading(true);
+    // Use a timeout to allow the loading state to render before the potentially blocking share operation
+    setTimeout(() => {
+        const newShareUrl = onShareSpace(space.id);
+        if (newShareUrl) {
+            setShareUrl(newShareUrl);
+            toast({ title: "Sharing Link Ready", description: "Your public link for this space has been created." });
+        } else {
+            toast({ title: "Error", description: "Could not create a share link.", variant: "destructive" });
+        }
+        setIsLoading(false);
+    }, 50);
   };
 
   const handleCopyToClipboard = () => {
@@ -90,14 +87,10 @@ export function ShareSpaceDialog({ space, isOpen, onOpenChange, onShareSpace, on
                   </Button>
                 </div>
               </div>
-              <Button variant="destructive" className="w-full" onClick={handleUnshare}>
-                <Link2Off className="h-4 w-4 mr-2" />
-                Disable Share Link
-              </Button>
             </div>
           ) : (
-            <Button className="w-full" onClick={handleShare}>
-              <Share2 className="h-4 w-4 mr-2" />
+            <Button className="w-full" onClick={handleShare} disabled={isLoading}>
+              {isLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Share2 className="h-4 w-4 mr-2" />}
               Generate Share Link
             </Button>
           )}

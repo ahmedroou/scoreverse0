@@ -1,15 +1,14 @@
-
 "use client";
 
-import { useState, useEffect, useMemo } from 'react';
-import { useParams, notFound } from 'next/navigation';
+import React, { useState, useEffect, useMemo, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
+import pako from 'pako';
 import { LeaderboardTable } from '@/components/LeaderboardTable';
 import type { Game, Player, Match, Space, ScoreData } from '@/types';
 import { Loader2, ShieldQuestion, Layers, BarChart3, Swords } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 
-const PUBLIC_SHARES_LS_KEY = 'scoreverse-public-shares';
 
 interface SharedData {
   space: Space;
@@ -18,31 +17,32 @@ interface SharedData {
   games: Game[];
 }
 
-export default function SharedLeaderboardPage() {
-  const params = useParams();
-  const shareId = Array.isArray(params.shareId) ? params.shareId[0] : params.shareId;
+function SharedPageContent() {
+  const searchParams = useSearchParams();
   const [data, setData] = useState<SharedData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  const encodedData = searchParams.get('data');
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && shareId) {
+    if (encodedData) {
       try {
-        const allShares = JSON.parse(localStorage.getItem(PUBLIC_SHARES_LS_KEY) || '{}');
-        const sharedData = allShares[shareId];
-        if (sharedData) {
-          setData(sharedData);
-        } else {
-          setError("This shared link is either invalid or has been revoked.");
-        }
+        const decoded = atob(decodeURIComponent(encodedData));
+        const decompressed = pako.inflate(decoded, { to: 'string' });
+        const sharedData = JSON.parse(decompressed);
+        setData(sharedData);
       } catch (e) {
-        console.error("Failed to parse shared data from localStorage", e);
-        setError("Could not retrieve shared data. It might be corrupted.");
+        console.error("Failed to parse shared data from URL", e);
+        setError("The shared link is invalid or corrupted.");
       } finally {
         setIsLoading(false);
       }
+    } else {
+        setError("No sharing data found in the link.");
+        setIsLoading(false);
     }
-  }, [shareId]);
+  }, [encodedData]);
 
   const calculateScores = (filteredMatchesForCalc: Match[], playersForCalc: Player[]): ScoreData[] => {
     const playerScores: Record<string, ScoreData> = {};
@@ -166,4 +166,18 @@ export default function SharedLeaderboardPage() {
       )}
     </div>
   );
+}
+
+
+export default function SharedLeaderboardPage() {
+    return (
+        <Suspense fallback={
+            <div className="flex flex-col items-center justify-center min-h-screen text-center p-4">
+                <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
+                <h1 className="text-2xl font-semibold text-primary">Loading...</h1>
+            </div>
+        }>
+            <SharedPageContent />
+        </Suspense>
+    )
 }

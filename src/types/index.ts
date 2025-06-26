@@ -32,7 +32,6 @@ export interface Space {
   id: string;
   name:string;
   ownerId: string; // ID of the user who owns this space
-  shareId?: string; // Optional: A unique ID for public sharing
 }
 
 export interface Match {
