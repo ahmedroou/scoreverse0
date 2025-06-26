@@ -1,3 +1,4 @@
+
 import {genkit} from 'genkit';
 import {googleAI} from '@genkit-ai/googleai';
 
@@ -7,7 +8,13 @@ const apiKey = process.env.GOOGLE_API_KEY;
 
 if (!apiKey) {
   console.warn(
-    'WARNING: The GOOGLE_API_KEY environment variable is not set. AI features will not work. Please set it in your .env file.'
+    '=============================================================\n' +
+    'WARNING: GOOGLE_API_KEY is not set.\n' +
+    'AI features will not work.\n\n' +
+    'If you are running locally, please ensure the key is in your .env file.\n' +
+    'If this app is deployed, `.env` files are likely not used for security reasons. ' +
+    'You MUST set the GOOGLE_API_KEY in your hosting platform\'s "Environment Variables" or "Secrets" section.\n' +
+    '============================================================='
   );
 }
 
