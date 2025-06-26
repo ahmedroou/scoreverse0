@@ -44,8 +44,8 @@ interface AppContextType {
   getPlayerStats: (playerId: string) => PlayerStats | null;
   isClient: boolean;
   currentUser: UserAccount | null;
-  login: (username: string, password?: string) => Promise<{ success: boolean; error?: string }>; 
-  signup: (username: string, password?: string) => Promise<{ success: boolean; error?: string }>; 
+  login: (email: string, password?: string) => Promise<{ success: boolean; error?: string }>; 
+  signup: (email: string, password?: string) => Promise<{ success: boolean; error?: string }>; 
   logout: () => Promise<void>;
   isLoadingAuth: boolean;
   addSpace: (name: string) => Promise<void>;
@@ -68,7 +68,6 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 const ACTIVE_SPACE_LS_KEY_PREFIX = 'scoreverse-active-space-'; 
-const DUMMY_EMAIL_DOMAIN = 'scoreverse.app'; // For creating emails from usernames
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [games, setGames] = useState<Game[]>([]);
@@ -197,28 +196,40 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, [currentUser]);
 
 
-  const login = async (username: string, password?: string) => {
+  const login = async (email: string, password?: string): Promise<{ success: boolean; error?: string }> => {
     if (!isFirebaseConfigured() || !password) {
       return { success: false, error: "Firebase is not configured correctly." };
     }
     try {
-      await signInWithEmailAndPassword(auth, `${username}@${DUMMY_EMAIL_DOMAIN}`, password);
-      toast({ title: "Logged In", description: `Welcome back, ${username}!` });
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const userDocRef = doc(db, 'users', userCredential.user.uid);
+      const docSnap = await getDoc(userDocRef);
+
+      if (!docSnap.exists()) {
+          await signOut(auth);
+           return { success: false, error: "Login Issue: Your account exists, but your user profile could not be found. This can happen with very old accounts. Please sign up again." };
+      }
+      
+      const userData = docSnap.data() as UserAccount;
+      toast({ title: "Logged In", description: `Welcome back, ${userData.username}!` });
       return { success: true };
     } catch (error: any) {
       console.error("Login failed:", error);
-      return { success: false, error: "Invalid username or password." };
+      return { success: false, error: "Invalid email or password." };
     }
   };
 
-  const signup = async (username: string, password?: string) => {
+  const signup = async (email: string, password?: string): Promise<{ success: boolean; error?: string }> => {
      if (!isFirebaseConfigured() || !password) {
       return { success: false, error: "Firebase is not configured correctly." };
     }
     try {
       // Create user in Firebase Auth
-      const userCredential = await createUserWithEmailAndPassword(auth, `${username}@${DUMMY_EMAIL_DOMAIN}`, password);
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const newUser = userCredential.user;
+
+      // Derive username from email (part before @)
+      const username = email.split('@')[0];
 
       // Create user profile document in Firestore
       const userDocData: UserAccount = { id: newUser.uid, username, isAdmin: false };
@@ -250,7 +261,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     } catch (error: any) {
        console.error("Signup failed:", error);
        if (error.code === 'auth/email-already-in-use') {
-         return { success: false, error: "Username is already taken." };
+         return { success: false, error: "This email address is already in use." };
        }
        return { success: false, error: "Failed to create account. Please try again." };
     }
@@ -293,13 +304,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const addGame = async (gameData: Omit<Game, 'id' | 'icon' | 'ownerId'>) => {
     if (!firebaseUser) return;
     const gamesCollection = collection(db, 'users', firebaseUser.uid, 'games');
-    const newGameData: Omit<Game, 'id'> = { ...gameData, icon: 'HelpCircle', ownerId: firebaseUser.uid };
-    if (newGameData.description === '') {
+    
+    // Create a mutable copy to safely delete undefined properties
+    const newGameData: Partial<Omit<Game, 'id'>> = { ...gameData, icon: 'HelpCircle', ownerId: firebaseUser.uid };
+    
+    if (newGameData.description === '' || newGameData.description === undefined) {
       delete newGameData.description;
     }
-    if (newGameData.maxPlayers === undefined) {
+    if (newGameData.maxPlayers === undefined || newGameData.maxPlayers === 0) {
        delete newGameData.maxPlayers;
     }
+    
     await addDoc(gamesCollection, newGameData);
     toast({ title: "Game Added", description: `${gameData.name} added.` });
   };
@@ -343,7 +358,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const deleteSpace = async (spaceIdToDelete: string) => {
-    if (!firebaseUser || spaces.length <= 1) {
+    if (!firebaseUser || (await getSpacesForCurrentUser()).length <= 1) {
         toast({ title: "Cannot Delete", description: "You must have at least one space.", variant: "destructive"});
         return;
     }

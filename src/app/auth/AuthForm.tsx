@@ -14,7 +14,7 @@ import { Sparkles, LogIn, UserPlus, Info, Eye, EyeOff, AlertTriangle } from 'luc
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const formSchema = z.object({
-  username: z.string().min(3, "Username must be at least 3 characters.").max(20, "Username must be 20 characters or less."),
+  email: z.string().email("Please enter a valid email address."),
   password: z.string().min(6, "Password must be at least 6 characters."),
 });
 
@@ -29,7 +29,7 @@ export function AuthForm() {
   const form = useForm<AuthFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      username: "",
+      email: "",
       password: "",
     },
   });
@@ -37,8 +37,8 @@ export function AuthForm() {
   const onSubmit = async (values: AuthFormValues) => {
     setError(null);
     const result = isLoginMode 
-      ? await login(values.username, values.password)
-      : await signup(values.username, values.password);
+      ? await login(values.email, values.password)
+      : await signup(values.email, values.password);
 
     if (!result.success) {
       setError(result.error || "An unexpected error occurred.");
@@ -73,17 +73,17 @@ export function AuthForm() {
         )}
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
           <div>
-            <Label htmlFor="username">Username</Label>
+            <Label htmlFor="email">Email Address</Label>
             <Input
-              id="username"
-              type="text"
-              placeholder="Enter your username"
-              {...form.register('username')}
+              id="email"
+              type="email"
+              placeholder="your@email.com"
+              {...form.register('email')}
               className="mt-1"
               disabled={isSubmitting || !firebaseConfigured}
             />
-            {form.formState.errors.username && (
-              <p className="text-sm text-destructive mt-1">{form.formState.errors.username.message}</p>
+            {form.formState.errors.email && (
+              <p className="text-sm text-destructive mt-1">{form.formState.errors.email.message}</p>
             )}
           </div>
 
