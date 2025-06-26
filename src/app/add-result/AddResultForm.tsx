@@ -26,6 +26,7 @@ import type { Game, Player, MatchPlayer } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { PlayerTag } from '@/components/PlayerTag';
 import { useSearchParams } from 'next/navigation';
+import { playSound } from '@/lib/audio';
 
 const createFormSchema = (gamesForValidation: Game[]) => z.object({
   gameId: z.string().min(1, "Please select a game."),
@@ -204,6 +205,7 @@ export function AddResultForm() {
       description: `${game.name} result has been saved.`,
       action: <ThumbsUp className="h-5 w-5 text-green-400" />,
     });
+    playSound('success');
   };
 
   const handleGetHandicapSuggestions = async () => {

@@ -25,6 +25,7 @@ import { auth, db, isFirebaseConfigured, firebaseConfig } from '@/lib/firebase';
 import type { Game, Player, Match, ScoreData, Space, UserAccount, PlayerStats, Tournament } from '@/types';
 import { INITIAL_MOCK_GAMES, INITIAL_MOCK_PLAYERS } from '@/data/mock-data';
 import { useToast } from '@/hooks/use-toast';
+import { playSound } from '@/lib/audio';
 
 interface AppContextType {
   games: Game[];
@@ -98,6 +99,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       variant: "destructive",
       duration: 10000,
     });
+    playSound('error');
   };
 
   useEffect(() => {
@@ -223,9 +225,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const docSnap = await getDoc(userDocRef);
 
       if (!docSnap.exists()) {
-          await signOut(auth);
+           await signOut(auth);
            const err = "Login Issue: Your account exists, but your user profile could not be found. This can happen with very old accounts. Please sign up again or check Firestore security rules.";
            setError(err);
+           playSound('error');
            return { success: false, error: err };
       }
       
@@ -240,6 +243,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         errMessage = "Invalid email or password provided.";
       }
       setError(errMessage);
+      playSound('error');
       return { success: false, error: errMessage };
     }
   };
@@ -284,6 +288,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       localStorage.setItem(`${ACTIVE_SPACE_LS_KEY_PREFIX}${newUser.uid}`, JSON.stringify(defaultSpaceRef.id));
       router.push('/dashboard');
       toast({ title: "Account Created", description: `Welcome, ${username}!` });
+      playSound('success');
       return { success: true };
 
     } catch (error: any) {
@@ -293,6 +298,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
          err = "This email address is already in use.";
        }
        setError(err);
+       playSound('error');
        return { success: false, error: err };
     }
   };
@@ -314,6 +320,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
     await addDoc(playersCollection, newPlayerData);
     toast({ title: "Player Added", description: `${name} has been added.` });
+    playSound('success');
   };
 
   const deletePlayer = async (playerId: string) => {
@@ -347,6 +354,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     
     await addDoc(gamesCollection, newGameData);
     toast({ title: "Game Added", description: `${gameData.name} added.` });
+    playSound('success');
   };
   
   const updateGame = async (gameId: string, gameData: Partial<Omit<Game, 'id' | 'icon' | 'ownerId'>>) => {
@@ -363,6 +371,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const querySnapshot = await getDocs(q);
     if (!querySnapshot.empty) {
         toast({ title: "Cannot Delete", description: "Game is used in recorded matches.", variant: "destructive" });
+        playSound('error');
         return;
     }
     const gameDocRef = doc(db, 'users', firebaseUser.uid, 'games', gameId);
@@ -378,6 +387,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setActiveSpaceId(newSpaceRef.id);
     }
     toast({ title: "Space Created", description: `Space "${name}" created.` });
+    playSound('success');
   };
   
   const updateSpace = async (spaceId: string, newName: string) => {
@@ -388,8 +398,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const deleteSpace = async (spaceIdToDelete: string) => {
-    if (!firebaseUser || (await getSpacesForCurrentUser()).length <= 1) {
+    if (!firebaseUser) return;
+    const userSpaces = await getSpacesForCurrentUser();
+    if (userSpaces.length <= 1) {
         toast({ title: "Cannot Delete", description: "You must have at least one space.", variant: "destructive"});
+        playSound('error');
         return;
     }
     // Batch delete space and all its matches
@@ -414,6 +427,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
      const tournamentsCollection = collection(db, 'users', firebaseUser.uid, 'tournaments');
      await addDoc(tournamentsCollection, { ...data, status: 'active', ownerId: firebaseUser.uid });
      toast({ title: "Tournament Created!", description: `The "${data.name}" tournament is now active.` });
+     playSound('success');
   };
   
   const updateTournament = async (id: string, data: Partial<Omit<Tournament, 'id' | 'ownerId'>>) => {
