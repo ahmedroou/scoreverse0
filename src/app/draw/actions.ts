@@ -9,15 +9,18 @@ export async function handleSuggestMatchupsAction(input: SuggestMatchupsInput): 
   } catch (error: any) {
     console.error("Error suggesting matchups:", error);
     const errorMessage = error.message || '';
+
+    // Specific check for API service blocked or disabled
     if (errorMessage.includes('API_KEY_SERVICE_BLOCKED') || errorMessage.includes('403 Forbidden')) {
-      return { error: "The Generative Language API is not enabled for your project. Please enable it in the Google Cloud Console and ensure a billing account is linked. See the README for instructions." };
+      return { error: "The AI service is blocked. Please ensure the 'Generative Language API' is enabled in your Google Cloud project and a billing account is linked. See README.md for instructions." };
     }
+    
+    // Specific check for an invalid API key
     if (errorMessage.includes('API_KEY_INVALID')) {
-      return { error: "The provided API key is invalid. Please check your Firebase configuration." };
+      return { error: "The API key is invalid. Please ensure your Firebase configuration is correct and you have completed the setup in the Google Cloud Console." };
     }
-     if (error instanceof Error) {
-        return { error: `Failed to get matchups: ${error.message}` };
-    }
-    return { error: "Failed to get matchups. An unknown error occurred." };
+    
+    // Generic fallback for other errors
+    return { error: "An unexpected error occurred while generating matchups. Please try again later." };
   }
 }
