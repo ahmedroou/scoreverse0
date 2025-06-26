@@ -1,4 +1,3 @@
-
 "use client";
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -12,11 +11,12 @@ import {
   SidebarFooter,
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button'; 
-import { Home, Swords, PlusCircle, BarChart3, History, Settings, Sparkles, Github, Users as UsersIcon, LayoutDashboard, Layers, BarChartHorizontal, Trophy, Award } from 'lucide-react'; 
+import { Home, Swords, PlusCircle, BarChart3, History, Settings, Sparkles, Github, Users as UsersIcon, LayoutDashboard, Layers, BarChartHorizontal, Trophy, Award, Shuffle } from 'lucide-react'; 
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/add-result', label: 'Add Game Result', icon: PlusCircle },
+  { href: '/draw', label: 'Generate Draw', icon: Shuffle },
   { href: '/leaderboards', label: 'Leaderboards', icon: BarChart3 },
   { href: '/stats', label: 'Player Stats', icon: BarChartHorizontal },
   { href: '/match-history', label: 'Match History', icon: History },
