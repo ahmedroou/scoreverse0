@@ -37,12 +37,16 @@ export function AuthForm() {
 
   const onSubmit = async (values: AuthFormValues) => {
     setError(null);
-    const result = isLoginMode 
-      ? await login(values.email, values.password)
-      : await signup(values.email, values.password);
+    try {
+      const result = isLoginMode 
+        ? await login(values.email, values.password)
+        : await signup(values.email, values.password);
 
-    if (!result.success) {
-      setError(result.error || "An unexpected error occurred.");
+      if (!result.success && result.error) {
+        setError(result.error);
+      }
+    } catch (err: any) {
+      setError(err.message || "An unexpected error occurred during submission.");
     }
   };
 
@@ -71,6 +75,14 @@ export function AuthForm() {
             </AlertDescription>
           </Alert>
         )}
+        
+        {error && (
+            <Alert variant="destructive">
+              <AlertTitle>Authentication Error</AlertTitle>
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+        )}
+
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
           <div>
             <Label htmlFor="email">Email Address</Label>
@@ -113,13 +125,6 @@ export function AuthForm() {
               <p className="text-sm text-destructive mt-1">{form.formState.errors.password.message}</p>
             )}
           </div>
-
-          {error && (
-            <Alert variant="destructive">
-              <AlertTitle>Authentication Error</AlertTitle>
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
           
           <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground text-lg py-3" disabled={isSubmitting || !firebaseConfigured}>
             {isSubmitting ? 'Processing...' : (isLoginMode ? <><LogIn className="mr-2 h-5 w-5" /> Log In</> : <><UserPlus className="mr-2 h-5 w-5" /> Sign Up</>)}

@@ -21,7 +21,7 @@ import {
   getDocs,
 } from 'firebase/firestore';
 
-import { auth, db, isFirebaseConfigured } from '@/lib/firebase';
+import { auth, db, isFirebaseConfigured, firebaseConfig } from '@/lib/firebase';
 import type { Game, Player, Match, ScoreData, Space, UserAccount, PlayerStats, Tournament } from '@/types';
 import { INITIAL_MOCK_GAMES, INITIAL_MOCK_PLAYERS } from '@/data/mock-data';
 import { useToast } from '@/hooks/use-toast';
@@ -82,10 +82,21 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [currentUser, setCurrentUser] = useState<UserAccount | null>(null);
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const [isClient, setIsClient] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
+
+  const handleFirestoreError = (error: Error, dataType: string) => {
+    console.error(`Firestore Error (${dataType}):`, error);
+    toast({
+      title: "Database Read Error",
+      description: `Could not fetch ${dataType} data. This is often caused by Firebase security rules. You may be seeing out-of-date information.`,
+      variant: "destructive",
+      duration: 10000,
+    });
+  };
 
   useEffect(() => {
     setIsClient(true);
@@ -109,31 +120,30 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           if (docSnap.exists()) {
             const userData = docSnap.data() as UserAccount;
             setCurrentUser(userData);
-
-            // Load active space from localStorage after user is confirmed
             const savedActiveSpaceId = localStorage.getItem(`${ACTIVE_SPACE_LS_KEY_PREFIX}${user.uid}`);
             setActiveSpaceIdState(savedActiveSpaceId ? JSON.parse(savedActiveSpaceId) : null);
           } else {
-            // This might happen if Firestore doc creation fails during signup.
-            // Log out the user to prevent an inconsistent state.
             console.error("User document not found in Firestore. Logging out.");
             signOut(auth);
           }
-        });
+        }, (error) => handleFirestoreError(error, "user profile"));
 
         // Setup real-time listeners for all user-specific data
         const unsubPlayers = onSnapshot(collection(db, 'users', user.uid, 'players'), (snapshot) => {
           const playersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Player));
           setPlayers(playersData);
-        });
+        }, (error) => handleFirestoreError(error, "players"));
+
         const unsubGames = onSnapshot(collection(db, 'users', user.uid, 'games'), (snapshot) => {
           const gamesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Game));
           setGames(gamesData);
-        });
+        }, (error) => handleFirestoreError(error, "games"));
+
         const unsubMatches = onSnapshot(collection(db, 'users', user.uid, 'matches'), (snapshot) => {
           const matchesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Match));
           setMatches(matchesData);
-        });
+        }, (error) => handleFirestoreError(error, "matches"));
+
         const unsubSpaces = onSnapshot(collection(db, 'users', user.uid, 'spaces'), (snapshot) => {
           const spacesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Space));
           setSpaces(spacesData);
@@ -146,11 +156,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
            } else {
               setActiveSpaceIdState(null);
            }
-        });
+        }, (error) => handleFirestoreError(error, "spaces"));
+
         const unsubTournaments = onSnapshot(collection(db, 'users', user.uid, 'tournaments'), (snapshot) => {
           const tournamentsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Tournament));
           setTournaments(tournamentsData);
-        });
+        }, (error) => handleFirestoreError(error, "tournaments"));
 
         setIsLoadingAuth(false);
 
@@ -188,7 +199,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const unsubscribe = onSnapshot(usersCollectionRef, (snapshot) => {
         const usersData = snapshot.docs.map(doc => doc.data() as UserAccount);
         setAllUsers(usersData);
-      });
+      }, (error) => handleFirestoreError(error, "all user list (admin)"));
       return () => unsubscribe();
     } else {
       setAllUsers([]);
@@ -197,8 +208,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
 
   const login = async (email: string, password?: string): Promise<{ success: boolean; error?: string }> => {
+    setError(null);
     if (!isFirebaseConfigured() || !password) {
-      return { success: false, error: "Firebase is not configured correctly." };
+      const err = "Firebase is not configured correctly.";
+      setError(err);
+      return { success: false, error: err };
     }
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
@@ -207,21 +221,29 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
       if (!docSnap.exists()) {
           await signOut(auth);
-           return { success: false, error: "Login Issue: Your account exists, but your user profile could not be found. This can happen with very old accounts. Please sign up again." };
+           const err = "Login Issue: Your account exists, but your user profile could not be found. This can happen with very old accounts. Please sign up again or check Firestore security rules.";
+           setError(err);
+           return { success: false, error: err };
       }
       
       const userData = docSnap.data() as UserAccount;
       toast({ title: "Logged In", description: `Welcome back, ${userData.username}!` });
+      router.push('/dashboard');
       return { success: true };
     } catch (error: any) {
       console.error("Login failed:", error);
-      return { success: false, error: "Invalid email or password." };
+      const err = "Invalid email or password.";
+      setError(err);
+      return { success: false, error: err };
     }
   };
 
   const signup = async (email: string, password?: string): Promise<{ success: boolean; error?: string }> => {
+     setError(null);
      if (!isFirebaseConfigured() || !password) {
-      return { success: false, error: "Firebase is not configured correctly." };
+      const err = "Firebase is not configured correctly.";
+      setError(err);
+      return { success: false, error: err };
     }
     try {
       // Create user in Firebase Auth
@@ -254,16 +276,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
       // Set the new space as active in localStorage
       localStorage.setItem(`${ACTIVE_SPACE_LS_KEY_PREFIX}${newUser.uid}`, JSON.stringify(defaultSpaceRef.id));
-
+      router.push('/dashboard');
       toast({ title: "Account Created", description: `Welcome, ${username}!` });
       return { success: true };
 
     } catch (error: any) {
        console.error("Signup failed:", error);
+       let err = "Failed to create account. Please try again.";
        if (error.code === 'auth/email-already-in-use') {
-         return { success: false, error: "This email address is already in use." };
+         err = "This email address is already in use.";
        }
-       return { success: false, error: "Failed to create account. Please try again." };
+       setError(err);
+       return { success: false, error: err };
     }
   };
 
@@ -399,10 +423,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     await deleteDoc(tourDocRef);
     toast({ title: "Tournament Deleted" });
   };
-  
+
   const getGameById = useCallback((gameId: string) => games.find(g => g.id === gameId), [games]);
   const getPlayerById = useCallback((playerId: string) => players.find(p => p.id === playerId), [players]);
-
+  
   const calculateScores = useCallback((filteredMatchesForCalc: Match[]): ScoreData[] => {
     const playerScores: Record<string, ScoreData> = {};
     const relevantPlayerIds = new Set(filteredMatchesForCalc.flatMap(m => m.playerIds));
@@ -583,3 +607,4 @@ export const useAppContext = (): AppContextType => {
   }
   return context;
 };
+
