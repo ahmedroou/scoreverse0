@@ -1,3 +1,4 @@
+
 import type { LucideIcon } from "lucide-react";
 import type { SuggestHandicapOutput } from "@/ai/flows/suggest-handicap";
 
@@ -57,7 +58,6 @@ export interface ScoreData {
 export interface UserAccount {
   id: string;
   username: string;
-  password?: string; // Added for password authentication
   isAdmin?: boolean;
 }
 

@@ -18,6 +18,14 @@ function ProtectedLayout({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!isLoadingAuth) {
       const isPublicPath = pathname.startsWith('/share');
+      
+      // Centralized redirection: always redirect from root to the main dashboard.
+      // The subsequent auth checks will handle unauthenticated users correctly.
+      if (pathname === '/') {
+        router.push('/dashboard');
+        return; // Exit early to avoid conflicting checks on the same render cycle.
+      }
+
       if (!currentUser && pathname !== '/auth' && !isPublicPath) {
         router.push('/auth');
       } else if (currentUser && pathname === '/auth') {

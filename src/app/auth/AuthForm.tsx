@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
-import { Sparkles, LogIn, UserPlus, Info, Eye, EyeOff } from 'lucide-react';
+import { Sparkles, LogIn, UserPlus, Info, Eye, EyeOff, AlertTriangle } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const formSchema = z.object({
@@ -21,7 +21,7 @@ const formSchema = z.object({
 type AuthFormValues = z.infer<typeof formSchema>;
 
 export function AuthForm() {
-  const { login, signup, isLoadingAuth } = useAppContext();
+  const { login, signup, isLoadingAuth, firebaseConfigured } = useAppContext();
   const [isLoginMode, setIsLoginMode] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
@@ -36,19 +36,17 @@ export function AuthForm() {
 
   const onSubmit = async (values: AuthFormValues) => {
     setError(null);
-    let success = false;
-    if (isLoginMode) {
-      success = login(values.username, values.password);
-      if (!success) setError("Login failed. User not found or incorrect credentials.");
-    } else {
-      success = signup(values.username, values.password);
-      if (!success) setError("Signup failed. Username might be taken.");
+    const result = isLoginMode 
+      ? await login(values.username, values.password)
+      : await signup(values.username, values.password);
+
+    if (!result.success) {
+      setError(result.error || "An unexpected error occurred.");
     }
-    // Redirect is handled by AppLayoutClient's useEffect
-    if (success) {
-      form.reset();
-    }
+    // On success, the onAuthStateChanged listener in AppContext will handle navigation.
   };
+
+  const isSubmitting = form.formState.isSubmitting || isLoadingAuth;
 
   return (
     <Card className="w-full max-w-md shadow-xl bg-card border-border">
@@ -64,6 +62,15 @@ export function AuthForm() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
+        {!firebaseConfigured && (
+           <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Firebase Not Configured</AlertTitle>
+            <AlertDescription>
+              Authentication is disabled. Please add your Firebase configuration details to <strong>/src/lib/firebase.ts</strong> to enable login and signup.
+            </AlertDescription>
+          </Alert>
+        )}
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
           <div>
             <Label htmlFor="username">Username</Label>
@@ -73,6 +80,7 @@ export function AuthForm() {
               placeholder="Enter your username"
               {...form.register('username')}
               className="mt-1"
+              disabled={isSubmitting || !firebaseConfigured}
             />
             {form.formState.errors.username && (
               <p className="text-sm text-destructive mt-1">{form.formState.errors.username.message}</p>
@@ -87,6 +95,7 @@ export function AuthForm() {
                 type={showPassword ? "text" : "password"}
                 placeholder="Enter your password"
                 {...form.register('password')}
+                disabled={isSubmitting || !firebaseConfigured}
               />
               <Button
                 type="button"
@@ -95,6 +104,7 @@ export function AuthForm() {
                 className="absolute right-1 top-1/2 -translate-y-1/2 h-7 px-2"
                 onClick={() => setShowPassword(!showPassword)}
                 aria-label={showPassword ? "Hide password" : "Show password"}
+                disabled={isSubmitting || !firebaseConfigured}
               >
                 {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </Button>
@@ -106,28 +116,26 @@ export function AuthForm() {
 
           {error && (
             <Alert variant="destructive">
-              <AlertTitle>Error</AlertTitle>
+              <AlertTitle>Authentication Error</AlertTitle>
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
           
           <Alert variant="default" className="border-accent bg-accent/10">
             <Info className="h-5 w-5 text-accent" />
-            <AlertTitle className="text-accent">Prototype Hint</AlertTitle>
+            <AlertTitle className="text-accent">How it Works</AlertTitle>
             <AlertDescription className="text-xs">
-              For this demo, use any username and a password (min. 6 characters) to sign up.
-              To log in, use the same credentials.
-              <strong>Important:</strong> Passwords are stored in plain text in your browser's local storage for this prototype and are not secure. Do not use real passwords.
+              This app now uses Firebase for secure, cloud-based authentication. Your data is stored securely and is accessible from any browser you log into.
             </AlertDescription>
           </Alert>
 
-          <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground text-lg py-3" disabled={isLoadingAuth || form.formState.isSubmitting}>
-            {isLoadingAuth || form.formState.isSubmitting ? 'Processing...' : (isLoginMode ? <><LogIn className="mr-2 h-5 w-5" /> Log In</> : <><UserPlus className="mr-2 h-5 w-5" /> Sign Up</>)}
+          <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground text-lg py-3" disabled={isSubmitting || !firebaseConfigured}>
+            {isSubmitting ? 'Processing...' : (isLoginMode ? <><LogIn className="mr-2 h-5 w-5" /> Log In</> : <><UserPlus className="mr-2 h-5 w-5" /> Sign Up</>)}
           </Button>
         </form>
       </CardContent>
       <CardFooter className="flex flex-col items-center">
-        <Button variant="link" onClick={() => {setIsLoginMode(!isLoginMode); setError(null); form.reset();}} className="text-sm text-accent">
+        <Button variant="link" onClick={() => { if (!isSubmitting) {setIsLoginMode(!isLoginMode); setError(null); form.reset();} }} className="text-sm text-accent" disabled={isSubmitting}>
           {isLoginMode ? "Don't have an account? Sign Up" : "Already have an account? Log In"}
         </Button>
       </CardFooter>
