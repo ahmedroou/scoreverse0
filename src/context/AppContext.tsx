@@ -385,38 +385,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     toast({ title: "Tournament Deleted" });
   };
   
-  const addMatch = useCallback(async (matchData: Omit<Match, 'id' | 'date' | 'spaceId'>) => {
-    if (!firebaseUser) return;
-    const newMatch: Omit<Match, 'id'> = {
-      ...matchData,
-      date: new Date().toISOString(),
-      spaceId: activeSpaceId || undefined,
-    };
-    const matchesCollection = collection(db, 'users', firebaseUser.uid, 'matches');
-    await addDoc(matchesCollection, newMatch);
-    
-    // Tournament Completion Check
-    const allMatchesForUser = [...matches, {...newMatch, id: 'temp' }]; // Add new match for calculation
-    const relevantMatchesForGame = allMatchesForUser.filter(m => m.gameId === newMatch.gameId && m.spaceId === (activeSpaceId || undefined));
-    const gameLeaderboard = calculateScores(relevantMatchesForGame);
-    const activeTournamentsForGame = tournaments.filter(t => t.gameId === newMatch.gameId && t.status === 'active');
-    
-    for (const tourney of activeTournamentsForGame) {
-      const winner = gameLeaderboard.find(score => score.totalPoints >= tourney.targetPoints);
-      if (winner) {
-        const tourneyRef = doc(db, 'users', firebaseUser.uid, 'tournaments', tourney.id);
-        await updateDoc(tourneyRef, {
-            status: 'completed',
-            winnerPlayerId: winner.playerId,
-            dateCompleted: new Date().toISOString()
-        });
-        const winnerPlayer = getPlayerById(winner.playerId);
-        toast({ title: "🏆 Tournament Finished!", description: `${winnerPlayer?.name || 'A player'} won the "${tourney.name}" tournament!` });
-      }
-    }
-  }, [firebaseUser, activeSpaceId, matches, tournaments, toast, calculateScores, getPlayerById]);
-
-
   const getGameById = useCallback((gameId: string) => games.find(g => g.id === gameId), [games]);
   const getPlayerById = useCallback((playerId: string) => players.find(p => p.id === playerId), [players]);
 
@@ -449,6 +417,36 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       .sort((a, b) => b.totalPoints - a.totalPoints || b.wins - a.wins);
   }, [players]);
 
+  const addMatch = useCallback(async (matchData: Omit<Match, 'id' | 'date' | 'spaceId'>) => {
+    if (!firebaseUser) return;
+    const newMatch: Omit<Match, 'id'> = {
+      ...matchData,
+      date: new Date().toISOString(),
+      spaceId: activeSpaceId || undefined,
+    };
+    const matchesCollection = collection(db, 'users', firebaseUser.uid, 'matches');
+    await addDoc(matchesCollection, newMatch);
+    
+    // Tournament Completion Check
+    const allMatchesForUser = [...matches, {...newMatch, id: 'temp' }]; // Add new match for calculation
+    const relevantMatchesForGame = allMatchesForUser.filter(m => m.gameId === newMatch.gameId && m.spaceId === (activeSpaceId || undefined));
+    const gameLeaderboard = calculateScores(relevantMatchesForGame);
+    const activeTournamentsForGame = tournaments.filter(t => t.gameId === newMatch.gameId && t.status === 'active');
+    
+    for (const tourney of activeTournamentsForGame) {
+      const winner = gameLeaderboard.find(score => score.totalPoints >= tourney.targetPoints);
+      if (winner) {
+        const tourneyRef = doc(db, 'users', firebaseUser.uid, 'tournaments', tourney.id);
+        await updateDoc(tourneyRef, {
+            status: 'completed',
+            winnerPlayerId: winner.playerId,
+            dateCompleted: new Date().toISOString()
+        });
+        const winnerPlayer = getPlayerById(winner.playerId);
+        toast({ title: "🏆 Tournament Finished!", description: `${winnerPlayer?.name || 'A player'} won the "${tourney.name}" tournament!` });
+      }
+    }
+  }, [firebaseUser, activeSpaceId, matches, tournaments, toast, calculateScores, getPlayerById]);
 
   const getOverallLeaderboard = useCallback(() => {
     const filtered = activeSpaceId ? matches.filter(m => m.spaceId === activeSpaceId) : matches.filter(m => m.spaceId === undefined);
