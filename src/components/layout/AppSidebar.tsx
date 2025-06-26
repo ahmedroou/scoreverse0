@@ -12,7 +12,7 @@ import {
   SidebarFooter,
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button'; 
-import { Home, Swords, PlusCircle, BarChart3, History, Settings, Sparkles, Github, Users as UsersIcon, LayoutDashboard, Layers, BarChartHorizontal } from 'lucide-react'; 
+import { Home, Swords, PlusCircle, BarChart3, History, Settings, Sparkles, Github, Users as UsersIcon, LayoutDashboard, Layers, BarChartHorizontal, Trophy, Award } from 'lucide-react'; 
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -20,6 +20,8 @@ const navItems = [
   { href: '/leaderboards', label: 'Leaderboards', icon: BarChart3 },
   { href: '/stats', label: 'Player Stats', icon: BarChartHorizontal },
   { href: '/match-history', label: 'Match History', icon: History },
+  { href: '/tournaments', label: 'Tournaments', icon: Trophy },
+  { href: '/trophies', label: 'Trophy Room', icon: Award },
   { href: '/players', label: 'Manage Players', icon: UsersIcon },
   { href: '/games', label: 'Game Library', icon: Swords },
   { href: '/spaces', label: 'Manage Spaces', icon: Layers }, 

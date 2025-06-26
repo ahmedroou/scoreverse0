@@ -69,6 +69,17 @@ export interface PlayerGameStats {
   winRate: number;
 }
 
+export interface Tournament {
+  id: string;
+  name: string;
+  gameId: string;
+  targetPoints: number;
+  status: 'active' | 'completed';
+  winnerPlayerId?: string;
+  dateCompleted?: string; // ISO string
+  ownerId: string;
+}
+
 export interface PlayerStats {
   player: Player;
   totalGames: number;
