@@ -3,9 +3,9 @@ import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
-// IMPORTANT: Replace this with your app's actual Firebase configuration
-// from the Firebase console.
-const firebaseConfig = {
+// IMPORTANT: This configuration is used to connect to your Firebase project.
+// Make sure these values are correct and match your project's settings.
+export const firebaseConfig = {
   apiKey: "AIzaSyAoXtFPNqxZ_iA2SK58rGdI9NIWx56_NmY",
   authDomain: "scoreverse-kgk6y.firebaseapp.com",
   projectId: "scoreverse-kgk6y",
@@ -20,9 +20,11 @@ const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-// A helper function to check if the Firebase config is valid.
+// A helper function to check if the Firebase config has been changed from the default.
 export const isFirebaseConfigured = () => {
-    return firebaseConfig.apiKey !== "YOUR_API_KEY";
+    // A simple check to see if the apiKey is still the placeholder value.
+    // Replace "YOUR_API_KEY" with the actual placeholder if you have a different one.
+    return firebaseConfig.apiKey !== "YOUR_API_KEY" && firebaseConfig.projectId !== "";
 }
 
 export { auth, db };

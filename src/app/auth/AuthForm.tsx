@@ -10,8 +10,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
-import { Sparkles, LogIn, UserPlus, Info, Eye, EyeOff, AlertTriangle } from 'lucide-react';
+import { Sparkles, LogIn, UserPlus, Eye, EyeOff, AlertTriangle, Info } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { firebaseConfig } from '@/lib/firebase'; // Import the config
 
 const formSchema = z.object({
   email: z.string().email("Please enter a valid email address."),
@@ -43,7 +44,6 @@ export function AuthForm() {
     if (!result.success) {
       setError(result.error || "An unexpected error occurred.");
     }
-    // On success, the onAuthStateChanged listener in AppContext will handle navigation.
   };
 
   const isSubmitting = form.formState.isSubmitting || isLoadingAuth;
@@ -121,23 +121,22 @@ export function AuthForm() {
             </Alert>
           )}
           
-          <Alert variant="default" className="border-accent bg-accent/10">
-            <Info className="h-5 w-5 text-accent" />
-            <AlertTitle className="text-accent">How it Works</AlertTitle>
-            <AlertDescription className="text-xs">
-              This app now uses Firebase for secure, cloud-based authentication. Your data is stored securely and is accessible from any browser you log into.
-            </AlertDescription>
-          </Alert>
-
           <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground text-lg py-3" disabled={isSubmitting || !firebaseConfigured}>
             {isSubmitting ? 'Processing...' : (isLoginMode ? <><LogIn className="mr-2 h-5 w-5" /> Log In</> : <><UserPlus className="mr-2 h-5 w-5" /> Sign Up</>)}
           </Button>
         </form>
       </CardContent>
-      <CardFooter className="flex flex-col items-center">
+      <CardFooter className="flex flex-col items-center gap-4">
         <Button variant="link" onClick={() => { if (!isSubmitting) {setIsLoginMode(!isLoginMode); setError(null); form.reset();} }} className="text-sm text-accent" disabled={isSubmitting}>
           {isLoginMode ? "Don't have an account? Sign Up" : "Already have an account? Log In"}
         </Button>
+        <Alert variant="default" className="border-accent/30 bg-accent/10 text-xs">
+          <Info className="h-4 w-4 text-accent" />
+          <AlertTitle className="text-accent text-xs font-semibold">Debug Info</AlertTitle>
+          <AlertDescription>
+            Connecting to Project ID: <strong>{firebaseConfig.projectId || "Not Set"}</strong>
+          </AlertDescription>
+        </Alert>
       </CardFooter>
     </Card>
   );
