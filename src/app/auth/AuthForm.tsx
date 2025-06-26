@@ -66,16 +66,6 @@ export function AuthForm() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        {!firebaseConfigured && (
-           <Alert variant="destructive">
-            <AlertTriangle className="h-4 w-4" />
-            <AlertTitle>Firebase Not Configured</AlertTitle>
-            <AlertDescription>
-              Authentication is disabled. Please add your Firebase configuration details to <strong>/src/lib/firebase.ts</strong> to enable login and signup.
-            </AlertDescription>
-          </Alert>
-        )}
-        
         {error && (
             <Alert variant="destructive">
               <AlertTitle>Authentication Error</AlertTitle>
@@ -135,13 +125,6 @@ export function AuthForm() {
         <Button variant="link" onClick={() => { if (!isSubmitting) {setIsLoginMode(!isLoginMode); setError(null); form.reset();} }} className="text-sm text-accent" disabled={isSubmitting}>
           {isLoginMode ? "Don't have an account? Sign Up" : "Already have an account? Log In"}
         </Button>
-        <Alert variant="default" className="border-accent/30 bg-accent/10 text-xs">
-          <Info className="h-4 w-4 text-accent" />
-          <AlertTitle className="text-accent text-xs font-semibold">Debug Info</AlertTitle>
-          <AlertDescription>
-            Connecting to Project ID: <strong>{firebaseConfig.projectId || "Not Set"}</strong>
-          </AlertDescription>
-        </Alert>
       </CardFooter>
     </Card>
   );
