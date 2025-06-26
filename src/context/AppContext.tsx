@@ -430,6 +430,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     toast({ title: "Tournament Deleted" });
   };
 
+  // Helper/Getter functions
+  const getGameById = useCallback((gameId: string) => games.find(g => g.id === gameId), [games]);
+  const getPlayerById = useCallback((playerId: string) => players.find(p => p.id === playerId), [players]);
+
   const calculateScores = useCallback((filteredMatchesForCalc: Match[]): ScoreData[] => {
     const playerScores: Record<string, ScoreData> = {};
     const relevantPlayerIds = new Set(filteredMatchesForCalc.flatMap(m => m.playerIds));
@@ -490,9 +494,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   }, [firebaseUser, activeSpaceId, matches, tournaments, toast, calculateScores, getPlayerById]);
 
-  const getGameById = useCallback((gameId: string) => games.find(g => g.id === gameId), [games]);
-  const getPlayerById = useCallback((playerId: string) => players.find(p => p.id === playerId), [players]);
-  
   const getOverallLeaderboard = useCallback(() => {
     const filtered = activeSpaceId ? matches.filter(m => m.spaceId === activeSpaceId) : matches.filter(m => m.spaceId === undefined);
     return calculateScores(filtered);
