@@ -292,6 +292,9 @@ export const translationsEn = {
     deleteConfirmDescription: 'This action is permanent and cannot be undone. Deleting "{{playerName}}" will remove them from the player roster. They will appear as "Unknown Player" in any past matches they participated in.',
     deleteButton: 'Delete Player',
     addNewPlayer: 'Add New Player',
+    deleteAllButton: 'Delete All Players',
+    deleteAllConfirmTitle: 'Delete All Players?',
+    deleteAllConfirmDescription: 'Are you sure you want to delete ALL players? This action is permanent and will affect all matches and leaderboards.',
     addPlayerForm: {
       title: 'Add New Player',
       description: "Enter the details for the new player. Click add when you're done.",
@@ -315,7 +318,10 @@ export const translationsEn = {
         playerDeleted: 'Player Deleted',
         playerDeletedDesc: 'Player has been removed.',
         playerUpdated: 'Player Updated',
-        playerInUse: 'Cannot delete a player who has participated in matches.'
+        playerInUse: 'Cannot delete a player who has participated in matches.',
+        allPlayersDeleted: 'All Players Deleted',
+        allPlayersDeletedDesc: 'Your player roster has been cleared.',
+        noPlayersToDelete: 'There are no players to delete.'
     }
   },
   share: {

@@ -36,7 +36,7 @@ const stringToHslColor = (str: string, s: number, l: number): string => {
 
 
 export default function ManagePlayersPage() {
-  const { players, deletePlayer, isClient, currentUser, getUserById } = useAppContext();
+  const { players, deletePlayer, isClient, currentUser, getUserById, deleteAllPlayers } = useAppContext();
   const { t } = useLanguage();
   const [editingPlayer, setEditingPlayer] = useState<Player | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -173,11 +173,41 @@ export default function ManagePlayersPage() {
             </ul>
           )}
         </CardContent>
-        <CardFooter className="border-t border-border pt-6">
-          <Button onClick={handleAddPlayerDialogOpen} className="w-full bg-primary hover:bg-primary/90 text-primary-foreground">
+        <CardFooter className="border-t border-border pt-6 flex flex-col sm:flex-row gap-2">
+          <Button onClick={handleAddPlayerDialogOpen} className="w-full bg-primary hover:bg-primary/90 text-primary-foreground sm:flex-1">
             <UserPlus className="h-5 w-5 me-2" />
             {t('players.addNewPlayer')}
           </Button>
+          {players.length > 0 && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" className="w-full sm:w-auto">
+                  <Trash2 className="h-5 w-5 me-2" />
+                  {t('players.deleteAllButton')}
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle className="flex items-center gap-2">
+                    <ShieldAlert className="text-destructive h-6 w-6"/>
+                    {t('players.deleteAllConfirmTitle')}
+                  </AlertDialogTitle>
+                  <AlertDialogDescription>
+                    {t('players.deleteAllConfirmDescription')}
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={deleteAllPlayers}
+                    className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+                  >
+                    {t('common.delete')}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
         </CardFooter>
       </Card>
 

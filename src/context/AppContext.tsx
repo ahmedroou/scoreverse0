@@ -37,6 +37,7 @@ interface AppContextType {
   activeSpaceId: string | null;
   addPlayer: (name: string, avatarUrl?: string) => Promise<void>;
   deletePlayer: (playerId: string) => Promise<void>;
+  deleteAllPlayers: () => Promise<void>;
   addMatch: (matchData: Omit<Match, 'id' | 'date' | 'spaceId'>) => Promise<void>;
   updatePlayer: (playerId: string, playerData: Partial<Omit<Player, 'id'>>) => Promise<void>;
   getGameById: (gameId: string) => Game | undefined;
@@ -319,6 +320,42 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         toast({ title: t('common.error'), description: 'Failed to delete the player. Please try again.', variant: 'destructive' });
     }
   }, [firebaseUser, toast, t]);
+
+  const deleteAllPlayers = useCallback(async () => {
+    if (!firebaseUser) {
+        toast({ title: t('auth.authError'), description: "You must be logged in.", variant: "destructive" });
+        return;
+    }
+
+    if (players.length === 0) {
+        toast({ title: t('common.noData'), description: t('players.toasts.noPlayersToDelete') });
+        return;
+    }
+
+    try {
+        const batch = writeBatch(db);
+        const playersCollectionRef = collection(db, 'users', firebaseUser.uid, 'players');
+        const querySnapshot = await getDocs(playersCollectionRef);
+        
+        if (querySnapshot.empty) {
+            toast({ title: t('common.noData'), description: t('players.toasts.noPlayersToDelete') });
+            return;
+        }
+
+        querySnapshot.forEach(doc => {
+            batch.delete(doc.ref);
+        });
+
+        await batch.commit();
+
+        toast({ title: t('players.toasts.allPlayersDeleted'), description: t('players.toasts.allPlayersDeletedDesc') });
+        playSound('success');
+    } catch (e) {
+        console.error("Failed to delete all players:", e);
+        toast({ title: t('common.error'), description: 'Failed to delete all players. Please try again.', variant: 'destructive' });
+        playSound('error');
+    }
+  }, [firebaseUser, players, toast, t]);
 
 
   const updatePlayer = useCallback(async (playerId: string, playerData: Partial<Omit<Player, 'id' | 'ownerId'>>) => {
@@ -737,7 +774,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   return (
     <AppContext.Provider value={{ 
-      games, players, matches, spaces, tournaments, allUsers, activeSpaceId, addPlayer, deletePlayer, addMatch, updatePlayer, 
+      games, players, matches, spaces, tournaments, allUsers, activeSpaceId, addPlayer, deletePlayer, deleteAllPlayers, addMatch, updatePlayer, 
       getGameById, getPlayerById, getOverallLeaderboard, getGameLeaderboard, getPlayerStats, isClient,
       currentUser, login, signup, logout, isLoadingAuth, addSpace, updateSpace, deleteSpace, 
       setActiveSpaceId, getSpacesForCurrentUser, getActiveSpace, addGame, updateGame, deleteGame,

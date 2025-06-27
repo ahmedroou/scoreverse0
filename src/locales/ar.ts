@@ -292,6 +292,9 @@ export const translationsAr = {
     deleteConfirmDescription: 'هذا الإجراء دائم ولا يمكن التراجع عنه. سيؤدي حذف "{{playerName}}" إلى إزالتهم من قائمة اللاعبين. سيظهرون كـ "لاعب غير معروف" في أي مباريات سابقة شاركوا فيها.',
     deleteButton: 'حذف اللاعب',
     addNewPlayer: 'إضافة لاعب جديد',
+    deleteAllButton: 'حذف جميع اللاعبين',
+    deleteAllConfirmTitle: 'حذف جميع اللاعبين؟',
+    deleteAllConfirmDescription: 'هل أنت متأكد من أنك تريد حذف جميع اللاعبين؟ هذا الإجراء دائم وسيؤثر على جميع المباريات ولوحات الصدارة.',
     addPlayerForm: {
       title: 'إضافة لاعب جديد',
       description: 'أدخل تفاصيل اللاعب الجديد. انقر على إضافة عند الانتهاء.',
@@ -315,7 +318,10 @@ export const translationsAr = {
         playerDeleted: 'تم حذف اللاعب',
         playerDeletedDesc: 'تمت إزالة اللاعب.',
         playerUpdated: 'تم تحديث اللاعب',
-        playerInUse: 'لا يمكن حذف لاعب شارك في مباريات.'
+        playerInUse: 'لا يمكن حذف لاعب شارك في مباريات.',
+        allPlayersDeleted: 'تم حذف جميع اللاعبين',
+        allPlayersDeletedDesc: 'تم مسح قائمة اللاعبين الخاصة بك.',
+        noPlayersToDelete: 'لا يوجد لاعبون لحذفهم.'
     }
   },
   share: {
