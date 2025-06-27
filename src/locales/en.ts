@@ -386,9 +386,9 @@ export const translationsEn = {
         spaceDeleted: 'Space Deleted',
         spaceDeletedDesc: 'Space and its matches deleted.',
         clearHistoryConfirmTitle: 'Confirm History Clear',
-        clearHistoryConfirmDescription: 'Are you sure you want to delete all match records in the "{{spaceName}}" space? This action cannot be undone.',
-        noMatchesToClear: 'No matches to clear.',
-        historyCleared: 'Space history cleared successfully.'
+        clearHistoryConfirmDescription: 'Are you sure you want to delete all match records and tournaments in the "{{spaceName}}" space? This action cannot be undone.',
+        noMatchesToClear: 'No matches or tournaments to clear.',
+        historyCleared: 'Space history and tournaments cleared successfully.'
     }
   },
   stats: {

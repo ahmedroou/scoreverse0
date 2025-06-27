@@ -9,6 +9,7 @@ import { format, parseISO } from 'date-fns';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/hooks/use-language';
+import { useMemo } from 'react';
 
 const stringToHslColor = (str: string, s: number, l: number): string => {
   let hash = 0;
@@ -20,7 +21,7 @@ const stringToHslColor = (str: string, s: number, l: number): string => {
 };
 
 export default function TrophyRoomPage() {
-    const { players, tournaments, getGameById, isClient, currentUser } = useAppContext();
+    const { players, tournaments, getGameById, isClient, currentUser, activeSpaceId } = useAppContext();
     const { t } = useLanguage();
 
     if (!isClient) {
@@ -41,7 +42,12 @@ export default function TrophyRoomPage() {
        );
     }
     
-    const completedTournaments = tournaments.filter(t => t.status === 'completed' && t.winnerPlayerId);
+    const relevantTournaments = useMemo(() => {
+        const currentSpace = activeSpaceId || undefined;
+        return tournaments.filter(t => (t.spaceId || undefined) === currentSpace);
+    }, [tournaments, activeSpaceId]);
+
+    const completedTournaments = relevantTournaments.filter(t => t.status === 'completed' && t.winnerPlayerId);
 
     const trophiesByPlayer = completedTournaments.reduce((acc, tourney) => {
         const winnerId = tourney.winnerPlayerId!;

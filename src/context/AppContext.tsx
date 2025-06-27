@@ -63,7 +63,7 @@ interface AppContextType {
   shareSpace: (spaceId: string) => string | null;
   getUserById: (userId: string) => UserAccount | undefined;
   deleteUserAccount: (userId: string) => Promise<void>;
-  addTournament: (tournamentData: Omit<Tournament, 'id' | 'status' | 'ownerId' | 'winnerPlayerId' | 'dateCompleted'>) => Promise<void>;
+  addTournament: (tournamentData: Omit<Tournament, 'id' | 'status' | 'ownerId' | 'winnerPlayerId' | 'dateCompleted' | 'spaceId'>) => Promise<void>;
   updateTournament: (tournamentId: string, tournamentData: Partial<Omit<Tournament, 'id' | 'ownerId'>>) => Promise<void>;
   deleteTournament: (tournamentId: string) => Promise<void>;
   deleteMatch: (matchId: string) => Promise<void>;
@@ -412,10 +412,21 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     toast({ title: t('spaces.toasts.spaceDeleted'), description: t('spaces.toasts.spaceDeletedDesc') });
   };
   
-  const addTournament = async (data: Omit<Tournament, 'id' | 'status' | 'ownerId' | 'winnerPlayerId' | 'dateCompleted'>) => {
+  const addTournament = async (data: Omit<Tournament, 'id' | 'status' | 'ownerId' | 'winnerPlayerId' | 'dateCompleted' | 'spaceId'>) => {
      if (!firebaseUser) return;
      const tournamentsCollection = collection(db, 'users', firebaseUser.uid, 'tournaments');
-     await addDoc(tournamentsCollection, { ...data, status: 'active', ownerId: firebaseUser.uid });
+     
+     const newTournamentData: { [key: string]: any } = { 
+        ...data, 
+        status: 'active', 
+        ownerId: firebaseUser.uid 
+     };
+
+     if (activeSpaceId) {
+        newTournamentData.spaceId = activeSpaceId;
+     }
+
+     await addDoc(tournamentsCollection, newTournamentData);
      toast({ title: t('tournaments.toasts.tournamentCreated'), description: t('tournaments.toasts.tournamentCreatedDesc', {name: data.name}) });
      playSound('success');
   };
@@ -655,16 +666,24 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const clearSpaceHistory = async (spaceId: string) => {
     if (!firebaseUser) return;
 
+    const batch = writeBatch(db);
+
     const matchesQuery = query(collection(db, 'users', firebaseUser.uid, 'matches'), where("spaceId", "==", spaceId));
     const matchesSnapshot = await getDocs(matchesQuery);
 
-    if (matchesSnapshot.empty) {
+    const tournamentsQuery = query(collection(db, 'users', firebaseUser.uid, 'tournaments'), where("spaceId", "==", spaceId));
+    const tournamentsSnapshot = await getDocs(tournamentsQuery);
+
+    if (matchesSnapshot.empty && tournamentsSnapshot.empty) {
         toast({ title: t('common.noData'), description: t('spaces.toasts.noMatchesToClear') });
         return;
     }
 
-    const batch = writeBatch(db);
     matchesSnapshot.forEach(doc => {
+        batch.delete(doc.ref);
+    });
+
+    tournamentsSnapshot.forEach(doc => {
         batch.delete(doc.ref);
     });
 

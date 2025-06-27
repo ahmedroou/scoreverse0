@@ -79,6 +79,7 @@ export interface Tournament {
   winnerPlayerId?: string;
   dateCompleted?: string; // ISO string
   ownerId: string;
+  spaceId?: string;
 }
 
 export interface PlayerStats {

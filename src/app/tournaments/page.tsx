@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useAppContext } from '@/context/AppContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useLanguage } from '@/hooks/use-language';
 
 export default function ManageTournamentsPage() {
-  const { tournaments, getGameById, getGameLeaderboard, isClient, currentUser, getUserById } = useAppContext();
+  const { tournaments, getGameById, getGameLeaderboard, isClient, currentUser, getUserById, activeSpaceId } = useAppContext();
   const { t } = useLanguage();
   
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -36,8 +36,15 @@ export default function ManageTournamentsPage() {
    );
   }
 
-  const activeTournaments = tournaments.filter(t => t.status === 'active');
-  const completedTournaments = tournaments.filter(t => t.status === 'completed');
+  const relevantTournaments = useMemo(() => {
+    // spaceId can be undefined for global context, activeSpaceId can be null.
+    // This logic handles both cases correctly.
+    const currentSpace = activeSpaceId || undefined;
+    return tournaments.filter(t => (t.spaceId || undefined) === currentSpace);
+  }, [tournaments, activeSpaceId]);
+
+  const activeTournaments = relevantTournaments.filter(t => t.status === 'active');
+  const completedTournaments = relevantTournaments.filter(t => t.status === 'completed');
 
   return (
     <div className="container mx-auto py-8">

@@ -386,9 +386,9 @@ export const translationsAr = {
         spaceDeleted: 'تم حذف المساحة',
         spaceDeletedDesc: 'تم حذف المساحة ومواجهاتها.',
         clearHistoryConfirmTitle: 'تأكيد إعادة التعيين',
-        clearHistoryConfirmDescription: 'هل أنت متأكد من أنك تريد حذف جميع سجلات المباريات في مساحة "{{spaceName}}"؟ لا يمكن التراجع عن هذا الإجراء.',
-        noMatchesToClear: 'لا توجد مباريات لمسحها.',
-        historyCleared: 'تم مسح سجل المساحة بنجاح.'
+        clearHistoryConfirmDescription: 'هل أنت متأكد من أنك تريد حذف جميع سجلات المباريات والبطولات في مساحة "{{spaceName}}"؟ لا يمكن التراجع عن هذا الإجراء.',
+        noMatchesToClear: 'لا توجد مباريات أو بطولات لمسحها.',
+        historyCleared: 'تم مسح سجل المساحة والبطولات بنجاح.'
     }
   },
   stats: {
