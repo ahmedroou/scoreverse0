@@ -2,6 +2,7 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
+import { getStorage } from "firebase/storage";
 
 // IMPORTANT: This configuration is used to connect to your Firebase project.
 // Make sure these values are correct and match your project's settings.
@@ -19,6 +20,7 @@ const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
 const auth = getAuth(app);
 const db = getFirestore(app);
+const storage = getStorage(app);
 
 // A helper function to check if the Firebase config has been changed from the default.
 export const isFirebaseConfigured = () => {
@@ -27,4 +29,4 @@ export const isFirebaseConfigured = () => {
     return firebaseConfig.apiKey !== "YOUR_API_KEY" && firebaseConfig.projectId !== "";
 }
 
-export { auth, db };
+export { auth, db, storage };

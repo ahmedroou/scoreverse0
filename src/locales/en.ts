@@ -288,8 +288,8 @@ export const translationsEn = {
     noPlayers: 'No players found. Start by adding some!',
     owner: 'Owner: {{username}}',
     stats: 'Stats',
-    deleteConfirmTitle: 'Are you sure you want to delete this player?',
-    deleteConfirmDescription: 'This action is permanent and cannot be undone. Deleting "{{playerName}}" will remove them from the player roster. They will appear as "Unknown Player" in any past matches they participated in.',
+    deleteConfirmTitle: 'Delete Player?',
+    deleteConfirmDescription: 'Are you sure you want to delete "{{playerName}}"? They will appear as "Unknown Player" in past matches.',
     deleteButton: 'Delete Player',
     addNewPlayer: 'Add New Player',
     deleteAllButton: 'Delete All Players',
@@ -300,17 +300,19 @@ export const translationsEn = {
       description: "Enter the details for the new player. Click add when you're done.",
       nameLabel: 'Player Name',
       namePlaceholder: "E.g., 'Shadow Striker'",
-      avatarLabel: 'Avatar URL (Optional)',
-      avatarPlaceholder: 'https://example.com/avatar.png',
+      avatarLabel: 'Upload Avatar (Optional)',
+      avatarPlaceholder: 'Select image file',
       validation: {
         nameRequired: 'Player name cannot be empty.',
         nameMaxLength: 'Player name is too long (max 50 characters).',
-        avatarUrl: 'Please enter a valid URL.',
+        fileSize: 'Max image size is 5MB.',
+        fileType: 'Only .jpg, .jpeg, .png, and .webp formats are supported.',
       }
     },
     editPlayerForm: {
       title: 'Edit Player',
       description: "Change the details for {{playerName}}. Click save when you're done.",
+      uploadLabel: 'Upload New Avatar (Optional)',
     },
     toasts: {
         playerAdded: 'Player Added',
@@ -318,7 +320,6 @@ export const translationsEn = {
         playerDeleted: 'Player Deleted',
         playerDeletedDesc: 'Player has been removed.',
         playerUpdated: 'Player Updated',
-        playerInUse: 'Cannot delete a player who has participated in matches.',
         allPlayersDeleted: 'All Players Deleted',
         allPlayersDeletedDesc: 'Your player roster has been cleared.',
         noPlayersToDelete: 'There are no players to delete.'

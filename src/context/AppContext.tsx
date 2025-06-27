@@ -20,8 +20,9 @@ import {
   where,
   getDocs,
 } from 'firebase/firestore';
+import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
-import { auth, db, isFirebaseConfigured, firebaseConfig } from '@/lib/firebase';
+import { auth, db, storage, isFirebaseConfigured, firebaseConfig } from '@/lib/firebase';
 import type { Game, Player, Match, ScoreData, Space, UserAccount, PlayerStats, Tournament } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { playSound } from '@/lib/audio';
@@ -35,11 +36,11 @@ interface AppContextType {
   tournaments: Tournament[];
   allUsers: UserAccount[];
   activeSpaceId: string | null;
-  addPlayer: (name: string, avatarUrl?: string) => Promise<void>;
+  addPlayer: (name: string, avatarFile?: File) => Promise<void>;
   deletePlayer: (playerId: string) => Promise<void>;
   deleteAllPlayers: () => Promise<void>;
   addMatch: (matchData: Omit<Match, 'id' | 'date' | 'spaceId'>) => Promise<void>;
-  updatePlayer: (playerId: string, playerData: Partial<Omit<Player, 'id'>>) => Promise<void>;
+  updatePlayer: (playerId: string, playerData: { name: string; avatarFile?: File }) => Promise<void>;
   getGameById: (gameId: string) => Game | undefined;
   getPlayerById: (playerId: string) => Player | undefined;
   getOverallLeaderboard: () => ScoreData[];
@@ -289,9 +290,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     router.push('/auth');
   };
   
-  const addPlayer = useCallback(async (name: string, avatarUrl?: string) => {
-    if (!firebaseUser) return;
+  const addPlayer = useCallback(async (name: string, avatarFile?: File) => {
+    if (!firebaseUser) {
+        toast({ title: t('auth.authError'), description: "You must be logged in.", variant: "destructive" });
+        return;
+    }
     try {
+      let avatarUrl: string | undefined = undefined;
+      if (avatarFile) {
+        const filePath = `avatars/${firebaseUser.uid}/${Date.now()}-${avatarFile.name}`;
+        const storageRef = ref(storage, filePath);
+        const snapshot = await uploadBytes(storageRef, avatarFile);
+        avatarUrl = await getDownloadURL(snapshot.ref);
+      }
+
       const playersCollection = collection(db, 'users', firebaseUser.uid, 'players');
       const newPlayerData: Omit<Player, 'id'> = { name, winRate: 0, averageScore: 0, ownerId: firebaseUser.uid };
       if (avatarUrl) {
@@ -358,14 +370,24 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, [firebaseUser, players, toast, t]);
 
 
-  const updatePlayer = useCallback(async (playerId: string, playerData: Partial<Omit<Player, 'id' | 'ownerId'>>) => {
+  const updatePlayer = useCallback(async (playerId: string, playerData: { name: string; avatarFile?: File }) => {
     if (!firebaseUser) {
        toast({ title: t('auth.authError'), description: "You must be logged in to perform this action.", variant: "destructive" });
        return;
     }
-    const playerDocRef = doc(db, 'users', firebaseUser.uid, 'players', playerId);
     try {
-      await updateDoc(playerDocRef, playerData);
+      const playerDocRef = doc(db, 'users', firebaseUser.uid, 'players', playerId);
+      
+      const updateData: Partial<Omit<Player, 'id' | 'ownerId'>> = { name: playerData.name };
+
+      if (playerData.avatarFile) {
+        const filePath = `avatars/${firebaseUser.uid}/${playerId}/${Date.now()}-${playerData.avatarFile.name}`;
+        const storageRef = ref(storage, filePath);
+        const snapshot = await uploadBytes(storageRef, playerData.avatarFile);
+        updateData.avatarUrl = await getDownloadURL(snapshot.ref);
+      }
+      
+      await updateDoc(playerDocRef, updateData);
       toast({ title: t('players.toasts.playerUpdated') });
     } catch (e) {
        console.error("Failed to update player:", e);

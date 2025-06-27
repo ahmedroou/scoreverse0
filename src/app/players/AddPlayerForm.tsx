@@ -20,9 +20,18 @@ import {
 } from '@/components/ui/dialog';
 import { useLanguage } from '@/hooks/use-language';
 
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+
 const createFormSchema = (t: (key: string) => string) => z.object({
   name: z.string().min(1, t('players.addPlayerForm.validation.nameRequired')).max(50, t('players.addPlayerForm.validation.nameMaxLength')),
-  avatarUrl: z.string().url(t('players.addPlayerForm.validation.avatarUrl')).optional().or(z.literal('')),
+  avatarFile: z
+    .any()
+    .refine((files) => !files || files?.length === 0 || files?.[0]?.size <= MAX_FILE_SIZE, t('players.addPlayerForm.validation.fileSize'))
+    .refine(
+      (files) => !files || files?.length === 0 || ACCEPTED_IMAGE_TYPES.includes(files?.[0]?.type),
+      t('players.addPlayerForm.validation.fileType')
+    ),
 });
 
 interface AddPlayerFormProps {
@@ -39,12 +48,12 @@ export function AddPlayerForm({ isOpen, onOpenChange }: AddPlayerFormProps) {
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: "",
-      avatarUrl: "",
     },
   });
 
   const onSubmit = (values: z.infer<typeof formSchema>) => {
-    addPlayer(values.name, values.avatarUrl || undefined);
+    const avatarFile = values.avatarFile?.[0];
+    addPlayer(values.name, avatarFile);
     form.reset();
     onOpenChange(false);
   };
@@ -84,11 +93,13 @@ export function AddPlayerForm({ isOpen, onOpenChange }: AddPlayerFormProps) {
             </Label>
             <Input
               id="new-player-avatar"
-              {...form.register('avatarUrl')}
-              placeholder={t('players.addPlayerForm.avatarPlaceholder')}
+              type="file"
+              accept="image/*"
+              className="file:text-primary-foreground"
+              {...form.register('avatarFile')}
             />
-            {form.formState.errors.avatarUrl && (
-              <p className="text-sm text-destructive">{form.formState.errors.avatarUrl.message}</p>
+            {form.formState.errors.avatarFile && (
+              <p className="text-sm text-destructive mt-1">{(form.formState.errors.avatarFile.message as string)}</p>
             )}
           </div>
           <DialogFooter>

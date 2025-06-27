@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useEffect } from 'react';
@@ -20,11 +19,21 @@ import {
 } from '@/components/ui/dialog';
 import type { Player } from '@/types';
 import { useLanguage } from '@/hooks/use-language';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
+
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
 
 const createFormSchema = (t: (key: string) => string) => z.object({
   name: z.string().min(1, t('players.addPlayerForm.validation.nameRequired')).max(50, t('players.addPlayerForm.validation.nameMaxLength')),
-  avatarUrl: z.string().url(t('players.addPlayerForm.validation.avatarUrl')).optional().or(z.literal('')),
+  avatarFile: z
+    .any()
+    .refine((files) => !files || files?.length === 0 || files?.[0]?.size <= MAX_FILE_SIZE, t('players.addPlayerForm.validation.fileSize'))
+    .refine(
+      (files) => !files || files?.length === 0 || ACCEPTED_IMAGE_TYPES.includes(files?.[0]?.type),
+      t('players.addPlayerForm.validation.fileType')
+    ),
 });
 
 interface EditPlayerFormProps {
@@ -42,21 +51,20 @@ export function EditPlayerForm({ player, isOpen, onOpenChange }: EditPlayerFormP
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: player.name,
-      avatarUrl: player.avatarUrl || '',
     },
   });
 
   useEffect(() => {
     form.reset({
       name: player.name,
-      avatarUrl: player.avatarUrl || '',
     });
   }, [player, isOpen, form]);
 
   const onSubmit = (values: z.infer<typeof formSchema>) => {
+    const avatarFile = values.avatarFile?.[0];
     updatePlayer(player.id, {
       name: values.name,
-      avatarUrl: values.avatarUrl || undefined,
+      avatarFile,
     });
     onOpenChange(false);
   };
@@ -70,7 +78,15 @@ export function EditPlayerForm({ player, isOpen, onOpenChange }: EditPlayerFormP
             {t('players.editPlayerForm.description', {playerName: player.name})}
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
+        <div className="flex justify-center py-4">
+             <Avatar className="h-24 w-24 border-4 border-primary">
+                <AvatarImage src={player.avatarUrl} alt={player.name} />
+                <AvatarFallback className="text-3xl">
+                    {player.name.substring(0, 2).toUpperCase()}
+                </AvatarFallback>
+            </Avatar>
+        </div>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="name">
               {t('players.addPlayerForm.nameLabel')}
@@ -78,27 +94,27 @@ export function EditPlayerForm({ player, isOpen, onOpenChange }: EditPlayerFormP
             <Input
               id="name"
               {...form.register('name')}
-              className="col-span-3"
             />
             {form.formState.errors.name && (
-              <p className="text-sm text-destructive">{form.formState.errors.name.message}</p>
+              <p className="text-sm text-destructive mt-1">{form.formState.errors.name.message}</p>
             )}
           </div>
           <div className="space-y-2">
-            <Label htmlFor="avatarUrl">
-              {t('players.addPlayerForm.avatarLabel')}
+            <Label htmlFor="avatarFile">
+              {t('players.editPlayerForm.uploadLabel')}
             </Label>
             <Input
-              id="avatarUrl"
-              {...form.register('avatarUrl')}
-              className="col-span-3"
-              placeholder={t('players.addPlayerForm.avatarPlaceholder')}
+              id="avatarFile"
+              type="file"
+              accept="image/*"
+              className="file:text-primary-foreground"
+              {...form.register('avatarFile')}
             />
-            {form.formState.errors.avatarUrl && (
-              <p className="text-sm text-destructive">{form.formState.errors.avatarUrl.message}</p>
+            {form.formState.errors.avatarFile && (
+              <p className="text-sm text-destructive mt-1">{(form.formState.errors.avatarFile.message as string)}</p>
             )}
           </div>
-          <DialogFooter>
+          <DialogFooter className="pt-4">
             <DialogClose asChild>
               <Button type="button" variant="outline">{t('common.cancel')}</Button>
             </DialogClose>

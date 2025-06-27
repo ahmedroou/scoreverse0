@@ -7,8 +7,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { AddPlayerForm } from './AddPlayerForm';
+import { EditPlayerForm } from './EditPlayerForm';
 import type { Player } from '@/types';
-import { Loader2, Users, UserPlus, Trash2, ShieldAlert, BarChartHorizontal, UserCog } from 'lucide-react';
+import { Loader2, Users, UserPlus, Trash2, ShieldAlert, BarChartHorizontal, UserCog, Edit3 } from 'lucide-react';
 import Link from 'next/link';
 import {
   AlertDialog,
@@ -19,7 +20,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useLanguage } from '@/hooks/use-language';
 
@@ -35,16 +35,27 @@ const stringToHslColor = (str: string, s: number, l: number): string => {
 
 
 export default function ManagePlayersPage() {
-  const { players, isClient, currentUser, getUserById, deleteAllPlayers } = useAppContext();
+  const { players, deletePlayer, isClient, currentUser, getUserById, deleteAllPlayers } = useAppContext();
   const { t } = useLanguage();
   const [isAddPlayerDialogOpen, setIsAddPlayerDialogOpen] = useState(false);
+  const [isEditPlayerDialogOpen, setIsEditPlayerDialogOpen] = useState(false);
+  const [editingPlayer, setEditingPlayer] = useState<Player | null>(null);
+  const [playerToDelete, setPlayerToDelete] = useState<Player | null>(null);
 
-  const handleAddPlayerDialogOpen = () => {
-    setIsAddPlayerDialogOpen(true);
+  const handleEditClick = (player: Player) => {
+    setEditingPlayer(player);
+    setIsEditPlayerDialogOpen(true);
   };
 
-  const handleAddPlayerDialogClose = () => {
-    setIsAddPlayerDialogOpen(false);
+  const handleDeleteClick = (player: Player) => {
+    setPlayerToDelete(player);
+  };
+
+  const confirmDelete = () => {
+    if (playerToDelete) {
+      deletePlayer(playerToDelete.id);
+      setPlayerToDelete(null);
+    }
   };
 
   if (!isClient) {
@@ -87,6 +98,7 @@ export default function ManagePlayersPage() {
             <ul className="space-y-3">
               {players.map((player) => {
                 const owner = currentUser.isAdmin ? getUserById(player.ownerId) : null;
+                const canManage = currentUser.isAdmin || currentUser.id === player.ownerId;
                 return (
                 <li
                   key={player.id}
@@ -116,6 +128,18 @@ export default function ManagePlayersPage() {
                             <span className="hidden sm:inline">{t('players.stats')}</span>
                         </Button>
                     </Link>
+                    {canManage && (
+                         <>
+                            <Button variant="outline" size="sm" onClick={() => handleEditClick(player)}>
+                                <Edit3 className="h-4 w-4 me-1 sm:me-2" />
+                                <span className="hidden sm:inline">{t('common.edit')}</span>
+                            </Button>
+                            <Button variant="destructive" size="sm" onClick={() => handleDeleteClick(player)}>
+                                <Trash2 className="h-4 w-4 me-1 sm:me-2" />
+                                <span className="hidden sm:inline">{t('common.delete')}</span>
+                            </Button>
+                         </>
+                     )}
                   </div>
                 </li>
               )})}
@@ -123,7 +147,7 @@ export default function ManagePlayersPage() {
           )}
         </CardContent>
         <CardFooter className="border-t border-border pt-6 flex flex-col sm:flex-row gap-2">
-          <Button onClick={handleAddPlayerDialogOpen} className="w-full bg-primary hover:bg-primary/90 text-primary-foreground sm:flex-1">
+          <Button onClick={() => setIsAddPlayerDialogOpen(true)} className="w-full bg-primary hover:bg-primary/90 text-primary-foreground sm:flex-1">
             <UserPlus className="h-5 w-5 me-2" />
             {t('players.addNewPlayer')}
           </Button>
@@ -162,8 +186,44 @@ export default function ManagePlayersPage() {
       
       <AddPlayerForm 
         isOpen={isAddPlayerDialogOpen}
-        onOpenChange={handleAddPlayerDialogClose}
+        onOpenChange={setIsAddPlayerDialogOpen}
       />
+      
+      {editingPlayer && (
+        <EditPlayerForm 
+            isOpen={isEditPlayerDialogOpen}
+            onOpenChange={(open) => {
+                setIsEditPlayerDialogOpen(open);
+                if (!open) setEditingPlayer(null);
+            }}
+            player={editingPlayer}
+        />
+      )}
+
+      {playerToDelete && (
+        <AlertDialog open={!!playerToDelete} onOpenChange={() => setPlayerToDelete(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle className="flex items-center gap-2">
+                 <ShieldAlert className="text-destructive h-6 w-6"/>
+                 {t('players.deleteConfirmTitle')}
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                {t('players.deleteConfirmDescription', { playerName: playerToDelete.name })}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setPlayerToDelete(null)}>{t('common.cancel')}</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={confirmDelete}
+                className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+              >
+                {t('players.deleteButton')}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
     </div>
   );
 }

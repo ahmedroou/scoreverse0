@@ -288,8 +288,8 @@ export const translationsAr = {
     noPlayers: 'لم يتم العثور على لاعبين. ابدأ بإضافة البعض!',
     owner: 'المالك: {{username}}',
     stats: 'إحصائيات',
-    deleteConfirmTitle: 'هل أنت متأكد من حذف هذا اللاعب؟',
-    deleteConfirmDescription: 'هذا الإجراء دائم ولا يمكن التراجع عنه. سيؤدي حذف "{{playerName}}" إلى إزالتهم من قائمة اللاعبين. سيظهرون كـ "لاعب غير معروف" في أي مباريات سابقة شاركوا فيها.',
+    deleteConfirmTitle: 'حذف اللاعب؟',
+    deleteConfirmDescription: 'هل أنت متأكد من أنك تريد حذف "{{playerName}}؟" سيظهر كـ "لاعب غير معروف" في المباريات السابقة.',
     deleteButton: 'حذف اللاعب',
     addNewPlayer: 'إضافة لاعب جديد',
     deleteAllButton: 'حذف جميع اللاعبين',
@@ -300,17 +300,19 @@ export const translationsAr = {
       description: 'أدخل تفاصيل اللاعب الجديد. انقر على إضافة عند الانتهاء.',
       nameLabel: 'اسم اللاعب',
       namePlaceholder: 'مثال: "الظل المهاجم"',
-      avatarLabel: 'رابط الصورة الرمزية (اختياري)',
-      avatarPlaceholder: 'https://example.com/avatar.png',
+      avatarLabel: 'رفع صورة رمزية (اختياري)',
+      avatarPlaceholder: 'اختر ملف صورة',
       validation: {
         nameRequired: 'اسم اللاعب لا يمكن أن يكون فارغاً.',
         nameMaxLength: 'اسم اللاعب طويل جداً (50 حرفاً كحد أقصى).',
-        avatarUrl: 'الرجاء إدخال رابط صالح.',
+        fileSize: 'الحد الأقصى لحجم الملف هو 5 ميغابايت.',
+        fileType: 'يتم قبول ملفات .jpg, .jpeg, .png, .webp فقط.',
       }
     },
     editPlayerForm: {
       title: 'تعديل اللاعب',
       description: 'غير تفاصيل {{playerName}}. انقر على حفظ عند الانتهاء.',
+      uploadLabel: 'رفع صورة رمزية جديدة (اختياري)',
     },
     toasts: {
         playerAdded: 'تمت إضافة اللاعب',
@@ -318,7 +320,6 @@ export const translationsAr = {
         playerDeleted: 'تم حذف اللاعب',
         playerDeletedDesc: 'تمت إزالة اللاعب.',
         playerUpdated: 'تم تحديث اللاعب',
-        playerInUse: 'لا يمكن حذف لاعب شارك في مباريات.',
         allPlayersDeleted: 'تم حذف جميع اللاعبين',
         allPlayersDeletedDesc: 'تم مسح قائمة اللاعبين الخاصة بك.',
         noPlayersToDelete: 'لا يوجد لاعبون لحذفهم.'
