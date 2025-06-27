@@ -17,12 +17,9 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Bot, Loader2, ThumbsUp, UserCheck, Users } from 'lucide-react';
-import { handleSuggestHandicapAction } from './actions';
-import type { SuggestHandicapInput, SuggestHandicapOutput } from '@/ai/flows/suggest-handicap';
-import type { Game, Player, MatchPlayer } from '@/types';
+import { Loader2, ThumbsUp, UserCheck, Users } from 'lucide-react';
+import type { Game, Player } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { PlayerTag } from '@/components/PlayerTag';
 import { useSearchParams } from 'next/navigation';
@@ -88,13 +85,8 @@ export function AddResultForm() {
   const formSchema = useMemo(() => createFormSchema(t, games), [t, games]);
 
   const [selectedGame, setSelectedGame] = useState<Game | null>(defaultGameId ? getGameById(defaultGameId) || null : null);
-  const [matchPlayers, setMatchPlayers] = useState<MatchPlayer[]>([]); // For AI stats editing
   const [potentialWinners, setPotentialWinners] = useState<Player[]>([]);
   
-  const [handicapSuggestions, setHandicapSuggestions] = useState<SuggestHandicapOutput | null>(null);
-  const [isSuggestingHandicap, setIsSuggestingHandicap] = useState(false);
-  const [handicapError, setHandicapError] = useState<string | null>(null);
-
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -123,36 +115,14 @@ export function AddResultForm() {
     setSelectedGame(gameFromContext || null);
     form.setValue('selectedPlayerIds', []);
     form.setValue('winnerIds', []);
-    setHandicapSuggestions(null); 
-    setHandicapError(null);
   }, [watchedGameId, getGameById, form]);
 
   useEffect(() => {
     const currentlySelectedPlayers = players.filter(p => watchedSelectedPlayerIds.includes(p.id));
-    setMatchPlayers(
-      currentlySelectedPlayers.map(p => ({
-        ...p,
-        // Initialize AI stats from player's actual stats or defaults
-        aiWinRate: p.winRate !== undefined ? p.winRate * 100 : 50, // Convert probability to percentage
-        aiAverageScore: p.averageScore !== undefined ? p.averageScore : 100,
-      }))
-    );
     setPotentialWinners(currentlySelectedPlayers);
     // Ensure winners are a subset of selected players
     form.setValue('winnerIds', form.getValues('winnerIds').filter(id => watchedSelectedPlayerIds.includes(id)));
   }, [watchedSelectedPlayerIds, players, form]);
-
-
-  const handlePlayerStatChange = (playerId: string, field: 'aiWinRate' | 'aiAverageScore', value: string) => {
-    const numericValue = parseFloat(value);
-    if (isNaN(numericValue)) return;
-
-    setMatchPlayers(prev => 
-      prev.map(p => 
-        p.id === playerId ? { ...p, [field]: field === 'aiWinRate' ? Math.max(0, Math.min(100, numericValue)) : numericValue } : p
-      )
-    );
-  };
 
   const onSubmit = (values: z.infer<typeof formSchema>) => {
     if (!currentUser) {
@@ -165,83 +135,26 @@ export function AddResultForm() {
       return;
     }
 
-    const pointsAwarded: Array<{ playerId: string; points: number }> = [];
-    
-    values.winnerIds.forEach(winnerId => {
-      const player = getPlayerById(winnerId);
-      const handicapAdjustment = handicapSuggestions?.find(s => s.playerName === player?.name && s.handicap !== undefined)?.handicap || 0;
-      pointsAwarded.push({
-        playerId: winnerId,
-        points: game.pointsPerWin + handicapAdjustment,
-      });
-    });
-    
-    values.selectedPlayerIds.forEach(playerId => {
-      if (!values.winnerIds.includes(playerId)) {
-        const player = getPlayerById(playerId);
-        const handicapAdjustment = handicapSuggestions?.find(s => s.playerName === player?.name && s.handicap !== undefined)?.handicap || 0;
-        if (handicapAdjustment !== 0) {
-           pointsAwarded.push({playerId: playerId, points: handicapAdjustment });
-        }
-      }
-    });
+    const pointsAwarded = values.winnerIds.map(winnerId => ({
+      playerId: winnerId,
+      points: game.pointsPerWin,
+    }));
 
     addMatch({
       gameId: values.gameId,
       playerIds: values.selectedPlayerIds,
       winnerIds: values.winnerIds,
       pointsAwarded,
-      handicapSuggestions: handicapSuggestions || undefined,
     });
 
     form.reset({ gameId: watchedGameId, selectedPlayerIds: [], winnerIds: [] }); 
-    setMatchPlayers([]);
     setPotentialWinners([]);
-    setHandicapSuggestions(null);
-    setHandicapError(null);
     toast({
       title: t('addResult.toasts.matchRecorded'),
       description: t('addResult.toasts.matchRecordedDesc', {gameName: game.name}),
       action: <ThumbsUp className="h-5 w-5 text-green-400" />,
     });
     playSound('success');
-  };
-
-  const handleGetHandicapSuggestions = async () => {
-    if (!selectedGame || matchPlayers.length === 0) {
-      toast({ title: t('common.error'), description: t('addResult.toasts.handicapError'), variant: "destructive" });
-      return;
-    }
-     if (matchPlayers.length < selectedGame.minPlayers) {
-      toast({ title: t('common.error'), description: t('addResult.toasts.handicapMinPlayersError', {count: selectedGame.minPlayers}), variant: "destructive" });
-      return;
-    }
-
-    setIsSuggestingHandicap(true);
-    setHandicapError(null);
-    const handicapInput: SuggestHandicapInput = {
-      gameName: selectedGame.name,
-      playerStats: matchPlayers.map(p => ({
-        playerName: p.name,
-        winRate: p.aiWinRate / 100, // Convert percentage back to probability
-        averageScore: p.aiAverageScore,
-      })),
-      language: language,
-    };
-
-    const result = await handleSuggestHandicapAction(handicapInput);
-    setIsSuggestingHandicap(false);
-
-    if (result && 'error' in result) {
-      setHandicapError(result.error);
-      toast({ title: t('addResult.toasts.handicapFailed'), description: result.error, variant: "destructive" });
-    } else if (result) {
-      setHandicapSuggestions(result);
-      toast({ title: t('addResult.handicapSuggestionsReady'), description: t('addResult.handicapSuggestionsReadyDesc') });
-    } else {
-      setHandicapError(t('addResult.toasts.handicapUnexpectedError'));
-      toast({ title: t('common.error'), description: t('addResult.toasts.handicapUnexpectedError'), variant: "destructive" });
-    }
   };
   
   const availablePlayersForSelection = useMemo(() => {
@@ -342,7 +255,7 @@ export function AddResultForm() {
             </div>
           )}
           
-          {matchPlayers.length > 0 && potentialWinners.length > 0 && (
+          {potentialWinners.length > 0 && (
              <div className="space-y-2">
               <Label className="text-lg font-semibold">{t('addResult.winnerLabel')}</Label>
                <Controller
@@ -392,95 +305,12 @@ export function AddResultForm() {
             </div>
           )}
 
-          {selectedGame && matchPlayers.length >= selectedGame.minPlayers && (
-            <>
-              <Separator className="my-6" />
-              <div className="space-y-4">
-                <h3 className="text-xl font-semibold text-accent flex items-center gap-2"><Bot /> {t('addResult.aiHandicapSectionTitle')}</h3>
-                <p className="text-sm text-muted-foreground">{t('addResult.aiHandicapDescription')}</p>
-                <div className="space-y-3">
-                  {matchPlayers.map((player) => (
-                    <div key={player.id} className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end p-3 border rounded-md border-border">
-                      <Label className="md:col-span-3 font-medium">{player.name}</Label>
-                      <div>
-                        <Label htmlFor={`winRate-${player.id}`} className="text-xs">{t('addResult.tempWinRate')}</Label>
-                        <Input
-                          id={`winRate-${player.id}`}
-                          type="number"
-                          min="0" max="100" step="1"
-                          value={player.aiWinRate}
-                          onChange={(e) => handlePlayerStatChange(player.id, 'aiWinRate', e.target.value)}
-                          className="mt-1"
-                        />
-                      </div>
-                       <div>
-                        <Label htmlFor={`avgScore-${player.id}`} className="text-xs">{t('addResult.tempAvgScore')}</Label>
-                        <Input
-                          id={`avgScore-${player.id}`}
-                          type="number"
-                          step="1"
-                          value={player.aiAverageScore}
-                          onChange={(e) => handlePlayerStatChange(player.id, 'aiAverageScore', e.target.value)}
-                          className="mt-1"
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <Button 
-                  type="button" 
-                  onClick={handleGetHandicapSuggestions} 
-                  disabled={isSuggestingHandicap || matchPlayers.length < (selectedGame?.minPlayers || 0)}
-                  variant="outline"
-                  className="w-full border-accent text-accent hover:bg-accent hover:text-accent-foreground"
-                >
-                  {isSuggestingHandicap ? (
-                    <><Loader2 className="me-2 h-4 w-4 animate-spin" /> {t('addResult.fetchingSuggestions')}</>
-                  ) : (
-                    t('addResult.getHandicapButton')
-                  )}
-                </Button>
-
-                {handicapError && (
-                  <Alert variant="destructive">
-                    <AlertTitle>{t('common.error')}</AlertTitle>
-                    <AlertDescription>{handicapError}</AlertDescription>
-                  </Alert>
-                )}
-
-                {handicapSuggestions && (
-                  <Alert variant="default" className="border-accent bg-accent/10">
-                    <Bot className="h-5 w-5 text-accent" />
-                    <AlertTitle className="text-accent">{t('addResult.handicapSuggestionsTitle')}</AlertTitle>
-                    <AlertDescription>
-                      <ul className="list-disc ps-5 space-y-1 mt-2">
-                        {handicapSuggestions.map((suggestion, idx) => {
-                          const handicapText = suggestion.handicap !== undefined
-                            ? t('addResult.handicapTextWithValue', { handicap: suggestion.handicap })
-                            : t('addResult.noHandicapNeeded');
-                          return (
-                          <li key={idx} dangerouslySetInnerHTML={{
-                            __html: t('addResult.handicapSuggestionItem', {
-                              playerName: suggestion.playerName,
-                              handicapText: handicapText
-                            })
-                          }} />
-                          );
-                         })}
-                      </ul>
-                      <p className="text-xs mt-2 text-muted-foreground">{t('addResult.handicapNote')}</p>
-                    </AlertDescription>
-                  </Alert>
-                )}
-              </div>
-            </>
-          )}
         </CardContent>
         <CardFooter>
           <Button 
             type="submit" 
             className="w-full bg-primary hover:bg-primary/90 text-primary-foreground text-lg py-6"
-            disabled={!form.formState.isValid || isSuggestingHandicap || !currentUser}
+            disabled={!form.formState.isValid || !currentUser}
           >
             {t('addResult.recordMatchButton')}
           </Button>
