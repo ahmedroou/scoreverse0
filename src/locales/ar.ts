@@ -231,6 +231,7 @@ export const translationsAr = {
     overallRanking: 'الترتيب العام',
     overallLeaderboard: 'لوحة الصدارة العامة',
     gameLeaderboard: 'لوحة صدارة {{gameName}}',
+    gameList: 'اختر لوحة الصدارة',
     table: {
       rank: 'الترتيب',
       player: 'اللاعب',

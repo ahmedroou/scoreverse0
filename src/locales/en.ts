@@ -231,6 +231,7 @@ export const translationsEn = {
     overallRanking: 'Overall Ranking',
     overallLeaderboard: 'Overall Leaderboard',
     gameLeaderboard: '{{gameName}} Leaderboard',
+    gameList: 'Select Leaderboard',
     table: {
       rank: 'Rank',
       player: 'Player',

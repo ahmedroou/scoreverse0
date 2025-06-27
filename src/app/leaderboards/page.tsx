@@ -2,15 +2,18 @@
 "use client";
 import { useAppContext } from '@/context/AppContext';
 import { LeaderboardTable } from '@/components/LeaderboardTable';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Loader2, BarChart3, AlertTriangle, Layers } from 'lucide-react'; 
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'; 
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { useLanguage } from '@/hooks/use-language';
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
 
 export default function LeaderboardsPage() {
-  const { games, getOverallLeaderboard, getGameLeaderboard, isClient, currentUser, getActiveSpace, spaces } = useAppContext();
+  const { games, getOverallLeaderboard, getGameLeaderboard, isClient, currentUser, getActiveSpace, spaces, getGameById } = useAppContext();
   const { t } = useLanguage();
   const activeSpace = getActiveSpace();
+
+  const [selectedBoard, setSelectedBoard] = useState<'overall' | string>('overall');
 
   if (!isClient) {
     return <div className="flex justify-center items-center min-h-[calc(100vh-theme(spacing.32))]"><Loader2 className="h-8 w-8 animate-spin text-primary" /> <span className="ms-2 text-lg">{t('common.loading')}</span></div>;
@@ -31,8 +34,18 @@ export default function LeaderboardsPage() {
     );
   }
   
-  const overallScores = getOverallLeaderboard(); // This now considers activeSpace
+  const overallScores = getOverallLeaderboard();
   const context = activeSpace ? t('leaderboards.contextSpace', { spaceName: activeSpace.name }) : t('leaderboards.contextGlobal');
+
+  const activeScores = selectedBoard === 'overall' 
+    ? overallScores
+    : getGameLeaderboard(selectedBoard);
+  
+  const gameForTitle = selectedBoard !== 'overall' ? getGameById(selectedBoard) : null;
+
+  const activeTitle = selectedBoard === 'overall'
+    ? `${t('leaderboards.overallLeaderboard')} ${activeSpace ? `(${activeSpace.name})` : '(Global)'}`
+    : `${t('leaderboards.gameLeaderboard', {gameName: gameForTitle?.name || ''})} ${activeSpace ? `(${activeSpace.name})` : '(Global)'}`;
 
   return (
     <div className="container mx-auto py-8">
@@ -51,7 +64,7 @@ export default function LeaderboardsPage() {
         </div>
       </header>
 
-      {(games.length === 0 || spaces.length === 0) && overallScores.length === 0 ? ( // Check if spaces also exist
+      {(games.length === 0 && overallScores.length === 0) ? (
         <Card className="text-center py-12 bg-card border-border shadow">
           <CardHeader>
             <AlertTriangle className="h-16 w-16 text-amber-500 mx-auto mb-4" />
@@ -67,24 +80,33 @@ export default function LeaderboardsPage() {
           </CardContent>
         </Card>
       ) : (
-        <Tabs defaultValue="overall" className="w-full">
-          <TabsList className="grid w-full grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-auto gap-2 mb-6 bg-card p-2 rounded-lg shadow">
-            <TabsTrigger value="overall" className="py-3 text-base data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md">{t('leaderboards.overallRanking')}</TabsTrigger>
-            {games.map(game => (
-              <TabsTrigger key={game.id} value={game.id} className="py-3 text-base data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md">{game.name}</TabsTrigger>
-            ))}
-          </TabsList>
-
-          <TabsContent value="overall">
-            <LeaderboardTable scores={overallScores} title={`${t('leaderboards.overallLeaderboard')} ${activeSpace ? `(${activeSpace.name})` : '(Global)'}`} />
-          </TabsContent>
-
-          {games.map(game => (
-            <TabsContent key={game.id} value={game.id}>
-              <LeaderboardTable scores={getGameLeaderboard(game.id)} title={`${t('leaderboards.gameLeaderboard', {gameName: game.name})} ${activeSpace ? `(${activeSpace.name})` : '(Global)'}`} />
-            </TabsContent>
-          ))}
-        </Tabs>
+        <div className="flex flex-col md:flex-row gap-8">
+          <aside className="md:w-64 flex-shrink-0">
+            <h2 className="text-lg font-semibold mb-4 px-2">{t('leaderboards.gameList')}</h2>
+            <div className="flex flex-col gap-1">
+              <Button 
+                variant={selectedBoard === 'overall' ? 'secondary' : 'ghost'}
+                onClick={() => setSelectedBoard('overall')}
+                className="justify-start px-4 py-2 h-auto text-base"
+              >
+                {t('leaderboards.overallRanking')}
+              </Button>
+              {games.map(game => (
+                <Button 
+                  key={game.id}
+                  variant={selectedBoard === game.id ? 'secondary' : 'ghost'}
+                  onClick={() => setSelectedBoard(game.id)}
+                  className="justify-start px-4 py-2 h-auto text-base"
+                >
+                  {game.name}
+                </Button>
+              ))}
+            </div>
+          </aside>
+          <main className="flex-1 min-w-0">
+            <LeaderboardTable scores={activeScores} title={activeTitle} />
+          </main>
+        </div>
       )}
     </div>
   );
