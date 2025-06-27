@@ -35,6 +35,7 @@ export default function ManageSpacesPage() {
     getSpacesForCurrentUser,
     shareSpace,
     getUserById,
+    clearSpaceHistory,
   } = useAppContext();
   const { t } = useLanguage();
 
@@ -45,6 +46,7 @@ export default function ManageSpacesPage() {
   const [editingSpace, setEditingSpace] = useState<Space | null>(null);
   const [spaceToDelete, setSpaceToDelete] = useState<Space | null>(null);
   const [spaceToShare, setSpaceToShare] = useState<Space | null>(null);
+  const [spaceToClear, setSpaceToClear] = useState<Space | null>(null);
 
   const userSpaces = useMemo(() => getSpacesForCurrentUser(), [getSpacesForCurrentUser]);
 
@@ -56,6 +58,10 @@ export default function ManageSpacesPage() {
   const handleDeleteClick = (space: Space) => {
     setSpaceToDelete(space);
   };
+  
+  const handleClearHistoryClick = (space: Space) => {
+    setSpaceToClear(space);
+  };
 
   const handleShareClick = (space: Space) => {
     setSpaceToShare(space);
@@ -66,6 +72,13 @@ export default function ManageSpacesPage() {
     if (spaceToDelete) {
       deleteSpace(spaceToDelete.id);
       setSpaceToDelete(null); 
+    }
+  };
+  
+  const confirmClearHistory = () => {
+    if (spaceToClear) {
+      clearSpaceHistory(spaceToClear.id);
+      setSpaceToClear(null);
     }
   };
 
@@ -129,6 +142,7 @@ export default function ManageSpacesPage() {
                       onEdit={() => canEdit && handleEditClick(space)}
                       onDelete={() => canEdit && handleDeleteClick(space)}
                       onShare={() => handleShareClick(space)}
+                      onClearHistory={canEdit ? () => handleClearHistoryClick(space) : undefined}
                       ownerUsername={owner?.username}
                       canEdit={canEdit}
                     />
@@ -190,6 +204,28 @@ export default function ManageSpacesPage() {
                 disabled={!currentUser.isAdmin && userSpaces.length <= 1 && userSpaces.find(s => s.id === spaceToDelete.id) !== undefined}
               >
                 {t('common.delete')}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
+
+      {spaceToClear && (
+        <AlertDialog open={!!spaceToClear} onOpenChange={(open) => !open && setSpaceToClear(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle className="flex items-center gap-2"><ShieldAlert className="text-destructive h-6 w-6"/>{t('spaces.toasts.clearHistoryConfirmTitle')}</AlertDialogTitle>
+              <AlertDialogDescription>
+                 {t('spaces.toasts.clearHistoryConfirmDescription', {spaceName: spaceToClear.name})}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setSpaceToClear(null)}>{t('common.cancel')}</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={confirmClearHistory}
+                className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+              >
+                {t('common.reset')}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

@@ -1,20 +1,23 @@
 
 "use client";
 import type { Match, Game, Player } from '@/types';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Users, Trophy, CalendarDays, Bot, Star } from 'lucide-react';
+import { Users, Trophy, CalendarDays, Bot, Star, Pencil, Trash2 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { getGameIcon } from './icons';
 import { useLanguage } from '@/hooks/use-language';
+import { Button } from './ui/button';
 
 interface MatchHistoryCardProps {
   match: Match;
   game: Game | undefined;
   getPlayerById: (id: string) => Player | undefined;
+  onEdit?: () => void;
+  onDelete?: () => void;
 }
 
-export function MatchHistoryCard({ match, game, getPlayerById }: MatchHistoryCardProps) {
+export function MatchHistoryCard({ match, game, getPlayerById, onEdit, onDelete }: MatchHistoryCardProps) {
   const { t } = useLanguage();
   const gameName = game?.name || t('matchHistory.matchCard.unknownGame');
   const GameIconComponent = getGameIcon(game?.icon);
@@ -52,7 +55,7 @@ export function MatchHistoryCard({ match, game, getPlayerById }: MatchHistoryCar
           )}
         </div>
       </CardHeader>
-      <CardContent className="pt-4 space-y-3 text-sm">
+      <CardContent className="pt-4 pb-4 space-y-3 text-sm">
         <div>
           <h4 className="font-medium text-card-foreground/90 mb-1.5 flex items-center"><Users className="w-4 h-4 me-1.5 text-muted-foreground" /> {t('matchHistory.matchCard.participants')}</h4>
           <div className="flex flex-wrap gap-2">
@@ -103,6 +106,16 @@ export function MatchHistoryCard({ match, game, getPlayerById }: MatchHistoryCar
           </div>
         )}
       </CardContent>
+      {onEdit && onDelete && (
+        <CardFooter className="flex justify-end gap-2 border-t pt-4">
+            <Button variant="outline" size="sm" onClick={onEdit}>
+                <Pencil className="h-4 w-4 me-2" /> {t('common.edit')}
+            </Button>
+            <Button variant="destructive" size="sm" onClick={onDelete}>
+                <Trash2 className="h-4 w-4 me-2" /> {t('common.delete')}
+            </Button>
+        </CardFooter>
+      )}
     </Card>
   );
 }

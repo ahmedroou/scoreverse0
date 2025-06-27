@@ -6,14 +6,18 @@ import { useState, useMemo } from 'react';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { Loader2, Search, ListFilter, X, History, Layers } from 'lucide-react'; 
+import { Loader2, Search, ListFilter, X, History, Layers, ShieldAlert } from 'lucide-react'; 
 import { Label } from '@/components/ui/label'; 
 import Link from 'next/link'; 
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { useLanguage } from '@/hooks/use-language';
+import type { Match } from '@/types';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { EditMatchDialog } from './EditMatchDialog';
+
 
 export default function MatchHistoryPage() {
-  const { matches, games, players, getGameById, getPlayerById, isClient, currentUser, activeSpaceId, getActiveSpace } = useAppContext();
+  const { matches, games, players, getGameById, getPlayerById, isClient, currentUser, activeSpaceId, getActiveSpace, deleteMatch } = useAppContext();
   const { t } = useLanguage();
   const activeSpace = getActiveSpace();
   
@@ -21,6 +25,8 @@ export default function MatchHistoryPage() {
   const [selectedGameFilter, setSelectedGameFilter] = useState<string>('');
   const [selectedPlayerFilter, setSelectedPlayerFilter] = useState<string>('');
   const [showFilters, setShowFilters] = useState(false);
+  const [matchToDelete, setMatchToDelete] = useState<Match | null>(null);
+  const [editingMatch, setEditingMatch] = useState<Match | null>(null);
 
   const relevantMatches = useMemo(() => {
     if (!activeSpaceId) return matches.filter(m => m.spaceId === undefined);
@@ -49,6 +55,13 @@ export default function MatchHistoryPage() {
       return matchesSearchTerm && matchesGameFilter && matchesPlayerFilter;
     });
   }, [sortedMatches, searchTerm, selectedGameFilter, selectedPlayerFilter, getGameById, getPlayerById]);
+
+  const confirmDelete = () => {
+    if (matchToDelete) {
+        deleteMatch(matchToDelete.id);
+        setMatchToDelete(null);
+    }
+  };
 
   if (!isClient) {
     return <div className="flex justify-center items-center min-h-[calc(100vh-theme(spacing.32))]"><Loader2 className="h-8 w-8 animate-spin text-primary" /> <span className="ms-2 text-lg">{t('common.loading')}</span></div>;
@@ -162,7 +175,9 @@ export default function MatchHistoryPage() {
               key={match.id} 
               match={match} 
               game={getGameById(match.gameId)}
-              getPlayerById={getPlayerById} 
+              getPlayerById={getPlayerById}
+              onEdit={currentUser.isAdmin ? () => setEditingMatch(match) : undefined}
+              onDelete={currentUser.isAdmin ? () => setMatchToDelete(match) : undefined}
             />
           ))}
         </div>
@@ -177,6 +192,37 @@ export default function MatchHistoryPage() {
              <Button className="mt-6 bg-primary hover:bg-primary/90 text-primary-foreground">{t('matchHistory.recordMatch')}</Button>
            </Link>
         </div>
+      )}
+
+      <EditMatchDialog 
+        isOpen={!!editingMatch}
+        onOpenChange={(open) => !open && setEditingMatch(null)}
+        match={editingMatch}
+      />
+
+      {matchToDelete && (
+        <AlertDialog open={!!matchToDelete} onOpenChange={() => setMatchToDelete(null)}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle className="flex items-center gap-2">
+                        <ShieldAlert className="text-destructive h-6 w-6"/>
+                        {t('matchHistory.toasts.deleteConfirmTitle')}
+                    </AlertDialogTitle>
+                    <AlertDialogDescription>
+                        {t('matchHistory.toasts.deleteConfirmDescription')}
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel onClick={() => setMatchToDelete(null)}>{t('common.cancel')}</AlertDialogCancel>
+                    <AlertDialogAction
+                        onClick={confirmDelete}
+                        className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+                    >
+                        {t('common.delete')}
+                    </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
       )}
     </div>
   );

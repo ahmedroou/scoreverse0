@@ -66,6 +66,9 @@ interface AppContextType {
   addTournament: (tournamentData: Omit<Tournament, 'id' | 'status' | 'ownerId' | 'winnerPlayerId' | 'dateCompleted'>) => Promise<void>;
   updateTournament: (tournamentId: string, tournamentData: Partial<Omit<Tournament, 'id' | 'ownerId'>>) => Promise<void>;
   deleteTournament: (tournamentId: string) => Promise<void>;
+  deleteMatch: (matchId: string) => Promise<void>;
+  updateMatch: (matchId: string, matchData: Partial<Pick<Match, 'winnerIds' | 'pointsAwarded'>>) => Promise<void>;
+  clearSpaceHistory: (spaceId: string) => Promise<void>;
   firebaseConfigured: boolean;
 }
 
@@ -625,6 +628,41 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         toast({ title: t('common.error'), description: t('users.toasts.deleteError'), variant: "destructive" });
     }
   };
+  
+  const deleteMatch = async (matchId: string) => {
+    if (!firebaseUser) return;
+    const matchDocRef = doc(db, 'users', firebaseUser.uid, 'matches', matchId);
+    await deleteDoc(matchDocRef);
+    toast({ title: t('common.success'), description: t('matchHistory.toasts.deleted') });
+  };
+
+  const updateMatch = async (matchId: string, matchData: Partial<Pick<Match, 'winnerIds' | 'pointsAwarded'>>) => {
+      if (!firebaseUser) return;
+      const matchDocRef = doc(db, 'users', firebaseUser.uid, 'matches', matchId);
+      await updateDoc(matchDocRef, matchData);
+      toast({ title: t('common.success'), description: t('matchHistory.toasts.updated') });
+  };
+  
+  const clearSpaceHistory = async (spaceId: string) => {
+    if (!firebaseUser) return;
+
+    const matchesQuery = query(collection(db, 'users', firebaseUser.uid, 'matches'), where("spaceId", "==", spaceId));
+    const matchesSnapshot = await getDocs(matchesQuery);
+
+    if (matchesSnapshot.empty) {
+        toast({ title: t('common.noData'), description: t('spaces.toasts.noMatchesToClear') });
+        return;
+    }
+
+    const batch = writeBatch(db);
+    matchesSnapshot.forEach(doc => {
+        batch.delete(doc.ref);
+    });
+
+    await batch.commit();
+
+    toast({ title: t('common.success'), description: t('spaces.toasts.historyCleared') });
+  };
 
 
   return (
@@ -634,6 +672,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       currentUser, login, signup, logout, isLoadingAuth, addSpace, updateSpace, deleteSpace, 
       setActiveSpaceId, getSpacesForCurrentUser, getActiveSpace, addGame, updateGame, deleteGame,
       shareSpace, getUserById, deleteUserAccount, addTournament, updateTournament, deleteTournament,
+      deleteMatch, updateMatch, clearSpaceHistory,
       firebaseConfigured: isFirebaseConfigured()
     }}>
       {children}

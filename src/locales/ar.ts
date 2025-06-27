@@ -19,6 +19,7 @@ export const translationsAr = {
     language: 'اللغة',
     english: 'English',
     arabic: 'العربية',
+    reset: 'إعادة تعيين',
   },
   header: {
     title: 'ScoreVerse',
@@ -105,7 +106,7 @@ export const translationsAr = {
     allPlayersSelected: 'تم اختيار جميع اللاعبين المتاحين.',
     winnerLabel: 'الفائز(ون)',
     winnerPlaceholder: 'اختر الفائز(ين)...',
-    selectedWinner: ' (الفائز المحدد)',
+    selectedWinner: 'الفائز المحدد',
     recordMatchButton: 'تسجيل المواجهة',
     validation: {
       gameRequired: 'الرجاء اختيار لعبة.',
@@ -267,6 +268,16 @@ export const translationsAr = {
       aiHandicaps: 'ترجيحات الذكاء الاصطناعي المطبقة:',
       unknownGame: 'لعبة غير معروفة',
       invalidDate: 'تاريخ غير صالح',
+    },
+    editDialog: {
+        title: 'تعديل نتيجة المباراة',
+        description: 'تعديل الفائزين في مباراة {{gameName}}.'
+    },
+    toasts: {
+        deleted: 'تم حذف المباراة بنجاح.',
+        updated: 'تم تحديث المباراة بنجاح.',
+        deleteConfirmTitle: 'هل أنت متأكد؟',
+        deleteConfirmDescription: 'سيؤدي هذا إلى حذف سجل المباراة بشكل دائم. لا يمكن التراجع عن هذا الإجراء.'
     }
   },
   players: {
@@ -371,6 +382,10 @@ export const translationsAr = {
         mustHaveOne: 'يجب أن يكون لديك مساحة واحدة على الأقل.',
         spaceDeleted: 'تم حذف المساحة',
         spaceDeletedDesc: 'تم حذف المساحة ومواجهاتها.',
+        clearHistoryConfirmTitle: 'تأكيد إعادة التعيين',
+        clearHistoryConfirmDescription: 'هل أنت متأكد من أنك تريد حذف جميع سجلات المباريات في مساحة "{{spaceName}}"؟ لا يمكن التراجع عن هذا الإجراء.',
+        noMatchesToClear: 'لا توجد مباريات لمسحها.',
+        historyCleared: 'تم مسح سجل المساحة بنجاح.'
     }
   },
   stats: {
@@ -491,7 +506,7 @@ export const translationsAr = {
     }
   },
   ai: {
-    suggestHandicapPrompt: `أنت خبير في ترجيح نقاط الألعاب. بالنظر إلى إحصائيات اللاعبين التالية للعبة "{{{gameName}}}"، اقترح نظام ترجيح بالنقاط لكل لاعب لجعل اللعبة أكثر عدلاً وإثارة. اقترح ترجيحًا فقط إذا كانت قدرات اللاعب منحرفة بشكل ملحوظ مقارنة باللاعبين الآخرين.
+    suggestHandicapPrompt: `أنت خبير في ترجيح نقاط الألعاب. بالنظر إلى إحصائيات اللاعبين التالية للعبة "{{{gameName}}}", اقترح نظام ترجيح بالنقاط لكل لاعب لجعل اللعبة أكثر عدلاً وإثارة. اقترح ترجيحًا فقط إذا كانت قدرات اللاعب منحرفة بشكل ملحوظ مقارنة باللاعبين الآخرين.
 
 إحصائيات اللاعبين:
 {{#each playerStats}}

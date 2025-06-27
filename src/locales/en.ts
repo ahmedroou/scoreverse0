@@ -19,6 +19,7 @@ export const translationsEn = {
     language: 'Language',
     english: 'English',
     arabic: 'العربية',
+    reset: 'Reset',
   },
   header: {
     title: 'ScoreVerse',
@@ -105,7 +106,7 @@ export const translationsEn = {
     allPlayersSelected: 'All available players selected.',
     winnerLabel: 'Winner(s)',
     winnerPlaceholder: 'Select winner(s)...',
-    selectedWinner: ' (Selected Winner)',
+    selectedWinner: 'Selected Winner',
     recordMatchButton: 'Record Match',
     validation: {
       gameRequired: 'Please select a game.',
@@ -267,6 +268,16 @@ export const translationsEn = {
       aiHandicaps: 'AI Handicaps Applied:',
       unknownGame: 'Unknown Game',
       invalidDate: 'Invalid Date',
+    },
+    editDialog: {
+        title: 'Edit Match Result',
+        description: 'Modify the winners for the {{gameName}} match.'
+    },
+    toasts: {
+        deleted: 'Match successfully deleted.',
+        updated: 'Match successfully updated.',
+        deleteConfirmTitle: 'Are you sure?',
+        deleteConfirmDescription: 'This will permanently delete the match record. This action cannot be undone.'
     }
   },
   players: {
@@ -371,6 +382,10 @@ export const translationsEn = {
         mustHaveOne: 'You must have at least one space.',
         spaceDeleted: 'Space Deleted',
         spaceDeletedDesc: 'Space and its matches deleted.',
+        clearHistoryConfirmTitle: 'Confirm History Clear',
+        clearHistoryConfirmDescription: 'Are you sure you want to delete all match records in the "{{spaceName}}" space? This action cannot be undone.',
+        noMatchesToClear: 'No matches to clear.',
+        historyCleared: 'Space history cleared successfully.'
     }
   },
   stats: {
