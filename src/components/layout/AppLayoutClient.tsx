@@ -1,8 +1,9 @@
+
 "use client";
 import type { ReactNode } from 'react';
 import { useEffect } from 'react';
-import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
-import { AppProvider, useAppContext } from '@/context/AppContext';
+import { SidebarInset } from '@/components/ui/sidebar';
+import { useAppContext } from '@/context/AppContext';
 import { AppHeader } from './AppHeader';
 import { AppSidebar } from './AppSidebar';
 import { usePathname, useRouter } from 'next/navigation';
@@ -10,7 +11,7 @@ import { Loader2 } from 'lucide-react';
 import { useLanguage } from '@/hooks/use-language';
 
 // This component will render the correct layout based on the route and auth state.
-function LayoutWrapper({ children }: { children: ReactNode }) {
+export function AppLayoutClient({ children }: { children: ReactNode }) {
   const { currentUser, isLoadingAuth } = useAppContext();
   const { t } = useLanguage();
   const pathname = usePathname();
@@ -50,19 +51,17 @@ function LayoutWrapper({ children }: { children: ReactNode }) {
   // If the user is logged in, show the full dashboard layout with the sidebar.
   if (currentUser && !isPublicPath) {
     return (
-      <SidebarProvider defaultOpen={true}>
-        <div className="flex min-h-screen flex-col">
-          <AppHeader />
-          <div className="flex flex-1">
-            <AppSidebar />
-            <SidebarInset>
-              <main className="flex-1 p-4 sm:p-6 lg:p-8 bg-background text-foreground">
-                {children}
-              </main>
-            </SidebarInset>
-          </div>
+      <div className="flex min-h-screen flex-col">
+        <AppHeader />
+        <div className="flex flex-1">
+          <AppSidebar />
+          <SidebarInset>
+            <main className="flex-1 p-4 sm:p-6 lg:p-8 bg-background text-foreground">
+              {children}
+            </main>
+          </SidebarInset>
         </div>
-      </SidebarProvider>
+      </div>
     );
   }
 
@@ -71,14 +70,5 @@ function LayoutWrapper({ children }: { children: ReactNode }) {
     <main className="flex-1 bg-background text-foreground min-h-screen">
         {children}
     </main>
-  );
-}
-
-
-export function AppLayoutClient({ children }: { children: ReactNode }) {
-  return (
-    <AppProvider>
-      <LayoutWrapper>{children}</LayoutWrapper>
-    </AppProvider>
   );
 }

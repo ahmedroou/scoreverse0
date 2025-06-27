@@ -6,6 +6,8 @@ import './globals.css';
 import { AppLayoutClient } from '@/components/layout/AppLayoutClient';
 import { Toaster } from '@/components/ui/toaster';
 import { LanguageProvider } from '@/context/LanguageContext';
+import { AppProvider } from '@/context/AppContext';
+import { SidebarProvider } from '@/components/ui/sidebar';
 
 export const metadata: Metadata = {
   title: 'ScoreVerse - Track Your Games',
@@ -27,10 +29,14 @@ export default function RootLayout({
       </head>
       <body className={`${GeistSans.variable} ${GeistMono.variable} antialiased font-sans bg-background text-foreground`}>
         <LanguageProvider>
-          <AppLayoutClient>
-            {children}
-          </AppLayoutClient>
-          <Toaster />
+          <AppProvider>
+            <SidebarProvider defaultOpen={true}>
+              <AppLayoutClient>
+                {children}
+              </AppLayoutClient>
+              <Toaster />
+            </SidebarProvider>
+          </AppProvider>
         </LanguageProvider>
       </body>
     </html>
