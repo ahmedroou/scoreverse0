@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useMemo } from 'react';
@@ -22,19 +23,23 @@ import type { SuggestMatchupsOutput } from '@/ai/flows/suggest-matchups';
 import { useToast } from '@/hooks/use-toast';
 import { PlayerTag } from '@/components/PlayerTag';
 import { AnimatePresence, motion } from 'framer-motion';
+import { useLanguage } from '@/hooks/use-language';
 
-const formSchema = z.object({
-  gameId: z.string().min(1, "Please select a game."),
-  selectedPlayerIds: z.array(z.string()).min(2, "Please select at least two players for the draw."),
+const createFormSchema = (t: (key: string) => string) => z.object({
+  gameId: z.string().min(1, t('addResult.validation.gameRequired')),
+  selectedPlayerIds: z.array(z.string()).min(2, t('addResult.validation.playerRequired')),
 });
 
 export function DrawForm() {
   const { games, players, getPlayerById, isClient, currentUser } = useAppContext();
   const { toast } = useToast();
+  const { t, language } = useLanguage();
 
   const [matchups, setMatchups] = useState<SuggestMatchupsOutput | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const formSchema = createFormSchema(t);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -53,19 +58,19 @@ export function DrawForm() {
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     if (!currentUser) {
-      toast({ title: "Authentication Error", description: "You must be logged in.", variant: "destructive" });
+      toast({ title: t('auth.authError'), description: t('draw.toasts.authError'), variant: "destructive" });
       return;
     }
 
     const game = games.find(g => g.id === values.gameId);
     if (!game) {
-      toast({ title: "Error", description: "Selected game not found.", variant: "destructive" });
+      toast({ title: t('common.error'), description: t('draw.toasts.gameNotFound'), variant: "destructive" });
       return;
     }
 
     const selectedPlayers = values.selectedPlayerIds.map(id => getPlayerById(id)).filter(p => !!p);
     if (selectedPlayers.length < 2) {
-      toast({ title: "Error", description: "Not enough players selected.", variant: "destructive" });
+      toast({ title: t('common.error'), description: t('draw.toasts.notEnoughPlayers'), variant: "destructive" });
       return;
     }
 
@@ -76,19 +81,20 @@ export function DrawForm() {
     const result = await handleSuggestMatchupsAction({
       gameName: game.name,
       playerNames: selectedPlayers.map(p => p!.name),
+      language: language,
     });
 
     setIsGenerating(false);
 
     if (result && 'error' in result) {
       setError(result.error);
-      toast({ title: "Draw Generation Failed", description: result.error, variant: "destructive" });
+      toast({ title: t('draw.toasts.drawFailed'), description: result.error, variant: "destructive" });
     } else if (result) {
       setMatchups(result);
-      toast({ title: "Draw Generated!", description: "AI has created the matchups for the round." });
+      toast({ title: t('draw.toasts.drawSuccess'), description: t('draw.toasts.drawSuccessDesc') });
     } else {
-      setError("Received an unexpected response from the AI.");
-      toast({ title: "Draw Generation Error", description: "Received an unexpected response.", variant: "destructive" });
+      setError(t('draw.toasts.drawUnexpectedError'));
+      toast({ title: t('draw.toasts.drawFailed'), description: t('draw.toasts.drawUnexpectedError'), variant: "destructive" });
     }
   };
   
@@ -99,15 +105,15 @@ export function DrawForm() {
   }
 
   if (!isClient) {
-    return <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin text-primary" /> <span className="ml-2">Loading...</span></div>;
+    return <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin text-primary" /> <span className="ms-2">{t('draw.loading')}</span></div>;
   }
   
   if (!currentUser) {
     return (
        <div className="container mx-auto py-8">
            <Card className="w-full max-w-lg mx-auto shadow-xl bg-card">
-               <CardHeader><CardTitle>Access Denied</CardTitle></CardHeader>
-               <CardContent><p>Please log in to use the draw generator.</p></CardContent>
+               <CardHeader><CardTitle>{t('draw.accessDenied')}</CardTitle></CardHeader>
+               <CardContent><p>{t('draw.accessDeniedDesc')}</p></CardContent>
            </Card>
        </div>
    );
@@ -116,22 +122,22 @@ export function DrawForm() {
   return (
     <Card className="w-full max-w-2xl mx-auto shadow-xl bg-card">
       <CardHeader>
-        <CardTitle className="text-3xl font-bold text-primary flex items-center gap-2"><Shuffle /> Matchup Generator</CardTitle>
-        <CardDescription>Use the power of AI to generate random pairings for your game or tournament.</CardDescription>
+        <CardTitle className="text-3xl font-bold text-primary flex items-center gap-2"><Shuffle /> {t('draw.pageTitle')}</CardTitle>
+        <CardDescription>{t('draw.pageDescription')}</CardDescription>
       </CardHeader>
       
       {matchups ? (
         <CardContent className="space-y-6">
             <Alert variant="default" className="border-accent bg-accent/10">
                 <Bot className="h-5 w-5 text-accent" />
-                <AlertTitle className="text-accent">AI Commentary</AlertTitle>
+                <AlertTitle className="text-accent">{t('draw.aiCommentary')}</AlertTitle>
                 <AlertDescription>
-                    {matchups.commentary || "Here are your matchups!"}
+                    {matchups.commentary || t('draw.defaultCommentary')}
                 </AlertDescription>
             </Alert>
             
             <div className="space-y-4">
-                <h3 className="text-xl font-semibold text-center">This Round's Pairings</h3>
+                <h3 className="text-xl font-semibold text-center">{t('draw.roundPairings')}</h3>
                 <AnimatePresence>
                     {matchups.pairings.map((pairing, index) => (
                         <motion.div
@@ -166,17 +172,15 @@ export function DrawForm() {
                 >
                     <Alert>
                         <AlertTitle className="flex items-center gap-2">
-                           <CornerDownRight/> Bye Round
+                           <CornerDownRight/> {t('draw.byeRound')}
                         </AlertTitle>
-                        <AlertDescription>
-                            <strong>{matchups.bye}</strong> gets a free pass this round!
-                        </AlertDescription>
+                        <AlertDescription dangerouslySetInnerHTML={{ __html: t('draw.byeRoundDesc', {playerName: matchups.bye}) }} />
                     </Alert>
                 </motion.div>
             )}
              <CardFooter className="pt-6">
                 <Button onClick={resetDraw} className="w-full" variant="outline">
-                    <Shuffle className="mr-2 h-4 w-4" /> Start a New Draw
+                    <Shuffle className="me-2 h-4 w-4" /> {t('draw.newDrawButton')}
                 </Button>
             </CardFooter>
         </CardContent>
@@ -184,13 +188,13 @@ export function DrawForm() {
       <form onSubmit={form.handleSubmit(onSubmit)}>
         <CardContent className="space-y-6">
           <div className="space-y-2">
-            <Label htmlFor="gameId" className="text-lg font-semibold">Game</Label>
+            <Label htmlFor="gameId" className="text-lg font-semibold">{t('draw.gameLabel')}</Label>
             <Controller
               control={form.control}
               name="gameId"
               render={({ field }) => (
                 <Select onValueChange={field.onChange} value={field.value}>
-                  <SelectTrigger id="gameId"><SelectValue placeholder="Select a game for the draw" /></SelectTrigger>
+                  <SelectTrigger id="gameId"><SelectValue placeholder={t('draw.gamePlaceholder')} /></SelectTrigger>
                   <SelectContent>
                     {games.map(game => (
                       <SelectItem key={game.id} value={game.id}>{game.name}</SelectItem>
@@ -203,19 +207,19 @@ export function DrawForm() {
           </div>
 
           <div className="space-y-2">
-            <Label className="text-lg font-semibold flex items-center gap-2"><Users />Players for the Draw</Label>
+            <Label className="text-lg font-semibold flex items-center gap-2"><Users />{t('draw.playersLabel')}</Label>
             <Controller
               control={form.control}
               name="selectedPlayerIds"
               render={({ field }) => (
                 <div className="space-y-2">
                   <Select onValueChange={(playerId) => { if (playerId && !field.value?.includes(playerId)) { field.onChange([...(field.value || []), playerId]); } }} value="">
-                    <SelectTrigger><SelectValue placeholder="Add a player to the pool..." /></SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder={t('draw.addPlayerPlaceholder')} /></SelectTrigger>
                     <SelectContent>
                       {availablePlayersForSelection.map(player => (
                         <SelectItem key={player.id} value={player.id}>{player.name}</SelectItem>
                       ))}
-                      {availablePlayersForSelection.length === 0 && <p className="p-2 text-sm text-muted-foreground">All players added.</p>}
+                      {availablePlayersForSelection.length === 0 && <p className="p-2 text-sm text-muted-foreground">{t('draw.allPlayersAdded')}</p>}
                     </SelectContent>
                   </Select>
                   <div className="flex flex-wrap gap-2 mt-2 min-h-[30px] p-2 border rounded-md bg-muted/20">
@@ -229,7 +233,7 @@ export function DrawForm() {
                         />
                       ) : null;
                     })}
-                    {(field.value || []).length === 0 && <p className="text-sm text-muted-foreground">Select players to include in the draw.</p>}
+                    {(field.value || []).length === 0 && <p className="text-sm text-muted-foreground">{t('draw.selectedPlayersPool')}</p>}
                   </div>
                 </div>
               )}
@@ -239,7 +243,7 @@ export function DrawForm() {
           
           {error && (
             <Alert variant="destructive">
-              <AlertTitle>Error</AlertTitle>
+              <AlertTitle>{t('common.error')}</AlertTitle>
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
@@ -252,9 +256,9 @@ export function DrawForm() {
             disabled={isGenerating || !form.formState.isValid}
           >
             {isGenerating ? (
-              <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Generating Draw...</>
+              <><Loader2 className="me-2 h-5 w-5 animate-spin" /> {t('draw.generating')}</>
             ) : (
-              <><Shuffle className="mr-2 h-5 w-5" /> Generate Matchups</>
+              <><Shuffle className="me-2 h-5 w-5" /> {t('draw.generateButton')}</>
             )}
           </Button>
         </CardFooter>

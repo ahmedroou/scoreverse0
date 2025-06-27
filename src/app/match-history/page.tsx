@@ -6,13 +6,15 @@ import { useState, useMemo } from 'react';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { Loader2, Search, SlidersHorizontal, X, History, ListFilter, Layers } from 'lucide-react'; 
+import { Loader2, Search, ListFilter, X, History, Layers } from 'lucide-react'; 
 import { Label } from '@/components/ui/label'; 
 import Link from 'next/link'; 
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'; 
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { useLanguage } from '@/hooks/use-language';
 
 export default function MatchHistoryPage() {
   const { matches, games, players, getGameById, getPlayerById, isClient, currentUser, activeSpaceId, getActiveSpace } = useAppContext();
+  const { t } = useLanguage();
   const activeSpace = getActiveSpace();
   
   const [searchTerm, setSearchTerm] = useState('');
@@ -21,7 +23,7 @@ export default function MatchHistoryPage() {
   const [showFilters, setShowFilters] = useState(false);
 
   const relevantMatches = useMemo(() => {
-    if (!activeSpaceId) return matches.filter(m => m.spaceId === undefined); // Show only global matches if no space selected
+    if (!activeSpaceId) return matches.filter(m => m.spaceId === undefined);
     return matches.filter(m => m.spaceId === activeSpaceId);
   }, [matches, activeSpaceId]);
 
@@ -49,7 +51,7 @@ export default function MatchHistoryPage() {
   }, [sortedMatches, searchTerm, selectedGameFilter, selectedPlayerFilter, getGameById, getPlayerById]);
 
   if (!isClient) {
-    return <div className="flex justify-center items-center min-h-[calc(100vh-theme(spacing.32))]"><Loader2 className="h-8 w-8 animate-spin text-primary" /> <span className="ml-2 text-lg">Loading match history...</span></div>;
+    return <div className="flex justify-center items-center min-h-[calc(100vh-theme(spacing.32))]"><Loader2 className="h-8 w-8 animate-spin text-primary" /> <span className="ms-2 text-lg">{t('common.loading')}</span></div>;
   }
   
   if (!currentUser) {
@@ -57,25 +59,26 @@ export default function MatchHistoryPage() {
         <div className="container mx-auto py-8">
             <Card className="w-full max-w-3xl mx-auto shadow-xl bg-card">
                 <CardHeader>
-                    <CardTitle className="text-2xl font-bold text-primary">Access Denied</CardTitle>
+                    <CardTitle className="text-2xl font-bold text-primary">{t('draw.accessDenied')}</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <p className="text-muted-foreground">Please log in to view match history.</p>
+                    <p className="text-muted-foreground">{t('dashboard.loginPrompt')}</p>
                 </CardContent>
             </Card>
         </div>
     );
   }
 
+  const context = activeSpace ? t('matchHistory.contextSpace', {spaceName: activeSpace.name}) : t('matchHistory.contextGlobal');
 
   return (
     <div className="container mx-auto py-8">
       <header className="mb-8">
          <div className="flex items-center justify-between">
             <div>
-                <h1 className="text-4xl font-bold tracking-tight text-primary mb-1 flex items-center gap-3"><History /> Match History</h1>
+                <h1 className="text-4xl font-bold tracking-tight text-primary mb-1 flex items-center gap-3"><History /> {t('matchHistory.pageTitle')}</h1>
                  <p className="text-lg text-muted-foreground">
-                    Review outcomes in {activeSpace ? `the "${activeSpace.name}" space` : "the global context (no space)"}.
+                    {t('matchHistory.pageDescription', {context})}
                 </p>
             </div>
             {activeSpace && (
@@ -92,29 +95,29 @@ export default function MatchHistoryPage() {
           <div className="relative flex-grow w-full sm:w-auto">
             <Input
               type="text"
-              placeholder="Search by game, player, winner..."
+              placeholder={t('matchHistory.searchPlaceholder')}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 text-base py-2.5"
+              className="ps-10 text-base py-2.5"
               aria-label="Search matches"
             />
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+            <Search className="absolute start-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
           </div>
           <Button variant="outline" onClick={() => setShowFilters(!showFilters)} className="w-full sm:w-auto text-base py-2.5">
-            <ListFilter className="h-5 w-5 mr-2" />
-            {showFilters ? 'Hide' : 'Show'} Filters
+            <ListFilter className="h-5 w-5 me-2" />
+            {showFilters ? t('matchHistory.hideFilters') : t('matchHistory.showFilters')}
           </Button>
         </div>
         {showFilters && (
           <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6 border-t border-border pt-6">
             <div>
-              <Label htmlFor="gameFilter" className="text-sm font-medium mb-1.5 block">Filter by Game</Label>
+              <Label htmlFor="gameFilter" className="text-sm font-medium mb-1.5 block">{t('matchHistory.filterByGame')}</Label>
               <Select value={selectedGameFilter} onValueChange={setSelectedGameFilter}>
                 <SelectTrigger id="gameFilter" className="text-base py-2.5">
-                  <SelectValue placeholder="All Games" />
+                  <SelectValue placeholder={t('matchHistory.allGames')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Games</SelectItem>
+                  <SelectItem value="">{t('matchHistory.allGames')}</SelectItem>
                   {games.map(game => (
                     <SelectItem key={game.id} value={game.id}>{game.name}</SelectItem>
                   ))}
@@ -122,13 +125,13 @@ export default function MatchHistoryPage() {
               </Select>
             </div>
             <div>
-              <Label htmlFor="playerFilter" className="text-sm font-medium mb-1.5 block">Filter by Player</Label>
+              <Label htmlFor="playerFilter" className="text-sm font-medium mb-1.5 block">{t('matchHistory.filterByPlayer')}</Label>
               <Select value={selectedPlayerFilter} onValueChange={setSelectedPlayerFilter}>
                 <SelectTrigger id="playerFilter" className="text-base py-2.5">
-                  <SelectValue placeholder="All Players" />
+                  <SelectValue placeholder={t('matchHistory.allPlayers')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Players</SelectItem>
+                  <SelectItem value="">{t('matchHistory.allPlayers')}</SelectItem>
                   {players.map(player => (
                     <SelectItem key={player.id} value={player.id}>{player.name}</SelectItem>
                   ))}
@@ -145,7 +148,7 @@ export default function MatchHistoryPage() {
                     }}
                     className="md:col-span-2 text-accent hover:text-accent-foreground hover:bg-accent/10 justify-start text-base py-2.5"
                 >
-                    <X className="h-5 w-5 mr-2" /> Clear All Filters & Search
+                    <X className="h-5 w-5 me-2" /> {t('matchHistory.clearFilters')}
                 </Button>
             )}
           </div>
@@ -166,12 +169,12 @@ export default function MatchHistoryPage() {
       ) : (
         <div className="text-center py-16 bg-card border border-border rounded-lg shadow">
           <History className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-          <p className="text-2xl font-semibold text-card-foreground">No Matches Found</p>
+          <p className="text-2xl font-semibold text-card-foreground">{t('matchHistory.noMatchesFound')}</p>
           <p className="text-md text-muted-foreground mt-2">
-            No matches found for the current space and filters. Try adjusting your search or filters, or go record a new match!
+            {t('matchHistory.noMatchesDescription')}
           </p>
            <Link href="/add-result" passHref legacyBehavior>
-             <Button className="mt-6 bg-primary hover:bg-primary/90 text-primary-foreground">Record Match</Button>
+             <Button className="mt-6 bg-primary hover:bg-primary/90 text-primary-foreground">{t('matchHistory.recordMatch')}</Button>
            </Link>
         </div>
       )}

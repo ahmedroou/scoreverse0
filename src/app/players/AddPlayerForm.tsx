@@ -18,10 +18,11 @@ import {
   DialogFooter,
   DialogClose,
 } from '@/components/ui/dialog';
+import { useLanguage } from '@/hooks/use-language';
 
-const formSchema = z.object({
-  name: z.string().min(1, "Player name cannot be empty.").max(50, "Player name is too long (max 50 characters)."),
-  avatarUrl: z.string().url("Please enter a valid URL.").optional().or(z.literal('')),
+const createFormSchema = (t: (key: string) => string) => z.object({
+  name: z.string().min(1, t('players.addPlayerForm.validation.nameRequired')).max(50, t('players.addPlayerForm.validation.nameMaxLength')),
+  avatarUrl: z.string().url(t('players.addPlayerForm.validation.avatarUrl')).optional().or(z.literal('')),
 });
 
 interface AddPlayerFormProps {
@@ -31,6 +32,9 @@ interface AddPlayerFormProps {
 
 export function AddPlayerForm({ isOpen, onOpenChange }: AddPlayerFormProps) {
   const { addPlayer } = useAppContext();
+  const { t } = useLanguage();
+  const formSchema = createFormSchema(t);
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -55,20 +59,20 @@ export function AddPlayerForm({ isOpen, onOpenChange }: AddPlayerFormProps) {
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px] bg-card">
         <DialogHeader>
-          <DialogTitle className="text-primary">Add New Player</DialogTitle>
+          <DialogTitle className="text-primary">{t('players.addPlayerForm.title')}</DialogTitle>
           <DialogDescription>
-            Enter the details for the new player. Click add when you're done.
+            {t('players.addPlayerForm.description')}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
           <div className="space-y-2">
             <Label htmlFor="new-player-name">
-              Player Name
+              {t('players.addPlayerForm.nameLabel')}
             </Label>
             <Input
               id="new-player-name"
               {...form.register('name')}
-              placeholder="E.g., 'Shadow Striker'"
+              placeholder={t('players.addPlayerForm.namePlaceholder')}
             />
             {form.formState.errors.name && (
               <p className="text-sm text-destructive">{form.formState.errors.name.message}</p>
@@ -76,12 +80,12 @@ export function AddPlayerForm({ isOpen, onOpenChange }: AddPlayerFormProps) {
           </div>
           <div className="space-y-2">
             <Label htmlFor="new-player-avatar">
-              Avatar URL (Optional)
+              {t('players.addPlayerForm.avatarLabel')}
             </Label>
             <Input
               id="new-player-avatar"
               {...form.register('avatarUrl')}
-              placeholder="https://example.com/avatar.png"
+              placeholder={t('players.addPlayerForm.avatarPlaceholder')}
             />
             {form.formState.errors.avatarUrl && (
               <p className="text-sm text-destructive">{form.formState.errors.avatarUrl.message}</p>
@@ -89,9 +93,9 @@ export function AddPlayerForm({ isOpen, onOpenChange }: AddPlayerFormProps) {
           </div>
           <DialogFooter>
             <DialogClose asChild>
-              <Button type="button" variant="outline" onClick={() => form.reset()}>Cancel</Button>
+              <Button type="button" variant="outline" onClick={() => form.reset()}>{t('common.cancel')}</Button>
             </DialogClose>
-            <Button type="submit" className="bg-primary hover:bg-primary/90 text-primary-foreground">Add Player</Button>
+            <Button type="submit" className="bg-primary hover:bg-primary/90 text-primary-foreground">{t('common.add')}</Button>
           </DialogFooter>
         </form>
       </DialogContent>

@@ -27,11 +27,12 @@ import { useToast } from '@/hooks/use-toast';
 import { PlayerTag } from '@/components/PlayerTag';
 import { useSearchParams } from 'next/navigation';
 import { playSound } from '@/lib/audio';
+import { useLanguage } from '@/hooks/use-language';
 
-const createFormSchema = (gamesForValidation: Game[]) => z.object({
-  gameId: z.string().min(1, "Please select a game."),
-  selectedPlayerIds: z.array(z.string()).min(1, "Please select at least one player."),
-  winnerIds: z.array(z.string()).min(1, "Please select at least one winner."),
+const createFormSchema = (t: (key: string, replacements?: Record<string, string | number>) => string, gamesForValidation: Game[]) => z.object({
+  gameId: z.string().min(1, t('addResult.validation.gameRequired')),
+  selectedPlayerIds: z.array(z.string()).min(1, t('addResult.validation.playerRequired')),
+  winnerIds: z.array(z.string()).min(1, t('addResult.validation.winnerRequired')),
 }).superRefine((data, ctx) => {
   if (data.selectedPlayerIds.length > 0) {
     const game = gamesForValidation.find(g => g.id === data.gameId);
@@ -39,14 +40,14 @@ const createFormSchema = (gamesForValidation: Game[]) => z.object({
       if (data.selectedPlayerIds.length < game.minPlayers) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          message: `This game requires at least ${game.minPlayers} players.`,
+          message: t('addResult.validation.minPlayers', {count: game.minPlayers}),
           path: ['selectedPlayerIds'],
         });
       }
       if (game.maxPlayers && data.selectedPlayerIds.length > game.maxPlayers) {
          ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          message: `This game allows a maximum of ${game.maxPlayers} players.`,
+          message: t('addResult.validation.maxPlayers', {count: game.maxPlayers}),
           path: ['selectedPlayerIds'],
         });
       }
@@ -54,7 +55,7 @@ const createFormSchema = (gamesForValidation: Game[]) => z.object({
         if (!data.selectedPlayerIds.includes(winnerId)) {
           ctx.addIssue({
             code: z.ZodIssueCode.custom,
-            message: "Winners must be among the selected players.",
+            message: t('addResult.validation.winnerMustBePlayer'),
             path: ['winnerIds'],
           });
         }
@@ -62,7 +63,7 @@ const createFormSchema = (gamesForValidation: Game[]) => z.object({
     } else if (data.gameId) { // Game ID is selected but game not found in context
         ctx.addIssue({
             code: z.ZodIssueCode.custom,
-            message: "Selected game not found. Please refresh or select another game.",
+            message: t('addResult.validation.gameNotFound'),
             path: ['gameId'],
         });
     }
@@ -70,7 +71,7 @@ const createFormSchema = (gamesForValidation: Game[]) => z.object({
   if (data.winnerIds.length > data.selectedPlayerIds.length) {
      ctx.addIssue({
       code: z.ZodIssueCode.custom,
-      message: "Cannot have more winners than players.",
+      message: t('addResult.validation.moreWinnersThanPlayers'),
       path: ['winnerIds'],
     });
   }
@@ -80,10 +81,11 @@ const createFormSchema = (gamesForValidation: Game[]) => z.object({
 export function AddResultForm() {
   const { games, players, addMatch, getGameById, getPlayerById, isClient, currentUser } = useAppContext();
   const { toast } = useToast();
+  const { t, language } = useLanguage();
   const searchParams = useSearchParams();
   const defaultGameId = searchParams.get('gameId');
 
-  const formSchema = useMemo(() => createFormSchema(games), [games]);
+  const formSchema = useMemo(() => createFormSchema(t, games), [t, games]);
 
   const [selectedGame, setSelectedGame] = useState<Game | null>(defaultGameId ? getGameById(defaultGameId) || null : null);
   const [matchPlayers, setMatchPlayers] = useState<MatchPlayer[]>([]); // For AI stats editing
@@ -108,10 +110,10 @@ export function AddResultForm() {
       const game = getGameById(defaultGameId);
       setSelectedGame(game || null);
       if (!game) {
-        toast({title: "Warning", description: "The pre-selected game could not be found.", variant: "default"})
+        toast({title: t('common.error'), description: t('addResult.toasts.gameNotFound'), variant: "default"})
       }
     }
-  }, [defaultGameId, form, getGameById, toast]);
+  }, [defaultGameId, form, getGameById, toast, t]);
 
   const watchedGameId = form.watch('gameId');
   const watchedSelectedPlayerIds = form.watch('selectedPlayerIds');
@@ -154,18 +156,17 @@ export function AddResultForm() {
 
   const onSubmit = (values: z.infer<typeof formSchema>) => {
     if (!currentUser) {
-      toast({ title: "Authentication Error", description: "You must be logged in to record a match.", variant: "destructive"});
+      toast({ title: t('auth.authError'), description: t('addResult.toasts.authError'), variant: "destructive"});
       return;
     }
     const game = getGameById(values.gameId);
     if (!game) {
-      toast({ title: "Error", description: "Selected game not found.", variant: "destructive" });
+      toast({ title: t('common.error'), description: t('addResult.toasts.gameNotFoundOnSubmit'), variant: "destructive" });
       return;
     }
 
     const pointsAwarded: Array<{ playerId: string; points: number }> = [];
     
-    // Award points to winners
     values.winnerIds.forEach(winnerId => {
       const player = getPlayerById(winnerId);
       const handicapAdjustment = handicapSuggestions?.find(s => s.playerName === player?.name && s.handicap !== undefined)?.handicap || 0;
@@ -175,17 +176,15 @@ export function AddResultForm() {
       });
     });
     
-    // Apply handicap (if any) to non-winners if it results in non-zero points
     values.selectedPlayerIds.forEach(playerId => {
-      if (!values.winnerIds.includes(playerId)) { // If player is not a winner
+      if (!values.winnerIds.includes(playerId)) {
         const player = getPlayerById(playerId);
         const handicapAdjustment = handicapSuggestions?.find(s => s.playerName === player?.name && s.handicap !== undefined)?.handicap || 0;
-        if (handicapAdjustment !== 0) { // Only add if handicap causes points change
+        if (handicapAdjustment !== 0) {
            pointsAwarded.push({playerId: playerId, points: handicapAdjustment });
         }
       }
     });
-
 
     addMatch({
       gameId: values.gameId,
@@ -201,8 +200,8 @@ export function AddResultForm() {
     setHandicapSuggestions(null);
     setHandicapError(null);
     toast({
-      title: "Match Recorded!",
-      description: `${game.name} result has been saved.`,
+      title: t('addResult.toasts.matchRecorded'),
+      description: t('addResult.toasts.matchRecordedDesc', {gameName: game.name}),
       action: <ThumbsUp className="h-5 w-5 text-green-400" />,
     });
     playSound('success');
@@ -210,11 +209,11 @@ export function AddResultForm() {
 
   const handleGetHandicapSuggestions = async () => {
     if (!selectedGame || matchPlayers.length === 0) {
-      toast({ title: "Error", description: "Please select a game and players first.", variant: "destructive" });
+      toast({ title: t('common.error'), description: t('addResult.toasts.handicapError'), variant: "destructive" });
       return;
     }
      if (matchPlayers.length < selectedGame.minPlayers) {
-      toast({ title: "Error", description: `This game requires at least ${selectedGame.minPlayers} players for handicap suggestion.`, variant: "destructive" });
+      toast({ title: t('common.error'), description: t('addResult.toasts.handicapMinPlayersError', {count: selectedGame.minPlayers}), variant: "destructive" });
       return;
     }
 
@@ -227,6 +226,7 @@ export function AddResultForm() {
         winRate: p.aiWinRate / 100, // Convert percentage back to probability
         averageScore: p.aiAverageScore,
       })),
+      language: language,
     };
 
     const result = await handleSuggestHandicapAction(handicapInput);
@@ -234,48 +234,46 @@ export function AddResultForm() {
 
     if (result && 'error' in result) {
       setHandicapError(result.error);
-      toast({ title: "Handicap Suggestion Failed", description: result.error, variant: "destructive" });
+      toast({ title: t('addResult.toasts.handicapFailed'), description: result.error, variant: "destructive" });
     } else if (result) {
       setHandicapSuggestions(result);
-      toast({ title: "Handicap Suggestions Ready!", description: "AI has provided handicap recommendations." });
+      toast({ title: t('addResult.handicapSuggestionsReady'), description: t('addResult.handicapSuggestionsReadyDesc') });
     } else {
-      setHandicapError("Received an unexpected response from the AI.");
-      toast({ title: "Handicap Suggestion Error", description: "Received an unexpected response.", variant: "destructive" });
+      setHandicapError(t('addResult.toasts.handicapUnexpectedError'));
+      toast({ title: t('common.error'), description: t('addResult.toasts.handicapUnexpectedError'), variant: "destructive" });
     }
   };
   
   const availablePlayersForSelection = useMemo(() => {
     if (!selectedGame) return players;
-    // If max players is set and reached, only show already selected players (to prevent adding more)
     if (selectedGame.maxPlayers && watchedSelectedPlayerIds.length >= selectedGame.maxPlayers) {
       return players.filter(p => watchedSelectedPlayerIds.includes(p.id));
     }
-    return players; // Otherwise show all players
+    return players;
   }, [players, selectedGame, watchedSelectedPlayerIds]);
 
 
   if (!isClient) {
-    return <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin text-primary" /> <span className="ml-2">Loading form...</span></div>;
+    return <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin text-primary" /> <span className="ms-2">{t('common.loading')}</span></div>;
   }
 
   return (
     <Card className="w-full max-w-2xl mx-auto shadow-xl bg-card">
       <CardHeader>
-        <CardTitle className="text-3xl font-bold text-primary flex items-center gap-2"><UserCheck /> Add New Game Result</CardTitle>
-        <CardDescription>Record the outcome of a game and update player scores.</CardDescription>
+        <CardTitle className="text-3xl font-bold text-primary flex items-center gap-2"><UserCheck /> {t('addResult.pageTitle')}</CardTitle>
+        <CardDescription>{t('addResult.pageDescription')}</CardDescription>
       </CardHeader>
       <form onSubmit={form.handleSubmit(onSubmit)}>
         <CardContent className="space-y-6">
-          {/* Game Selection */}
           <div className="space-y-2">
-            <Label htmlFor="gameId" className="text-lg font-semibold">Game</Label>
+            <Label htmlFor="gameId" className="text-lg font-semibold">{t('addResult.gameLabel')}</Label>
             <Controller
               control={form.control}
               name="gameId"
               render={({ field }) => (
                 <Select onValueChange={field.onChange} value={field.value} defaultValue={defaultGameId || undefined}>
-                  <SelectTrigger id="gameId" aria-label="Select game">
-                    <SelectValue placeholder="Select a game" />
+                  <SelectTrigger id="gameId" aria-label={t('addResult.gamePlaceholder')}>
+                    <SelectValue placeholder={t('addResult.gamePlaceholder')} />
                   </SelectTrigger>
                   <SelectContent>
                     {games.map(game => (
@@ -288,13 +286,14 @@ export function AddResultForm() {
             {form.formState.errors.gameId && <p className="text-sm text-destructive">{form.formState.errors.gameId.message}</p>}
           </div>
 
-          {/* Player Selection */}
           {selectedGame && (
             <div className="space-y-2">
-              <Label className="text-lg font-semibold flex items-center gap-2"><Users />Players</Label>
+              <Label className="text-lg font-semibold flex items-center gap-2"><Users />{t('addResult.playersLabel')}</Label>
               <p className="text-xs text-muted-foreground">
-                Select {selectedGame.minPlayers}
-                {selectedGame.maxPlayers ? ` to ${selectedGame.maxPlayers}` : ' or more'} players.
+                {t('addResult.playersSelectionPrompt', {
+                  minPlayers: selectedGame.minPlayers,
+                  maxPlayersRange: selectedGame.maxPlayers ? t('addResult.maxPlayersRange', {maxPlayers: selectedGame.maxPlayers}) : t('addResult.orMore')
+                })}
               </p>
               <Controller
                 control={form.control}
@@ -305,15 +304,15 @@ export function AddResultForm() {
                       onValueChange={(playerId) => {
                         if (!playerId || field.value?.includes(playerId)) return;
                         if (selectedGame.maxPlayers && field.value && field.value.length >= selectedGame.maxPlayers) {
-                            toast({ title: "Max Players Reached", description: `This game allows a maximum of ${selectedGame.maxPlayers} players.`, variant: "default"});
+                            toast({ title: t('addResult.toasts.maxPlayersReached'), description: t('addResult.toasts.maxPlayersReachedDesc', {count: selectedGame.maxPlayers}), variant: "default"});
                             return;
                         }
                         field.onChange([...(field.value || []), playerId]);
                       }}
                        value=""
                     >
-                      <SelectTrigger aria-label="Add a player">
-                        <SelectValue placeholder="Add a player..." />
+                      <SelectTrigger aria-label={t('addResult.addPlayerPlaceholder')}>
+                        <SelectValue placeholder={t('addResult.addPlayerPlaceholder')} />
                       </SelectTrigger>
                       <SelectContent>
                         {availablePlayersForSelection
@@ -321,7 +320,7 @@ export function AddResultForm() {
                           .map(player => (
                             <SelectItem key={player.id} value={player.id}>{player.name}</SelectItem>
                           ))}
-                         {availablePlayersForSelection.filter(p => !(field.value || []).includes(p.id)).length === 0 && <p className="p-2 text-sm text-muted-foreground">All available players selected.</p>}
+                         {availablePlayersForSelection.filter(p => !(field.value || []).includes(p.id)).length === 0 && <p className="p-2 text-sm text-muted-foreground">{t('addResult.allPlayersSelected')}</p>}
                       </SelectContent>
                     </Select>
                     <div className="flex flex-wrap gap-2 mt-2 min-h-[30px]">
@@ -343,10 +342,9 @@ export function AddResultForm() {
             </div>
           )}
           
-          {/* Winner Selection */}
           {matchPlayers.length > 0 && potentialWinners.length > 0 && (
              <div className="space-y-2">
-              <Label className="text-lg font-semibold">Winner(s)</Label>
+              <Label className="text-lg font-semibold">{t('addResult.winnerLabel')}</Label>
                <Controller
                 control={form.control}
                 name="winnerIds"
@@ -363,13 +361,13 @@ export function AddResultForm() {
                       }}
                        value=""
                     >
-                      <SelectTrigger aria-label="Select winners">
-                         <SelectValue placeholder="Select winner(s)..." />
+                      <SelectTrigger aria-label={t('addResult.winnerPlaceholder')}>
+                         <SelectValue placeholder={t('addResult.winnerPlaceholder')} />
                       </SelectTrigger>
                       <SelectContent>
                         {potentialWinners.map(player => (
                           <SelectItem key={player.id} value={player.id} className={(field.value || []).includes(player.id) ? 'font-bold text-primary' : ''}>
-                            {player.name} {(field.value || []).includes(player.id) && ' (Selected Winner)'}
+                            {player.name} {(field.value || []).includes(player.id) && t('addResult.selectedWinner')}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -394,21 +392,18 @@ export function AddResultForm() {
             </div>
           )}
 
-          {/* AI Handicap Suggestion Section */}
           {selectedGame && matchPlayers.length >= selectedGame.minPlayers && (
             <>
               <Separator className="my-6" />
               <div className="space-y-4">
-                <h3 className="text-xl font-semibold text-accent flex items-center gap-2"><Bot /> AI Handicap Helper</h3>
-                <p className="text-sm text-muted-foreground">
-                  Optionally, get AI-powered handicap suggestions. Adjust player stats below for this match's handicap calculation.
-                </p>
+                <h3 className="text-xl font-semibold text-accent flex items-center gap-2"><Bot /> {t('addResult.aiHandicapSectionTitle')}</h3>
+                <p className="text-sm text-muted-foreground">{t('addResult.aiHandicapDescription')}</p>
                 <div className="space-y-3">
                   {matchPlayers.map((player) => (
                     <div key={player.id} className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end p-3 border rounded-md border-border">
                       <Label className="md:col-span-3 font-medium">{player.name}</Label>
                       <div>
-                        <Label htmlFor={`winRate-${player.id}`} className="text-xs">Temp. Win Rate (%)</Label>
+                        <Label htmlFor={`winRate-${player.id}`} className="text-xs">{t('addResult.tempWinRate')}</Label>
                         <Input
                           id={`winRate-${player.id}`}
                           type="number"
@@ -419,7 +414,7 @@ export function AddResultForm() {
                         />
                       </div>
                        <div>
-                        <Label htmlFor={`avgScore-${player.id}`} className="text-xs">Temp. Avg Score</Label>
+                        <Label htmlFor={`avgScore-${player.id}`} className="text-xs">{t('addResult.tempAvgScore')}</Label>
                         <Input
                           id={`avgScore-${player.id}`}
                           type="number"
@@ -440,15 +435,15 @@ export function AddResultForm() {
                   className="w-full border-accent text-accent hover:bg-accent hover:text-accent-foreground"
                 >
                   {isSuggestingHandicap ? (
-                    <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Fetching Suggestions...</>
+                    <><Loader2 className="me-2 h-4 w-4 animate-spin" /> {t('addResult.fetchingSuggestions')}</>
                   ) : (
-                    "Get Handicap Suggestions"
+                    t('addResult.getHandicapButton')
                   )}
                 </Button>
 
                 {handicapError && (
                   <Alert variant="destructive">
-                    <AlertTitle>Error</AlertTitle>
+                    <AlertTitle>{t('common.error')}</AlertTitle>
                     <AlertDescription>{handicapError}</AlertDescription>
                   </Alert>
                 )}
@@ -456,18 +451,24 @@ export function AddResultForm() {
                 {handicapSuggestions && (
                   <Alert variant="default" className="border-accent bg-accent/10">
                     <Bot className="h-5 w-5 text-accent" />
-                    <AlertTitle className="text-accent">AI Handicap Suggestions</AlertTitle>
+                    <AlertTitle className="text-accent">{t('addResult.handicapSuggestionsTitle')}</AlertTitle>
                     <AlertDescription>
-                      <ul className="list-disc pl-5 space-y-1 mt-2">
-                        {handicapSuggestions.map((suggestion, idx) => (
-                          <li key={idx}>
-                            <strong>{suggestion.playerName}:</strong> 
-                            {suggestion.handicap !== undefined ? ` Handicap of ${suggestion.handicap}.` : ' No handicap needed.'}
-                            {suggestion.reason && <span className="text-xs block text-muted-foreground italic">Reason: {suggestion.reason}</span>}
-                          </li>
-                        ))}
+                      <ul className="list-disc ps-5 space-y-1 mt-2">
+                        {handicapSuggestions.map((suggestion, idx) => {
+                          const handicapText = suggestion.handicap !== undefined
+                            ? t('addResult.handicapTextWithValue', { handicap: suggestion.handicap })
+                            : t('addResult.noHandicapNeeded');
+                          return (
+                          <li key={idx} dangerouslySetInnerHTML={{
+                            __html: t('addResult.handicapSuggestionItem', {
+                              playerName: suggestion.playerName,
+                              handicapText: handicapText
+                            })
+                          }} />
+                          );
+                         })}
                       </ul>
-                      <p className="text-xs mt-2 text-muted-foreground">Note: Handicaps (if any) will be applied to scores if you record this match now.</p>
+                      <p className="text-xs mt-2 text-muted-foreground">{t('addResult.handicapNote')}</p>
                     </AlertDescription>
                   </Alert>
                 )}
@@ -481,7 +482,7 @@ export function AddResultForm() {
             className="w-full bg-primary hover:bg-primary/90 text-primary-foreground text-lg py-6"
             disabled={!form.formState.isValid || isSuggestingHandicap || !currentUser}
           >
-            Record Match
+            {t('addResult.recordMatchButton')}
           </Button>
         </CardFooter>
       </form>

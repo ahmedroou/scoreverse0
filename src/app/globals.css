@@ -1,81 +1,80 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 body {
-  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), 'Tajawal', Arial, Helvetica, sans-serif;
 }
 
 @layer base {
   :root {
-    --background: 283 41% 53%; /* Primary color as a base for light mode, though app is dark */
-    --foreground: 0 0% 98%; /* Light foreground for dark backgrounds */
+    --background: 283 41% 53%;
+    --foreground: 0 0% 98%; 
 
-    --card: 0 0% 13%; /* Dark grey for cards */
+    --card: 0 0% 13%; 
     --card-foreground: 0 0% 98%;
 
     --popover: 0 0% 13%;
     --popover-foreground: 0 0% 98%;
 
-    --primary: 283 41% 53%; /* Vibrant purple */
-    --primary-foreground: 0 0% 98%; /* Text on primary */
+    --primary: 283 41% 53%; 
+    --primary-foreground: 0 0% 98%; 
 
-    --secondary: 197 41% 53%; /* Electric blue as secondary/accent */
+    --secondary: 197 41% 53%; 
     --secondary-foreground: 0 0% 98%;
 
-    --muted: 0 0% 20%; /* Slightly lighter dark grey for muted elements */
+    --muted: 0 0% 20%; 
     --muted-foreground: 0 0% 63.9%;
 
-    --accent: 197 41% 53%; /* Electric blue */
+    --accent: 197 41% 53%; 
     --accent-foreground: 0 0% 98%;
 
-    --destructive: 0 72% 51%; /* A standard red for destructive actions */
+    --destructive: 0 72% 51%; 
     --destructive-foreground: 0 0% 98%;
 
-    --border: 0 0% 20%; /* Darker border for contrast on dark background */
-    --input: 0 0% 20%; /* Dark input background */
-    --ring: 197 41% 53%; /* Electric blue for rings/focus */
+    --border: 0 0% 20%; 
+    --input: 0 0% 20%; 
+    --ring: 197 41% 53%; 
 
     --radius: 0.5rem;
 
-    /* Chart colors - can be adjusted for better visibility on dark theme */
     --chart-1: 283 41% 60%;
     --chart-2: 197 41% 60%;
     --chart-3: 50 80% 60%;
     --chart-4: 120 60% 60%;
     --chart-5: 300 50% 60%;
 
-    /* Sidebar specific vars for dark theme */
-    --sidebar-background: 0 0% 10%; /* Even darker for sidebar */
+    --sidebar-background: 0 0% 10%; 
     --sidebar-foreground: 0 0% 85%;
-    --sidebar-primary: 283 41% 53%; /* Vibrant purple */
+    --sidebar-primary: 283 41% 53%;
     --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 197 41% 45%; /* Slightly darker blue for sidebar accents */
+    --sidebar-accent: 197 41% 45%;
     --sidebar-accent-foreground: 0 0% 98%;
     --sidebar-border: 0 0% 15%;
     --sidebar-ring: 197 41% 53%;
   }
 
   .dark {
-    --background: 0 0% 13%; /* Dark grey */
-    --foreground: 0 0% 98%; /* Light foreground */
+    --background: 0 0% 13%;
+    --foreground: 0 0% 98%; 
 
-    --card: 0 0% 10%; /* Slightly darker card */
+    --card: 0 0% 10%;
     --card-foreground: 0 0% 98%;
 
     --popover: 0 0% 10%;
     --popover-foreground: 0 0% 98%;
 
-    --primary: 283 41% 53%; /* Vibrant purple */
+    --primary: 283 41% 53%;
     --primary-foreground: 0 0% 98%;
 
-    --secondary: 197 41% 53%; /* Electric blue */
+    --secondary: 197 41% 53%;
     --secondary-foreground: 0 0% 98%;
 
     --muted: 0 0% 20%;
     --muted-foreground: 0 0% 70%;
 
-    --accent: 197 41% 53%; /* Electric blue */
+    --accent: 197 41% 53%;
     --accent-foreground: 0 0% 98%;
 
     --destructive: 0 62.8% 30.6%;
@@ -85,14 +84,12 @@ body {
     --input: 0 0% 18%;
     --ring: 197 41% 53%;
 
-    /* Chart colors for dark theme */
     --chart-1: 283 41% 60%;
     --chart-2: 197 41% 60%;
     --chart-3: 50 80% 60%;
     --chart-4: 120 60% 60%;
     --chart-5: 300 50% 60%;
     
-    /* Sidebar specific vars for dark theme */
     --sidebar-background: 0 0% 8%; 
     --sidebar-foreground: 0 0% 85%;
     --sidebar-primary: 283 41% 53%;
@@ -110,12 +107,19 @@ body {
   }
   body {
     @apply bg-background text-foreground;
-    /* Apply dark theme by default */
     @apply dark;
   }
 }
 
-/* Custom scrollbar for a more integrated dark theme feel */
+html[dir="rtl"] {
+    .text-right { text-align: left; }
+    .text-left { text-align: right; }
+    .ms-2 { margin-right: 0.5rem; margin-left: 0; }
+    .me-2 { margin-left: 0.5rem; margin-right: 0; }
+    .ps-5 { padding-right: 1.25rem; padding-left: 0; }
+    .pe-2 { padding-left: 0.5rem; padding-right: 0; }
+}
+
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;

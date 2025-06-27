@@ -19,9 +19,10 @@ import {
   DialogClose,
 } from '@/components/ui/dialog';
 import type { Space } from '@/types';
+import { useLanguage } from '@/hooks/use-language';
 
-const formSchema = z.object({
-  name: z.string().min(1, "Space name cannot be empty.").max(50, "Space name is too long."),
+const createFormSchema = (t: (key: string) => string) => z.object({
+  name: z.string().min(1, t('spaces.addForm.validation.nameRequired')).max(50, t('spaces.addForm.validation.nameMaxLength')),
 });
 
 interface EditSpaceFormProps {
@@ -32,6 +33,9 @@ interface EditSpaceFormProps {
 
 export function EditSpaceForm({ space, isOpen, onOpenChange }: EditSpaceFormProps) {
   const { updateSpace } = useAppContext();
+  const { t } = useLanguage();
+  const formSchema = createFormSchema(t);
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -52,15 +56,15 @@ export function EditSpaceForm({ space, isOpen, onOpenChange }: EditSpaceFormProp
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px] bg-card">
         <DialogHeader>
-          <DialogTitle className="text-primary">Edit Space Name</DialogTitle>
+          <DialogTitle className="text-primary">{t('spaces.editForm.title')}</DialogTitle>
           <DialogDescription>
-            Change the name for "{space.name}". Click save when you're done.
+            {t('spaces.editForm.description', {spaceName: space.name})}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
           <div className="space-y-2">
             <Label htmlFor="edit-space-name">
-              New Space Name
+              {t('spaces.editForm.nameLabel')}
             </Label>
             <Input
               id="edit-space-name"
@@ -72,9 +76,9 @@ export function EditSpaceForm({ space, isOpen, onOpenChange }: EditSpaceFormProp
           </div>
           <DialogFooter>
             <DialogClose asChild>
-              <Button type="button" variant="outline">Cancel</Button>
+              <Button type="button" variant="outline">{t('common.cancel')}</Button>
             </DialogClose>
-            <Button type="submit" className="bg-primary hover:bg-primary/90 text-primary-foreground">Save Changes</Button>
+            <Button type="submit" className="bg-primary hover:bg-primary/90 text-primary-foreground">{t('common.save')}</Button>
           </DialogFooter>
         </form>
       </DialogContent>

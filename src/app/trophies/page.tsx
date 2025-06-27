@@ -6,9 +6,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Trophy, Award, Medal, Gamepad2, Calendar } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
-import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { useLanguage } from '@/hooks/use-language';
 
 const stringToHslColor = (str: string, s: number, l: number): string => {
   let hash = 0;
@@ -21,19 +21,20 @@ const stringToHslColor = (str: string, s: number, l: number): string => {
 
 export default function TrophyRoomPage() {
     const { players, tournaments, getGameById, isClient, currentUser } = useAppContext();
+    const { t } = useLanguage();
 
     if (!isClient) {
-        return <div className="text-center p-8">Loading...</div>
+        return <div className="text-center p-8">{t('common.loading')}</div>
     }
 
     if (!currentUser) {
        return (
         <div className="container mx-auto py-8">
             <Card className="w-full max-w-lg mx-auto shadow-xl bg-card">
-                <CardHeader><CardTitle>Access Denied</CardTitle></CardHeader>
+                <CardHeader><CardTitle>{t('draw.accessDenied')}</CardTitle></CardHeader>
                 <CardContent>
-                    <p>Please log in to view the Trophy Room.</p>
-                     <Link href="/auth" passHref legacyBehavior><Button className="mt-4 w-full">Go to Login</Button></Link>
+                    <p>{t('dashboard.loginPrompt')}</p>
+                     <Link href="/auth" passHref legacyBehavior><Button className="mt-4 w-full">{t('dashboard.goToLogin')}</Button></Link>
                 </CardContent>
             </Card>
         </div>
@@ -62,7 +63,7 @@ export default function TrophyRoomPage() {
     const formatDate = (dateString?: string) => {
         if (!dateString) return "N/A";
         try {
-            return format(parseISO(dateString), "PPP"); // E.g., Jun 21, 2023
+            return format(parseISO(dateString), "PPP");
         } catch {
             return "Invalid Date";
         }
@@ -72,18 +73,18 @@ export default function TrophyRoomPage() {
     return (
         <div className="container mx-auto py-8">
              <header className="mb-8">
-                <h1 className="text-4xl font-bold tracking-tight text-primary flex items-center gap-2"><Award /> Trophy Room</h1>
-                <p className="text-lg text-muted-foreground">A hall of fame for all tournament champions.</p>
+                <h1 className="text-4xl font-bold tracking-tight text-primary flex items-center gap-2"><Award /> {t('trophyRoom.pageTitle')}</h1>
+                <p className="text-lg text-muted-foreground">{t('trophyRoom.pageDescription')}</p>
              </header>
 
             {sortedPlayersWithTrophies.length === 0 ? (
                  <div className="text-center py-10 bg-card border border-border rounded-lg shadow">
                     <Trophy className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
                     <p className="text-xl text-muted-foreground">
-                        No champions have been crowned yet.
+                        {t('trophyRoom.noChampions')}
                     </p>
                     <p className="text-muted-foreground mt-2">
-                        Complete a tournament to see the winners here.
+                        {t('trophyRoom.noChampionsDescription')}
                     </p>
                  </div>
             ) : (
@@ -103,12 +104,12 @@ export default function TrophyRoomPage() {
                                 <div>
                                     <CardTitle className="text-2xl">{player!.name}</CardTitle>
                                     <CardDescription className="flex items-center gap-2 text-base">
-                                        <Trophy className="h-5 w-5 text-yellow-500"/> {trophies.length} Trophies Won
+                                        <Trophy className="h-5 w-5 text-yellow-500"/> {t('trophyRoom.trophiesWon', {count: trophies.length})}
                                     </CardDescription>
                                 </div>
                             </CardHeader>
                             <CardContent className="p-4 md:p-6">
-                                <h4 className="font-semibold mb-3">Victories:</h4>
+                                <h4 className="font-semibold mb-3">{t('trophyRoom.victories')}</h4>
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                     {trophies.map(trophy => {
                                         const game = getGameById(trophy.gameId);
@@ -116,8 +117,8 @@ export default function TrophyRoomPage() {
                                             <div key={trophy.id} className="p-3 rounded-md border bg-card-foreground/[.03] flex flex-col">
                                                 <p className="font-bold text-primary flex items-center gap-2"><Medal className="h-5 w-5"/>{trophy.name}</p>
                                                 <div className="text-sm text-muted-foreground mt-2 space-y-1 flex-grow">
-                                                   <p className="flex items-center gap-2"><Gamepad2 className="h-4 w-4"/>Game: {game?.name || 'Unknown'}</p>
-                                                   <p className="flex items-center gap-2"><Calendar className="h-4 w-4"/>Date: {formatDate(trophy.dateCompleted)}</p>
+                                                   <p className="flex items-center gap-2"><Gamepad2 className="h-4 w-4"/>{t('trophyRoom.game', {gameName: game?.name || '...'})}</p>
+                                                   <p className="flex items-center gap-2"><Calendar className="h-4 w-4"/>{t('trophyRoom.date', {date: formatDate(trophy.dateCompleted)})}</p>
                                                 </div>
                                             </div>
                                         )

@@ -5,6 +5,7 @@ import type { Space } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
 import { Layers, Edit3, Trash2, CheckCircle, Radio, Share2, UserCog } from 'lucide-react';
+import { useLanguage } from '@/hooks/use-language';
 
 interface SpaceCardProps {
   space: Space;
@@ -18,6 +19,7 @@ interface SpaceCardProps {
 }
 
 export function SpaceCard({ space, isActive, onSetActive, onEdit, onDelete, onShare, ownerUsername, canEdit = true }: SpaceCardProps) {
+  const { t } = useLanguage();
   return (
     <Card className={`border hover:shadow-md transition-shadow duration-150 ${isActive ? 'border-primary ring-2 ring-primary bg-primary/5' : 'border-border bg-card'}`}>
       <CardHeader className="pb-3">
@@ -30,14 +32,14 @@ export function SpaceCard({ space, isActive, onSetActive, onEdit, onDelete, onSh
             {ownerUsername && (
                 <div className="text-xs text-muted-foreground flex items-center gap-1 pt-1">
                     <UserCog className="h-3 w-3"/>
-                    Owner: {ownerUsername}
+                    {t('players.owner', {username: ownerUsername})}
                 </div>
             )}
           </div>
           {isActive && (
             <div className="flex items-center gap-1 text-xs text-primary font-medium px-2 py-0.5 rounded-full bg-primary/10 whitespace-nowrap">
               <CheckCircle className="h-3.5 w-3.5" />
-              Active
+              {t('spaces.active')}
             </div>
           )}
         </div>
@@ -49,7 +51,7 @@ export function SpaceCard({ space, isActive, onSetActive, onEdit, onDelete, onSh
           onClick={onShare}
           className="border-blue-500/50 text-blue-500 hover:bg-blue-500/10 hover:text-blue-400"
         >
-          <Share2 className="h-4 w-4 mr-1.5" /> Share
+          <Share2 className="h-4 w-4 me-1.5" /> {t('spaces.share')}
         </Button>
         <div className="flex-grow"></div>
         <Button 
@@ -59,16 +61,16 @@ export function SpaceCard({ space, isActive, onSetActive, onEdit, onDelete, onSh
           disabled={isActive}
           className={`${isActive ? 'bg-primary text-primary-foreground cursor-default' : 'border-accent text-accent hover:bg-accent hover:text-accent-foreground'}`}
         >
-          {isActive ? <CheckCircle className="h-4 w-4 mr-1.5" /> : <Radio className="h-4 w-4 mr-1.5" />}
-          {isActive ? 'Active' : 'Set Active'}
+          {isActive ? <CheckCircle className="h-4 w-4 me-1.5" /> : <Radio className="h-4 w-4 me-1.5" />}
+          {isActive ? t('spaces.active') : t('spaces.setActive')}
         </Button>
         {canEdit && (
             <>
                 <Button variant="outline" size="sm" onClick={onEdit} className="border-muted-foreground/50 text-muted-foreground hover:border-accent hover:text-accent hover:bg-accent/10">
-                <Edit3 className="h-4 w-4 mr-1.5" /> Edit
+                <Edit3 className="h-4 w-4 me-1.5" /> {t('common.edit')}
                 </Button>
                 <Button variant="destructive" size="sm" onClick={onDelete} className="bg-destructive/80 hover:bg-destructive text-destructive-foreground">
-                <Trash2 className="h-4 w-4 mr-1.5" /> Delete
+                <Trash2 className="h-4 w-4 me-1.5" /> {t('common.delete')}
                 </Button>
             </>
         )}

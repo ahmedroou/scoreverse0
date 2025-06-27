@@ -22,6 +22,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { useLanguage } from '@/hooks/use-language';
 
 // Helper function to generate a consistent "random" color from a string
 const stringToHslColor = (str: string, s: number, l: number): string => {
@@ -36,6 +37,7 @@ const stringToHslColor = (str: string, s: number, l: number): string => {
 
 export default function ManagePlayersPage() {
   const { players, deletePlayer, isClient, currentUser, getUserById } = useAppContext();
+  const { t } = useLanguage();
   const [editingPlayer, setEditingPlayer] = useState<Player | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isAddPlayerDialogOpen, setIsAddPlayerDialogOpen] = useState(false);
@@ -59,7 +61,7 @@ export default function ManagePlayersPage() {
   };
 
   if (!isClient) {
-    return <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin text-primary" /> <span className="ml-2">Loading players...</span></div>;
+    return <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin text-primary" /> <span className="ms-2">{t('common.loading')}</span></div>;
   }
 
   if (!currentUser) {
@@ -67,12 +69,12 @@ export default function ManagePlayersPage() {
         <div className="container mx-auto py-8">
             <Card className="w-full max-w-3xl mx-auto shadow-xl bg-card">
                 <CardHeader>
-                    <CardTitle className="text-2xl font-bold text-primary">Access Denied</CardTitle>
+                    <CardTitle className="text-2xl font-bold text-primary">{t('draw.accessDenied')}</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <p className="text-muted-foreground">Please log in to manage players.</p>
+                    <p className="text-muted-foreground">{t('dashboard.loginPrompt')}</p>
                      <Link href="/auth" passHref legacyBehavior>
-                        <Button className="mt-4 w-full">Go to Login</Button>
+                        <Button className="mt-4 w-full">{t('dashboard.goToLogin')}</Button>
                      </Link>
                 </CardContent>
             </Card>
@@ -85,15 +87,15 @@ export default function ManagePlayersPage() {
       <Card className="w-full max-w-4xl mx-auto shadow-xl bg-card">
         <CardHeader>
           <CardTitle className="text-3xl font-bold text-primary flex items-center gap-2">
-            <Users /> Manage Players
+            <Users /> {t('players.pageTitle')}
           </CardTitle>
           <CardDescription>
-            {currentUser.isAdmin ? "Viewing all players across the platform." : "View, edit, add, or delete players in your roster."}
+            {currentUser.isAdmin ? t('players.pageDescriptionAdmin') : t('players.pageDescription')}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {players.length === 0 ? (
-            <p className="text-muted-foreground text-center py-4">No players found. Start by adding some!</p>
+            <p className="text-muted-foreground text-center py-4">{t('players.noPlayers')}</p>
           ) : (
             <ul className="space-y-3">
               {players.map((player) => {
@@ -116,7 +118,7 @@ export default function ManagePlayersPage() {
                         {owner && (
                             <div className="text-xs text-muted-foreground flex items-center gap-1">
                                 <UserCog className="h-3 w-3"/>
-                                Owner: {owner.username}
+                                {t('players.owner', {username: owner.username})}
                             </div>
                         )}
                     </div>
@@ -124,14 +126,14 @@ export default function ManagePlayersPage() {
                   <div className="flex items-center gap-2 flex-shrink-0">
                      <Link href={`/stats/${player.id}`} passHref legacyBehavior>
                         <Button variant="outline" size="sm" className="border-primary/50 text-primary/90 hover:bg-primary/10 hover:text-primary">
-                            <BarChartHorizontal className="h-4 w-4 mr-1 sm:mr-2" />
-                            <span className="hidden sm:inline">Stats</span>
+                            <BarChartHorizontal className="h-4 w-4 me-1 sm:me-2" />
+                            <span className="hidden sm:inline">{t('players.stats')}</span>
                         </Button>
                     </Link>
                     {canEdit && (
                     <Button variant="outline" size="sm" onClick={() => handleEditClick(player)} className="border-accent text-accent hover:bg-accent hover:text-accent-foreground">
-                      <Edit3 className="h-4 w-4 mr-1 sm:mr-2" />
-                      <span className="hidden sm:inline">Edit</span>
+                      <Edit3 className="h-4 w-4 me-1 sm:me-2" />
+                      <span className="hidden sm:inline">{t('common.edit')}</span>
                     </Button>
                     )}
                     
@@ -139,27 +141,27 @@ export default function ManagePlayersPage() {
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
                         <Button variant="destructive" size="sm" className="bg-destructive/80 hover:bg-destructive text-destructive-foreground">
-                          <Trash2 className="h-4 w-4 mr-1 sm:mr-2" />
-                          <span className="hidden sm:inline">Delete</span>
+                          <Trash2 className="h-4 w-4 me-1 sm:me-2" />
+                          <span className="hidden sm:inline">{t('common.delete')}</span>
                         </Button>
                       </AlertDialogTrigger>
                       <AlertDialogContent>
                         <AlertDialogHeader>
                           <AlertDialogTitle className="flex items-center gap-2">
                             <ShieldAlert className="text-destructive h-6 w-6"/>
-                            Are you sure you want to delete this player?
+                            {t('players.deleteConfirmTitle')}
                           </AlertDialogTitle>
                           <AlertDialogDescription>
-                            This action cannot be undone. Deleting "{player.name}" will remove them from the player list and all associated match records for their owner.
+                            {t('players.deleteConfirmDescription', {playerName: player.name})}
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
                           <AlertDialogAction
                             onClick={() => deletePlayer(player.id)}
                             className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
                           >
-                            Delete Player
+                            {t('players.deleteButton')}
                           </AlertDialogAction>
                         </AlertDialogFooter>
                       </AlertDialogContent>
@@ -173,8 +175,8 @@ export default function ManagePlayersPage() {
         </CardContent>
         <CardFooter className="border-t border-border pt-6">
           <Button onClick={handleAddPlayerDialogOpen} className="w-full bg-primary hover:bg-primary/90 text-primary-foreground">
-            <UserPlus className="h-5 w-5 mr-2" />
-            Add New Player
+            <UserPlus className="h-5 w-5 me-2" />
+            {t('players.addNewPlayer')}
           </Button>
         </CardFooter>
       </Card>

@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview A Genkit flow for suggesting random player matchups for a game.
@@ -13,6 +14,7 @@ import {z} from 'genkit';
 const SuggestMatchupsInputSchema = z.object({
   gameName: z.string().describe('The name of the game for which to create matchups.'),
   playerNames: z.array(z.string()).min(2, 'At least two players are required.').describe('An array of player names to be paired.'),
+  language: z.string().optional().describe('The language for the output, e.g., "en" or "ar".'),
 });
 
 export type SuggestMatchupsInput = z.infer<typeof SuggestMatchupsInputSchema>;
@@ -37,6 +39,9 @@ const prompt = ai.definePrompt({
   input: {schema: SuggestMatchupsInputSchema},
   output: {schema: SuggestMatchupsOutputSchema},
   prompt: `You are an enthusiastic tournament organizer for the game "{{{gameName}}}". Your task is to create a random draw for the players provided.
+{{#if language}}
+The output 'commentary' field MUST be in the language specified by the language code: {{{language}}}. For example, 'ar' for Arabic.
+{{/if}}
 
 Players:
 {{#each playerNames}}

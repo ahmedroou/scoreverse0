@@ -26,11 +26,12 @@ import {
   DialogClose,
 } from '@/components/ui/dialog';
 import type { Tournament } from '@/types';
+import { useLanguage } from '@/hooks/use-language';
 
-const formSchema = z.object({
-  name: z.string().min(1, "Tournament name is required.").max(50, "Name is too long."),
-  gameId: z.string().min(1, "Please select a game."),
-  targetPoints: z.coerce.number().min(1, "Target points must be at least 1."),
+const createFormSchema = (t: (key: string) => string) => z.object({
+  name: z.string().min(1, t('tournaments.addForm.validation.nameRequired')).max(50, t('tournaments.addForm.validation.nameMaxLength')),
+  gameId: z.string().min(1, t('tournaments.addForm.validation.gameRequired')),
+  targetPoints: z.coerce.number().min(1, t('tournaments.addForm.validation.targetPointsMin')),
 });
 
 interface EditTournamentFormProps {
@@ -41,6 +42,9 @@ interface EditTournamentFormProps {
 
 export function EditTournamentForm({ tournament, isOpen, onOpenChange }: EditTournamentFormProps) {
   const { updateTournament, games } = useAppContext();
+  const { t } = useLanguage();
+  const formSchema = createFormSchema(t);
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
   });
@@ -64,27 +68,27 @@ export function EditTournamentForm({ tournament, isOpen, onOpenChange }: EditTou
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md bg-card">
         <DialogHeader>
-          <DialogTitle className="text-primary">Edit Tournament</DialogTitle>
+          <DialogTitle className="text-primary">{t('tournaments.editForm.title')}</DialogTitle>
           <DialogDescription>
-            Update the details for the "{tournament.name}" tournament.
+            {t('tournaments.editForm.description', {tournamentName: tournament.name})}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
           <div>
-            <Label htmlFor="tour-name-edit">Tournament Name</Label>
+            <Label htmlFor="tour-name-edit">{t('tournaments.addForm.nameLabel')}</Label>
             <Input id="tour-name-edit" {...form.register('name')} />
             {form.formState.errors.name && <p className="text-sm text-destructive mt-1">{form.formState.errors.name.message}</p>}
           </div>
 
           <div>
-            <Label htmlFor="tour-game-edit">Game</Label>
+            <Label htmlFor="tour-game-edit">{t('tournaments.addForm.gameLabel')}</Label>
             <Controller
               control={form.control}
               name="gameId"
               render={({ field }) => (
                 <Select onValueChange={field.onChange} value={field.value}>
                   <SelectTrigger id="tour-game-edit" disabled>
-                    <SelectValue placeholder="Select a game" />
+                    <SelectValue placeholder={t('tournaments.addForm.gamePlaceholder')} />
                   </SelectTrigger>
                   <SelectContent>
                     {games.map(game => (
@@ -94,21 +98,21 @@ export function EditTournamentForm({ tournament, isOpen, onOpenChange }: EditTou
                 </Select>
               )}
             />
-             <p className="text-xs text-muted-foreground mt-1">Game cannot be changed after creation.</p>
+             <p className="text-xs text-muted-foreground mt-1">{t('tournaments.editForm.gameChangeWarning')}</p>
             {form.formState.errors.gameId && <p className="text-sm text-destructive mt-1">{form.formState.errors.gameId.message}</p>}
           </div>
 
           <div>
-            <Label htmlFor="targetPoints-edit">Target Points to Win</Label>
+            <Label htmlFor="targetPoints-edit">{t('tournaments.addForm.targetPointsLabel')}</Label>
             <Input id="targetPoints-edit" type="number" {...form.register('targetPoints')} />
             {form.formState.errors.targetPoints && <p className="text-sm text-destructive mt-1">{form.formState.errors.targetPoints.message}</p>}
           </div>
 
           <DialogFooter className="pt-4">
             <DialogClose asChild>
-              <Button type="button" variant="outline">Cancel</Button>
+              <Button type="button" variant="outline">{t('common.cancel')}</Button>
             </DialogClose>
-            <Button type="submit">Save Changes</Button>
+            <Button type="submit">{t('common.save')}</Button>
           </DialogFooter>
         </form>
       </DialogContent>

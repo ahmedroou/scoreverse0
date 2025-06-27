@@ -15,6 +15,7 @@ import { Medal, ShieldQuestion, ArrowUp, ArrowDown } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { Badge } from './ui/badge';
+import { useLanguage } from '@/hooks/use-language';
 
 interface LeaderboardTableProps {
   scores: ScoreData[];
@@ -45,16 +46,17 @@ const getWinRatePercentage = (wins: number, gamesPlayed: number) => {
 };
 
 export function LeaderboardTable({ scores, title, isPublicView = false }: LeaderboardTableProps) {
+  const { t } = useLanguage();
   if (!scores || scores.length === 0) {
     return (
       <div className="text-center py-12 bg-card border-border shadow-md rounded-lg">
         <ShieldQuestion className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-        <p className="text-xl font-semibold text-card-foreground">No Scores Yet</p>
+        <p className="text-xl font-semibold text-card-foreground">{t('leaderboards.table.noScores')}</p>
         <p className="text-muted-foreground mt-1">
-          {title ? `No match data available for the ${title}.` : "No one has played any matches yet."}
+          {t('leaderboards.table.noScoresDescription', {title: title || ''})}
         </p>
         <p className="text-muted-foreground mt-1">
-          Record some game results to see the leaderboard populate!
+          {t('leaderboards.table.noScoresPrompt')}
         </p>
       </div>
     );
@@ -66,12 +68,12 @@ export function LeaderboardTable({ scores, title, isPublicView = false }: Leader
         {title && <TableCaption className="text-xl font-bold py-4 text-primary bg-card-foreground/5 rounded-t-lg">{title}</TableCaption>}
         <TableHeader className="bg-muted/30">
           <TableRow className="hover:bg-muted/40 border-b-2 border-border">
-            <TableHead className="w-[80px] text-center font-semibold text-base">Rank</TableHead>
-            <TableHead className="font-semibold text-base">Player</TableHead>
-            <TableHead className="text-center font-semibold text-base">Total Points</TableHead>
-            <TableHead className="text-center font-semibold text-base">Games Played</TableHead>
-            <TableHead className="text-center font-semibold text-base">Wins / Losses</TableHead>
-            <TableHead className="text-center font-semibold text-base">Win Rate</TableHead>
+            <TableHead className="w-[80px] text-center font-semibold text-base">{t('leaderboards.table.rank')}</TableHead>
+            <TableHead className="font-semibold text-base">{t('leaderboards.table.player')}</TableHead>
+            <TableHead className="text-center font-semibold text-base">{t('leaderboards.table.totalPoints')}</TableHead>
+            <TableHead className="text-center font-semibold text-base">{t('leaderboards.table.gamesPlayed')}</TableHead>
+            <TableHead className="text-center font-semibold text-base">{t('leaderboards.table.winsLosses')}</TableHead>
+            <TableHead className="text-center font-semibold text-base">{t('leaderboards.table.winRate')}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>

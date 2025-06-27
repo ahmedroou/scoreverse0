@@ -22,6 +22,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { useLanguage } from '@/hooks/use-language';
 
 export default function ManageSpacesPage() {
   const { 
@@ -35,6 +36,7 @@ export default function ManageSpacesPage() {
     shareSpace,
     getUserById,
   } = useAppContext();
+  const { t } = useLanguage();
 
   const [isAddSpaceDialogOpen, setIsAddSpaceDialogOpen] = useState(false);
   const [isEditSpaceDialogOpen, setIsEditSpaceDialogOpen] = useState(false);
@@ -71,7 +73,7 @@ export default function ManageSpacesPage() {
     return (
       <div className="flex justify-center items-center h-64">
         <Loader2 className="h-8 w-8 animate-spin text-primary" /> 
-        <span className="ml-2">Loading spaces...</span>
+        <span className="ms-2">{t('common.loading')}</span>
       </div>
     );
   }
@@ -81,12 +83,12 @@ export default function ManageSpacesPage() {
         <div className="container mx-auto py-8">
             <Card className="w-full max-w-lg mx-auto shadow-xl bg-card">
                 <CardHeader>
-                    <CardTitle className="text-2xl font-bold text-primary">Access Denied</CardTitle>
+                    <CardTitle className="text-2xl font-bold text-primary">{t('draw.accessDenied')}</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <p className="text-muted-foreground">Please log in to manage your spaces.</p>
+                    <p className="text-muted-foreground">{t('dashboard.loginPrompt')}</p>
                      <Link href="/auth" passHref legacyBehavior>
-                        <Button className="mt-4 w-full">Go to Login</Button>
+                        <Button className="mt-4 w-full">{t('dashboard.goToLogin')}</Button>
                      </Link>
                 </CardContent>
             </Card>
@@ -99,20 +101,20 @@ export default function ManageSpacesPage() {
       <Card className="w-full max-w-2xl mx-auto shadow-xl bg-card">
         <CardHeader>
           <CardTitle className="text-3xl font-bold text-primary flex items-center gap-2">
-            <Layers /> Manage Your Spaces
+            <Layers /> {t('spaces.pageTitle')}
           </CardTitle>
           <CardDescription>
-            {currentUser.isAdmin ? "Viewing all spaces across the platform." : "Create, edit, and organize your game tracking into different spaces. The active space determines which matches and leaderboards are shown."}
+            {currentUser.isAdmin ? t('spaces.pageDescriptionAdmin') : t('spaces.pageDescription')}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <Button onClick={() => setIsAddSpaceDialogOpen(true)} className="w-full bg-primary hover:bg-primary/90 text-primary-foreground">
-            <PlusCircle className="h-5 w-5 mr-2" />
-            Create New Space
+            <PlusCircle className="h-5 w-5 me-2" />
+            {t('spaces.createSpace')}
           </Button>
 
           {userSpaces.length === 0 ? (
-            <p className="text-muted-foreground text-center py-4">No spaces found. Create your first space to get started!</p>
+            <p className="text-muted-foreground text-center py-4">{t('spaces.noSpaces')}</p>
           ) : (
             <div className="space-y-4">
               {userSpaces.map((space) => {
@@ -137,7 +139,7 @@ export default function ManageSpacesPage() {
         </CardContent>
          <CardFooter className="border-t border-border pt-4 text-center">
             <p className="text-xs text-muted-foreground w-full">
-                {activeSpaceId ? `Current active space: "${userSpaces.find(s => s.id === activeSpaceId)?.name || 'Unknown'}"` : "No space is currently active (showing global data)."}
+                {activeSpaceId ? t('spaces.footerActive', {spaceName: userSpaces.find(s => s.id === activeSpaceId)?.name || ''}) : t('spaces.footerInactive')}
             </p>
         </CardFooter>
       </Card>
@@ -174,20 +176,20 @@ export default function ManageSpacesPage() {
         <AlertDialog open={!!spaceToDelete} onOpenChange={(open) => !open && setSpaceToDelete(null)}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle className="flex items-center gap-2"><ShieldAlert className="text-destructive h-6 w-6"/>Are you sure?</AlertDialogTitle>
+              <AlertDialogTitle className="flex items-center gap-2"><ShieldAlert className="text-destructive h-6 w-6"/>{t('spaces.deleteDialog.title')}</AlertDialogTitle>
               <AlertDialogDescription>
-                This will delete the space "{spaceToDelete.name}" and all matches associated with it. This action cannot be undone.
-                {!currentUser.isAdmin && userSpaces.length <= 1 && " You must always have at least one space."}
+                {t('spaces.deleteDialog.description', {spaceName: spaceToDelete.name})}
+                {!currentUser.isAdmin && userSpaces.length <= 1 && " " + t('spaces.deleteDialog.mustHaveOne')}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel onClick={() => setSpaceToDelete(null)}>Cancel</AlertDialogCancel>
+              <AlertDialogCancel onClick={() => setSpaceToDelete(null)}>{t('common.cancel')}</AlertDialogCancel>
               <AlertDialogAction
                 onClick={confirmDelete}
                 className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
                 disabled={!currentUser.isAdmin && userSpaces.length <= 1 && userSpaces.find(s => s.id === spaceToDelete.id) !== undefined}
               >
-                Delete Space
+                {t('common.delete')}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

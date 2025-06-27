@@ -2,22 +2,23 @@
 "use client";
 
 import { useAppContext } from '@/context/AppContext';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { PlusCircle, BarChart3, History, Users, Swords, Layers, LayoutDashboard, UserCircle } from 'lucide-react';
-import Image from 'next/image';
+import { PlusCircle, BarChart3, History, Users, Swords, Layers, UserCircle, Shuffle, Award, Trophy, BarChartHorizontal, UserCog } from 'lucide-react';
 import React from 'react';
+import { useLanguage } from '@/hooks/use-language';
 
 export default function DashboardPage() {
   const { currentUser, isClient, getActiveSpace, isLoadingAuth } = useAppContext();
+  const { t } = useLanguage();
   const activeSpace = getActiveSpace();
 
   if (!isClient || isLoadingAuth) { 
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-theme(spacing.16))]">
         <UserCircle className="h-12 w-12 text-muted-foreground mb-4" />
-        <p className="text-muted-foreground">Loading user data...</p>
+        <p className="text-muted-foreground">{t('dashboard.loadingUserData')}</p>
       </div>
     );
   }
@@ -26,9 +27,9 @@ export default function DashboardPage() {
      return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-theme(spacing.16))]">
         <UserCircle className="h-12 w-12 text-muted-foreground mb-4" />
-        <p className="text-muted-foreground">Please log in to view the dashboard.</p>
+        <p className="text-muted-foreground">{t('dashboard.loginPrompt')}</p>
          <Link href="/auth" passHref legacyBehavior>
-            <Button className="mt-4">Go to Login</Button>
+            <Button className="mt-4">{t('dashboard.goToLogin')}</Button>
          </Link>
       </div>
     );
@@ -36,14 +37,13 @@ export default function DashboardPage() {
   
   if (!currentUser) return null; 
 
-
   const quickAccessItems = [
-    { title: "Record New Match", href: "/add-result", icon: PlusCircle, description: "Log a recently played game." },
-    { title: "View Leaderboards", href: "/leaderboards", icon: BarChart3, description: "See who is on top." },
-    { title: "Match History", href: "/match-history", icon: History, description: "Review past games." },
-    { title: "Manage Players", href: "/players", icon: Users, description: "Add or edit player profiles." },
-    { title: "Game Library", href: "/games", icon: Swords, description: "Browse available games." },
-    { title: "Manage Spaces", href: "/spaces", icon: Layers, description: "Organize by groups or contexts." },
+    { title: t('sidebar.addResult'), href: "/add-result", icon: PlusCircle, description: t('dashboard.quickAccess.recordMatchDesc') },
+    { title: t('sidebar.leaderboards'), href: "/leaderboards", icon: BarChart3, description: t('dashboard.quickAccess.leaderboardsDesc') },
+    { title: t('sidebar.matchHistory'), href: "/match-history", icon: History, description: t('dashboard.quickAccess.matchHistoryDesc') },
+    { title: t('sidebar.managePlayers'), href: "/players", icon: Users, description: t('dashboard.quickAccess.managePlayersDesc') },
+    { title: t('sidebar.gameLibrary'), href: "/games", icon: Swords, description: t('dashboard.quickAccess.gameLibraryDesc') },
+    { title: t('sidebar.manageSpaces'), href: "/spaces", icon: Layers, description: t('dashboard.quickAccess.manageSpacesDesc') },
   ];
 
   return (
@@ -52,10 +52,10 @@ export default function DashboardPage() {
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
                 <h1 className="text-4xl font-bold tracking-tight text-primary mb-2">
-                  Welcome back, {currentUser.username}!
+                  {t('dashboard.title', {username: currentUser.username})}
                 </h1>
                 <p className="text-lg text-muted-foreground">
-                  You are currently in {activeSpace ? `the "${activeSpace.name}" space` : "your Global context (no space selected)"}.
+                  {activeSpace ? t('dashboard.activeSpace', {spaceName: activeSpace.name}) : t('dashboard.noActiveSpace')}
                 </p>
             </div>
              {activeSpace && (
@@ -83,7 +83,7 @@ export default function DashboardPage() {
                     variant="default" 
                     className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
                 >
-                  Go to {item.title}
+                  {t('dashboard.goTo', {page: item.title})}
                 </Button>
               </Link>
             </CardContent>

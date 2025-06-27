@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useMemo } from 'react';
@@ -19,6 +20,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import type { UserAccount } from '@/types';
+import { useLanguage } from '@/hooks/use-language';
 
 // Helper function from players page
 const stringToHslColor = (str: string, s: number, l: number): string => {
@@ -33,6 +35,7 @@ const stringToHslColor = (str: string, s: number, l: number): string => {
 
 export default function ManageUsersPage() {
   const { allUsers, deleteUserAccount, isClient, currentUser } = useAppContext();
+  const { t } = useLanguage();
   const router = useRouter();
   const [userToDelete, setUserToDelete] = useState<UserAccount | null>(null);
 
@@ -42,11 +45,10 @@ export default function ManageUsersPage() {
   }, [allUsers]);
 
   if (!isClient) {
-    return <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin text-primary" /> <span className="ml-2">Loading users...</span></div>;
+    return <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin text-primary" /> <span className="ms-2">{t('common.loading')}</span></div>;
   }
   
   if (!currentUser) {
-    // This case should be handled by the main layout, but as a safeguard:
     router.push('/auth');
     return null;
   }
@@ -56,12 +58,12 @@ export default function ManageUsersPage() {
         <div className="container mx-auto py-8">
             <Card className="w-full max-w-lg mx-auto shadow-xl bg-card">
                 <CardHeader>
-                    <CardTitle className="text-2xl font-bold text-primary">Access Denied</CardTitle>
-                    <CardDescription>You must be an administrator to view this page.</CardDescription>
+                    <CardTitle className="text-2xl font-bold text-primary">{t('draw.accessDenied')}</CardTitle>
+                    <CardDescription>{t('users.toasts.permissionDeniedDesc')}</CardDescription>
                 </CardHeader>
                 <CardContent>
                      <Link href="/dashboard" passHref legacyBehavior>
-                        <Button className="mt-4 w-full">Go to Dashboard</Button>
+                        <Button className="mt-4 w-full">{t('dashboard.goTo', {page: t('sidebar.dashboard')})}</Button>
                      </Link>
                 </CardContent>
             </Card>
@@ -81,15 +83,15 @@ export default function ManageUsersPage() {
       <Card className="w-full max-w-4xl mx-auto shadow-xl bg-card">
         <CardHeader>
           <CardTitle className="text-3xl font-bold text-primary flex items-center gap-2">
-            <Users /> Manage User Accounts
+            <Users /> {t('users.pageTitle')}
           </CardTitle>
           <CardDescription>
-            View and manage all user accounts on the platform. Deleting a user is permanent and removes all their associated data.
+            {t('users.pageDescription')}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {sortedUsers.length === 0 ? (
-            <p className="text-muted-foreground text-center py-4">No other users found.</p>
+            <p className="text-muted-foreground text-center py-4">{t('users.noUsers')}</p>
           ) : (
             <ul className="space-y-3">
               {sortedUsers.map((user) => (
@@ -107,7 +109,7 @@ export default function ManageUsersPage() {
                     <div className="truncate">
                         <div className="font-medium text-lg text-card-foreground truncate flex items-center gap-2">
                             {user.username}
-                            {user.isAdmin && <ShieldCheck className="h-4 w-4 text-green-500" title="Administrator" />}
+                            {user.isAdmin && <ShieldCheck className="h-4 w-4 text-green-500" title={t('header.adminMode')} />}
                         </div>
                         <p className="text-sm text-muted-foreground truncate">{user.email || user.id}</p>
                     </div>
@@ -120,8 +122,8 @@ export default function ManageUsersPage() {
                         disabled={user.id === currentUser.id}
                         className="bg-destructive/80 hover:bg-destructive text-destructive-foreground"
                     >
-                      <Trash2 className="h-4 w-4 mr-1 sm:mr-2" />
-                      <span className="hidden sm:inline">Delete</span>
+                      <Trash2 className="h-4 w-4 me-1 sm:me-2" />
+                      <span className="hidden sm:inline">{t('common.delete')}</span>
                     </Button>
                   </div>
                 </li>
@@ -137,19 +139,19 @@ export default function ManageUsersPage() {
             <AlertDialogHeader>
               <AlertDialogTitle className="flex items-center gap-2">
                 <ShieldAlert className="text-destructive h-6 w-6"/>
-                Confirm User Deletion
+                {t('users.deleteConfirmTitle')}
               </AlertDialogTitle>
               <AlertDialogDescription>
-                Are you sure you want to permanently delete the user "{userToDelete.username}"? This action will remove the user's profile and ALL their associated data (players, games, matches, etc.). This cannot be undone.
+                {t('users.deleteConfirmDescription', {username: userToDelete.username})}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel onClick={() => setUserToDelete(null)}>Cancel</AlertDialogCancel>
+              <AlertDialogCancel onClick={() => setUserToDelete(null)}>{t('common.cancel')}</AlertDialogCancel>
               <AlertDialogAction
                 onClick={confirmDelete}
                 className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
               >
-                Yes, Delete User
+                {t('users.deleteButton')}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

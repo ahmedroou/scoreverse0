@@ -5,7 +5,7 @@ import { GameCard } from '@/components/GameCard';
 import { Input } from "@/components/ui/input";
 import { Button } from '@/components/ui/button';
 import { useState, useMemo } from 'react';
-import { PlusCircle, Edit3, Trash2, ShieldAlert, Loader2, Swords } from 'lucide-react';
+import { PlusCircle, ShieldAlert, Loader2, Swords } from 'lucide-react';
 import { AddGameForm } from './AddGameForm';
 import { EditGameForm } from './EditGameForm';
 import type { Game } from '@/types';
@@ -21,10 +21,12 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Card, CardHeader, CardTitle, CardDescription, CardFooter, CardContent } from '@/components/ui/card';
 import Link from 'next/link';
+import { useLanguage } from '@/hooks/use-language';
 
 
 export default function GameLibraryPage() {
   const { games: contextGames, isClient, currentUser, deleteGame, matches, getUserById } = useAppContext();
+  const { t } = useLanguage();
   const [searchTerm, setSearchTerm] = useState('');
   const [isAddGameOpen, setIsAddGameOpen] = useState(false);
   const [isEditGameOpen, setIsEditGameOpen] = useState(false);
@@ -57,7 +59,7 @@ export default function GameLibraryPage() {
 
 
   if (!isClient) {
-    return <div className="flex justify-center items-center h-full"><Loader2 className="h-8 w-8 animate-spin text-primary" /> <span className="ml-2">Loading games...</span></div>;
+    return <div className="flex justify-center items-center h-full"><Loader2 className="h-8 w-8 animate-spin text-primary" /> <span className="ms-2">{t('common.loading')}</span></div>;
   }
 
   if (!currentUser) {
@@ -65,12 +67,12 @@ export default function GameLibraryPage() {
        <div className="container mx-auto py-8">
            <Card className="w-full max-w-lg mx-auto shadow-xl bg-card">
                <CardHeader>
-                   <CardTitle className="text-2xl font-bold text-primary">Access Denied</CardTitle>
+                   <CardTitle className="text-2xl font-bold text-primary">{t('games.toasts.accessDenied')}</CardTitle>
                </CardHeader>
                <CardContent>
-                   <p className="text-muted-foreground">Please log in to manage the game library.</p>
+                   <p className="text-muted-foreground">{t('games.toasts.loginPrompt')}</p>
                     <Link href="/auth" passHref legacyBehavior>
-                       <Button className="mt-4 w-full">Go to Login</Button>
+                       <Button className="mt-4 w-full">{t('dashboard.goToLogin')}</Button>
                     </Link>
                </CardContent>
            </Card>
@@ -83,16 +85,16 @@ export default function GameLibraryPage() {
     <div className="container mx-auto py-8">
       <header className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-4xl font-bold tracking-tight text-primary mb-2 flex items-center gap-2"><Swords/> Game Library</h1>
-          <p className="text-lg text-muted-foreground">{currentUser.isAdmin ? "Viewing all games across the platform." : "Browse, add, or manage games available for tracking."}</p>
+          <h1 className="text-4xl font-bold tracking-tight text-primary mb-2 flex items-center gap-2"><Swords/> {t('games.pageTitle')}</h1>
+          <p className="text-lg text-muted-foreground">{currentUser.isAdmin ? t('games.pageDescriptionAdmin') : t('games.pageDescription')}</p>
         </div>
         <Button onClick={() => setIsAddGameOpen(true)} className="bg-primary hover:bg-primary/90 text-primary-foreground whitespace-nowrap">
-          <PlusCircle className="mr-2 h-5 w-5" /> Add New Game
+          <PlusCircle className="me-2 h-5 w-5" /> {t('games.addGameButton')}
         </Button>
       </header>
        <Input 
           type="text"
-          placeholder="Search games..."
+          placeholder={t('games.searchPlaceholder')}
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="mb-6 max-w-md"
@@ -119,11 +121,11 @@ export default function GameLibraryPage() {
         <div className="text-center py-10 bg-card border border-border rounded-lg shadow">
            <Swords className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
           <p className="text-xl text-muted-foreground">
-            {searchTerm ? "No games found matching your search." : "No games in the library yet."}
+            {searchTerm ? t('games.noGamesFound') : t('games.noGamesYet')}
           </p>
           {!searchTerm && (
             <Button onClick={() => setIsAddGameOpen(true)} className="mt-4">
-              <PlusCircle className="mr-2 h-4 w-4" /> Add Your First Game
+              <PlusCircle className="me-2 h-4 w-4" /> {t('games.addFirstGame')}
             </Button>
           )}
         </div>
@@ -151,24 +153,24 @@ export default function GameLibraryPage() {
             <AlertDialogHeader>
               <AlertDialogTitle className="flex items-center gap-2">
                 <ShieldAlert className="text-destructive h-6 w-6"/>
-                Confirm Deletion
+                {t('games.confirmDeleteTitle')}
               </AlertDialogTitle>
               <AlertDialogDescription>
-                Are you sure you want to delete the game "{gameToDelete.name}"?
+                {t('games.confirmDeleteDescription', {gameName: gameToDelete.name})}
                 {matches.some(match => match.gameId === gameToDelete.id) 
-                  ? " This game is used in recorded matches and cannot be deleted."
-                  : " This action cannot be undone."
+                  ? " " + t('games.cannotDeleteGame')
+                  : " " + t('games.actionCannotBeUndone')
                 }
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel onClick={() => setGameToDelete(null)}>Cancel</AlertDialogCancel>
+              <AlertDialogCancel onClick={() => setGameToDelete(null)}>{t('common.cancel')}</AlertDialogCancel>
               {!matches.some(match => match.gameId === gameToDelete.id) && (
                 <AlertDialogAction
                   onClick={confirmDeleteGame}
                   className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
                 >
-                  Delete Game
+                  {t('games.deleteGameButton')}
                 </AlertDialogAction>
               )}
             </AlertDialogFooter>

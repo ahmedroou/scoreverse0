@@ -26,6 +26,7 @@ import type { Game, Player, Match, ScoreData, Space, UserAccount, PlayerStats, T
 import { INITIAL_MOCK_GAMES, INITIAL_MOCK_PLAYERS } from '@/data/mock-data';
 import { useToast } from '@/hooks/use-toast';
 import { playSound } from '@/lib/audio';
+import { useLanguage } from '@/hooks/use-language';
 
 interface AppContextType {
   games: Game[];
@@ -33,7 +34,7 @@ interface AppContextType {
   matches: Match[];
   spaces: Space[];
   tournaments: Tournament[];
-  allUsers: UserAccount[]; // For admin
+  allUsers: UserAccount[];
   activeSpaceId: string | null;
   addPlayer: (name: string, avatarUrl?: string) => Promise<void>;
   deletePlayer: (playerId: string) => Promise<void>;
@@ -60,8 +61,8 @@ interface AppContextType {
   updateGame: (gameId: string, gameData: Partial<Omit<Game, 'id' | 'icon' | 'ownerId'>>) => Promise<void>;
   deleteGame: (gameId: string) => Promise<void>;
   shareSpace: (spaceId: string) => string | null;
-  getUserById: (userId: string) => UserAccount | undefined; // Admin function, needs all users
-  deleteUserAccount: (userId: string) => Promise<void>; // Admin function
+  getUserById: (userId: string) => UserAccount | undefined;
+  deleteUserAccount: (userId: string) => Promise<void>;
   addTournament: (tournamentData: Omit<Tournament, 'id' | 'status' | 'ownerId' | 'winnerPlayerId' | 'dateCompleted'>) => Promise<void>;
   updateTournament: (tournamentId: string, tournamentData: Partial<Omit<Tournament, 'id' | 'ownerId'>>) => Promise<void>;
   deleteTournament: (tournamentId: string) => Promise<void>;
@@ -78,7 +79,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [matches, setMatches] = useState<Match[]>([]);
   const [spaces, setSpaces] = useState<Space[]>([]);
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
-  const [allUsers, setAllUsers] = useState<UserAccount[]>([]); // For admin use
+  const [allUsers, setAllUsers] = useState<UserAccount[]>([]);
   
   const [activeSpaceId, setActiveSpaceIdState] = useState<string | null>(null);
   
@@ -89,13 +90,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const [isClient, setIsClient] = useState(false);
   const { toast } = useToast();
+  const { t } = useLanguage();
   const router = useRouter();
 
   const handleFirestoreError = (error: Error, dataType: string) => {
     console.error(`Firestore Error (${dataType}):`, error);
     toast({
-      title: "Database Read Error",
-      description: `Could not fetch ${dataType} data. This is often caused by Firebase security rules. You may be seeing out-of-date information.`,
+      title: t('common.error'),
+      description: `Could not fetch ${dataType} data.`,
       variant: "destructive",
       duration: 10000,
     });
@@ -106,7 +108,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setIsClient(true);
   }, []);
 
-  // Central effect for auth state and real-time data fetching from Firestore
   useEffect(() => {
     if (!isFirebaseConfigured()) {
       setIsLoadingAuth(false);
@@ -119,7 +120,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setFirebaseUser(user);
         const userDocRef = doc(db, 'users', user.uid);
         
-        // This onSnapshot listener handles user profile updates in real-time
         const unsubUserDoc = onSnapshot(userDocRef, (docSnap) => {
           if (docSnap.exists()) {
             const userData = docSnap.data() as UserAccount;
@@ -132,20 +132,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           }
         }, (error) => handleFirestoreError(error, "user profile"));
 
-        // Setup real-time listeners for all user-specific data
         const unsubPlayers = onSnapshot(collection(db, 'users', user.uid, 'players'), (snapshot) => {
-          const playersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Player));
-          setPlayers(playersData);
+          setPlayers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Player)));
         }, (error) => handleFirestoreError(error, "players"));
 
         const unsubGames = onSnapshot(collection(db, 'users', user.uid, 'games'), (snapshot) => {
-          const gamesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Game));
-          setGames(gamesData);
+          setGames(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Game)));
         }, (error) => handleFirestoreError(error, "games"));
 
         const unsubMatches = onSnapshot(collection(db, 'users', user.uid, 'matches'), (snapshot) => {
-          const matchesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Match));
-          setMatches(matchesData);
+          setMatches(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Match)));
         }, (error) => handleFirestoreError(error, "matches"));
 
         const unsubSpaces = onSnapshot(collection(db, 'users', user.uid, 'spaces'), (snapshot) => {
@@ -163,13 +159,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }, (error) => handleFirestoreError(error, "spaces"));
 
         const unsubTournaments = onSnapshot(collection(db, 'users', user.uid, 'tournaments'), (snapshot) => {
-          const tournamentsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Tournament));
-          setTournaments(tournamentsData);
+          setTournaments(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Tournament)));
         }, (error) => handleFirestoreError(error, "tournaments"));
 
         setIsLoadingAuth(false);
 
-        // Return a cleanup function to unsubscribe from all listeners
         return () => {
           unsubUserDoc();
           unsubPlayers();
@@ -180,7 +174,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         };
 
       } else {
-        // No user is signed in
         setCurrentUser(null);
         setFirebaseUser(null);
         setPlayers([]);
@@ -197,13 +190,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return () => unsubscribe();
   }, [isClient]);
 
-  // Effect for Admin to load all users
   useEffect(() => {
     if (currentUser?.isAdmin) {
       const usersCollectionRef = collection(db, 'users');
       const unsubscribe = onSnapshot(usersCollectionRef, (snapshot) => {
-        const usersData = snapshot.docs.map(doc => doc.data() as UserAccount);
-        setAllUsers(usersData);
+        setAllUsers(snapshot.docs.map(doc => doc.data() as UserAccount));
       }, (error) => handleFirestoreError(error, "all user list (admin)"));
       return () => unsubscribe();
     } else {
@@ -226,21 +217,21 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
       if (!docSnap.exists()) {
            await signOut(auth);
-           const err = "Login Issue: Your account exists, but your user profile could not be found. This can happen with very old accounts. Please sign up again or check Firestore security rules.";
+           const err = t('auth.loginIssue');
            setError(err);
            playSound('error');
            return { success: false, error: err };
       }
       
       const userData = docSnap.data() as UserAccount;
-      toast({ title: "Logged In", description: `Welcome back, ${userData.username}!` });
+      toast({ title: t('auth.loginSuccess'), description: t('auth.welcomeUser', {username: userData.username}) });
       router.push('/dashboard');
       return { success: true };
     } catch (error: any) {
       console.error("Login failed:", error);
-      let errMessage = "Invalid email or password.";
+      let errMessage = t('auth.invalidCredentials');
       if (error.code === 'auth/invalid-credential') {
-        errMessage = "Invalid email or password provided.";
+        errMessage = t('auth.invalidCredentials');
       }
       setError(errMessage);
       playSound('error');
@@ -256,18 +247,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       return { success: false, error: err };
     }
     try {
-      // Create user in Firebase Auth
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const newUser = userCredential.user;
 
-      // Derive username from email (part before @)
       const username = email.split('@')[0];
 
-      // Create user profile document in Firestore
       const userDocData: UserAccount = { id: newUser.uid, username, email: newUser.email, isAdmin: false };
       await setDoc(doc(db, "users", newUser.uid), userDocData);
 
-      // Create initial data (default space, players, games) in a batch
       const batch = writeBatch(db);
       const defaultSpaceRef = doc(collection(db, 'users', newUser.uid, 'spaces'));
       batch.set(defaultSpaceRef, { name: "Personal Space", ownerId: newUser.uid });
@@ -284,18 +271,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       
       await batch.commit();
 
-      // Set the new space as active in localStorage
       localStorage.setItem(`${ACTIVE_SPACE_LS_KEY_PREFIX}${newUser.uid}`, JSON.stringify(defaultSpaceRef.id));
       router.push('/dashboard');
-      toast({ title: "Account Created", description: `Welcome, ${username}!` });
+      toast({ title: t('auth.signupSuccess'), description: t('auth.welcomeUser', {username}) });
       playSound('success');
       return { success: true };
 
     } catch (error: any) {
        console.error("Signup failed:", error);
-       let err = "Failed to create account. Please try again.";
+       let err = t('auth.signupFailed');
        if (error.code === 'auth/email-already-in-use') {
-         err = "This email address is already in use.";
+         err = t('auth.emailInUse');
        }
        setError(err);
        playSound('error');
@@ -306,11 +292,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const logout = async () => {
     const currentUsername = currentUser?.username;
     await signOut(auth);
-    toast({ title: "Logged Out", description: `Goodbye, ${currentUsername}!` });
+    toast({ title: t('header.logout'), description: `Goodbye, ${currentUsername}!` });
     router.push('/auth');
   };
   
-  // Firestore-backed data modification functions
   const addPlayer = async (name: string, avatarUrl?: string) => {
     if (!firebaseUser) return;
     const playersCollection = collection(db, 'users', firebaseUser.uid, 'players');
@@ -319,7 +304,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       newPlayerData.avatarUrl = avatarUrl;
     }
     await addDoc(playersCollection, newPlayerData);
-    toast({ title: "Player Added", description: `${name} has been added.` });
+    toast({ title: t('players.toasts.playerAdded'), description: t('players.toasts.playerAddedDesc', {name}) });
     playSound('success');
   };
 
@@ -327,22 +312,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (!firebaseUser) return;
     const playerDocRef = doc(db, 'users', firebaseUser.uid, 'players', playerId);
     await deleteDoc(playerDocRef);
-    // Note: Deleting player from matches is complex and might be better handled with a cloud function or left as is.
-    toast({ title: "Player Deleted", description: `Player has been removed.`});
+    toast({ title: t('players.toasts.playerDeleted'), description: t('players.toasts.playerDeletedDesc')});
   };
 
   const updatePlayer = async (playerId: string, playerData: Partial<Omit<Player, 'id' | 'ownerId'>>) => {
     if (!firebaseUser) return;
     const playerDocRef = doc(db, 'users', firebaseUser.uid, 'players', playerId);
     await updateDoc(playerDocRef, playerData);
-    toast({ title: "Player Updated" });
+    toast({ title: t('players.toasts.playerUpdated') });
   };
 
   const addGame = async (gameData: Omit<Game, 'id' | 'icon' | 'ownerId'>) => {
     if (!firebaseUser) return;
     const gamesCollection = collection(db, 'users', firebaseUser.uid, 'games');
     
-    // Create a mutable copy to safely delete undefined properties
     const newGameData: Partial<Omit<Game, 'id'>> = { ...gameData, icon: 'HelpCircle', ownerId: firebaseUser.uid };
     
     if (newGameData.description === '' || newGameData.description === undefined) {
@@ -353,7 +336,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
     
     await addDoc(gamesCollection, newGameData);
-    toast({ title: "Game Added", description: `${gameData.name} added.` });
+    toast({ title: t('games.toasts.gameAdded'), description: t('games.toasts.gameAddedDesc', {name: gameData.name}) });
     playSound('success');
   };
   
@@ -361,22 +344,21 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (!firebaseUser) return;
     const gameDocRef = doc(db, 'users', firebaseUser.uid, 'games', gameId);
     await updateDoc(gameDocRef, gameData);
-    toast({ title: "Game Updated" });
+    toast({ title: t('games.toasts.gameUpdated') });
   };
 
   const deleteGame = async (gameId: string) => {
     if (!firebaseUser) return;
-    // Check if game is used in matches
     const q = query(collection(db, 'users', firebaseUser.uid, 'matches'), where("gameId", "==", gameId));
     const querySnapshot = await getDocs(q);
     if (!querySnapshot.empty) {
-        toast({ title: "Cannot Delete", description: "Game is used in recorded matches.", variant: "destructive" });
+        toast({ title: t('games.toasts.cannotDelete'), description: t('games.toasts.gameInUse'), variant: "destructive" });
         playSound('error');
         return;
     }
     const gameDocRef = doc(db, 'users', firebaseUser.uid, 'games', gameId);
     await deleteDoc(gameDocRef);
-    toast({ title: "Game Deleted" });
+    toast({ title: t('games.toasts.gameDeleted') });
   };
 
   const addSpace = async (name: string) => {
@@ -386,7 +368,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (!activeSpaceId) {
         setActiveSpaceId(newSpaceRef.id);
     }
-    toast({ title: "Space Created", description: `Space "${name}" created.` });
+    toast({ title: t('spaces.toasts.spaceCreated'), description: t('spaces.toasts.spaceCreatedDesc', {name}) });
     playSound('success');
   };
   
@@ -394,18 +376,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (!firebaseUser) return;
     const spaceDocRef = doc(db, 'users', firebaseUser.uid, 'spaces', spaceId);
     await updateDoc(spaceDocRef, { name: newName });
-    toast({ title: "Space Updated" });
+    toast({ title: t('spaces.toasts.spaceUpdated') });
   };
 
   const deleteSpace = async (spaceIdToDelete: string) => {
     if (!firebaseUser) return;
     const userSpaces = await getSpacesForCurrentUser();
     if (userSpaces.length <= 1) {
-        toast({ title: "Cannot Delete", description: "You must have at least one space.", variant: "destructive"});
+        toast({ title: t('spaces.toasts.cannotDelete'), description: t('spaces.toasts.mustHaveOne'), variant: "destructive"});
         playSound('error');
         return;
     }
-    // Batch delete space and all its matches
     const batch = writeBatch(db);
     const spaceDocRef = doc(db, 'users', firebaseUser.uid, 'spaces', spaceIdToDelete);
     batch.delete(spaceDocRef);
@@ -415,18 +396,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     await batch.commit();
 
     if (activeSpaceId === spaceIdToDelete) {
-        // Find a new space to set as active, or null if none are left (shouldn't happen due to guard clause)
         const newActiveSpace = spaces.find(s => s.id !== spaceIdToDelete);
         setActiveSpaceId(newActiveSpace?.id || null);
     }
-    toast({ title: "Space Deleted", description: `Space and its matches deleted.` });
+    toast({ title: t('spaces.toasts.spaceDeleted'), description: t('spaces.toasts.spaceDeletedDesc') });
   };
   
   const addTournament = async (data: Omit<Tournament, 'id' | 'status' | 'ownerId' | 'winnerPlayerId' | 'dateCompleted'>) => {
      if (!firebaseUser) return;
      const tournamentsCollection = collection(db, 'users', firebaseUser.uid, 'tournaments');
      await addDoc(tournamentsCollection, { ...data, status: 'active', ownerId: firebaseUser.uid });
-     toast({ title: "Tournament Created!", description: `The "${data.name}" tournament is now active.` });
+     toast({ title: t('tournaments.toasts.tournamentCreated'), description: t('tournaments.toasts.tournamentCreatedDesc', {name: data.name}) });
      playSound('success');
   };
   
@@ -434,17 +414,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
      if (!firebaseUser) return;
      const tourDocRef = doc(db, 'users', firebaseUser.uid, 'tournaments', id);
      await updateDoc(tourDocRef, data);
-     toast({ title: "Tournament Updated" });
+     toast({ title: t('tournaments.toasts.tournamentUpdated') });
   };
 
   const deleteTournament = async (id: string) => {
     if (!firebaseUser) return;
     const tourDocRef = doc(db, 'users', firebaseUser.uid, 'tournaments', id);
     await deleteDoc(tourDocRef);
-    toast({ title: "Tournament Deleted" });
+    toast({ title: t('tournaments.toasts.tournamentDeleted') });
   };
 
-  // Helper/Getter functions
   const getGameById = useCallback((gameId: string) => games.find(g => g.id === gameId), [games]);
   const getPlayerById = useCallback((playerId: string) => players.find(p => p.id === playerId), [players]);
 
@@ -480,7 +459,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const addMatch = useCallback(async (matchData: Omit<Match, 'id' | 'date' | 'spaceId'>) => {
     if (!firebaseUser) return;
 
-    // Create a new object for Firestore, ensuring no `undefined` values are sent.
     const newMatchForDb: { [key: string]: any } = {
       ...matchData,
       date: new Date().toISOString(),
@@ -490,7 +468,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       newMatchForDb.spaceId = activeSpaceId;
     }
     
-    // Explicitly delete the key if the value is undefined, as Firestore doesn't support it.
     if (newMatchForDb.handicapSuggestions === undefined) {
         delete newMatchForDb.handicapSuggestions;
     }
@@ -498,8 +475,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const matchesCollection = collection(db, 'users', firebaseUser.uid, 'matches');
     await addDoc(matchesCollection, newMatchForDb);
     
-    // Tournament Completion Check
-    // We can use the cleaned `newMatchForDb` object for local calculations too.
     const allMatchesForUser = [...matches, {...newMatchForDb, id: 'temp' } as Match]; 
     const relevantMatchesForGame = allMatchesForUser.filter(m => m.gameId === newMatchForDb.gameId && m.spaceId === (activeSpaceId || undefined));
     const gameLeaderboard = calculateScores(relevantMatchesForGame);
@@ -515,10 +490,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             dateCompleted: new Date().toISOString()
         });
         const winnerPlayer = getPlayerById(winner.playerId);
-        toast({ title: "🏆 Tournament Finished!", description: `${winnerPlayer?.name || 'A player'} won the "${tourney.name}" tournament!` });
+        toast({ title: t('tournaments.toasts.tournamentFinished'), description: t('tournaments.toasts.tournamentWinner', {winnerName: winnerPlayer?.name || '', tournamentName: tourney.name}) });
       }
     }
-  }, [firebaseUser, activeSpaceId, matches, tournaments, toast, calculateScores, getPlayerById]);
+  }, [firebaseUser, activeSpaceId, matches, tournaments, toast, calculateScores, getPlayerById, t]);
 
   const getOverallLeaderboard = useCallback(() => {
     const filtered = activeSpaceId ? matches.filter(m => m.spaceId === activeSpaceId) : matches.filter(m => m.spaceId === undefined);
@@ -557,7 +532,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const lastResult = playerMatches.length > 0 ? (playerMatches[playerMatches.length - 1].winnerIds.includes(playerId) ? 'W' : 'L') : null;
     const currentStreak = !lastResult ? { type: 'W', count: 0 } : (lastResult === 'W' ? { type: 'W', count: currentWinStreak } : { type: 'L', count: currentLossStreak });
     
-    const gameStatsMap = new Map<string, any>(); // Using 'any' for simplicity here
+    const gameStatsMap = new Map<string, any>();
     playerMatches.forEach(match => {
       const game = getGameById(match.gameId);
       if (!game) return;
@@ -614,28 +589,25 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, [isClient, spaces, matches, players, games, toast]);
   
   const getUserById = useCallback((userId: string) => {
-    // This will only work for admin users, as only they have the `allUsers` list populated.
     return allUsers.find(u => u.id === userId);
   }, [allUsers]);
 
   const deleteUserAccount = async (userIdToDelete: string) => {
     if (!currentUser?.isAdmin) {
-      toast({ title: "Permission Denied", description: "You do not have permission to delete users.", variant: "destructive" });
+      toast({ title: t('users.toasts.permissionDenied'), description: t('users.toasts.permissionDeniedDesc'), variant: "destructive" });
       return;
     }
     if (currentUser.id === userIdToDelete) {
-        toast({ title: "Action Not Allowed", description: "You cannot delete your own account.", variant: "destructive" });
+        toast({ title: t('users.toasts.cannotDeleteSelf'), description: t('users.toasts.cannotDeleteSelfDesc'), variant: "destructive" });
         return;
     }
 
     try {
         const batch = writeBatch(db);
 
-        // Delete main user document
         const userDocRef = doc(db, 'users', userIdToDelete);
         batch.delete(userDocRef);
 
-        // Delete all documents in user's subcollections
         const subcollections = ['players', 'games', 'matches', 'spaces', 'tournaments'];
         for (const sub of subcollections) {
             const subcollectionRef = collection(db, 'users', userIdToDelete, sub);
@@ -647,12 +619,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         
         await batch.commit();
 
-        toast({ title: "User Account Deleted", description: "The user's account and all associated data have been deleted from the database." });
-        // NOTE: The user still exists in Firebase Auth. Deleting from Auth requires admin privileges on the backend (e.g., Cloud Function)
-        // and cannot be done securely from the client.
+        toast({ title: t('users.toasts.userDeleted'), description: t('users.toasts.userDeletedDesc') });
     } catch (error) {
         console.error("Error deleting user account:", error);
-        toast({ title: "Error", description: "Failed to delete user account. See console for details.", variant: "destructive" });
+        toast({ title: t('common.error'), description: t('users.toasts.deleteError'), variant: "destructive" });
     }
   };
 
@@ -678,5 +648,3 @@ export const useAppContext = (): AppContextType => {
   }
   return context;
 };
-
-    

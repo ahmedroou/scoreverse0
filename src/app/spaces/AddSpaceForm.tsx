@@ -18,9 +18,10 @@ import {
   DialogFooter,
   DialogClose,
 } from '@/components/ui/dialog';
+import { useLanguage } from '@/hooks/use-language';
 
-const formSchema = z.object({
-  name: z.string().min(1, "Space name cannot be empty.").max(50, "Space name is too long (max 50 characters)."),
+const createFormSchema = (t: (key: string) => string) => z.object({
+  name: z.string().min(1, t('spaces.addForm.validation.nameRequired')).max(50, t('spaces.addForm.validation.nameMaxLength')),
 });
 
 interface AddSpaceFormProps {
@@ -30,6 +31,9 @@ interface AddSpaceFormProps {
 
 export function AddSpaceForm({ isOpen, onOpenChange }: AddSpaceFormProps) {
   const { addSpace } = useAppContext();
+  const { t } = useLanguage();
+  const formSchema = createFormSchema(t);
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -53,20 +57,20 @@ export function AddSpaceForm({ isOpen, onOpenChange }: AddSpaceFormProps) {
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px] bg-card">
         <DialogHeader>
-          <DialogTitle className="text-primary">Create New Space</DialogTitle>
+          <DialogTitle className="text-primary">{t('spaces.addForm.title')}</DialogTitle>
           <DialogDescription>
-            Enter a name for your new space. This helps organize your games and leaderboards.
+            {t('spaces.addForm.description')}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
           <div className="space-y-2">
             <Label htmlFor="new-space-name">
-              Space Name
+              {t('spaces.addForm.nameLabel')}
             </Label>
             <Input
               id="new-space-name"
               {...form.register('name')}
-              placeholder="E.g., 'Weekend Warriors' or 'Family Game Night'"
+              placeholder={t('spaces.addForm.namePlaceholder')}
             />
             {form.formState.errors.name && (
               <p className="text-sm text-destructive">{form.formState.errors.name.message}</p>
@@ -74,9 +78,9 @@ export function AddSpaceForm({ isOpen, onOpenChange }: AddSpaceFormProps) {
           </div>
           <DialogFooter>
             <DialogClose asChild>
-              <Button type="button" variant="outline" onClick={() => form.reset()}>Cancel</Button>
+              <Button type="button" variant="outline" onClick={() => form.reset()}>{t('common.cancel')}</Button>
             </DialogClose>
-            <Button type="submit" className="bg-primary hover:bg-primary/90 text-primary-foreground">Create Space</Button>
+            <Button type="submit" className="bg-primary hover:bg-primary/90 text-primary-foreground">{t('spaces.createSpace')}</Button>
           </DialogFooter>
         </form>
       </DialogContent>

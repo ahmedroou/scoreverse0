@@ -19,10 +19,12 @@ import {
   DialogClose,
 } from '@/components/ui/dialog';
 import type { Player } from '@/types';
+import { useLanguage } from '@/hooks/use-language';
 
-const formSchema = z.object({
-  name: z.string().min(1, "Player name cannot be empty.").max(50, "Player name is too long."),
-  avatarUrl: z.string().url("Please enter a valid URL.").optional().or(z.literal('')),
+
+const createFormSchema = (t: (key: string) => string) => z.object({
+  name: z.string().min(1, t('players.addPlayerForm.validation.nameRequired')).max(50, t('players.addPlayerForm.validation.nameMaxLength')),
+  avatarUrl: z.string().url(t('players.addPlayerForm.validation.avatarUrl')).optional().or(z.literal('')),
 });
 
 interface EditPlayerFormProps {
@@ -33,6 +35,9 @@ interface EditPlayerFormProps {
 
 export function EditPlayerForm({ player, isOpen, onOpenChange }: EditPlayerFormProps) {
   const { updatePlayer } = useAppContext();
+  const { t } = useLanguage();
+  const formSchema = createFormSchema(t);
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -60,15 +65,15 @@ export function EditPlayerForm({ player, isOpen, onOpenChange }: EditPlayerFormP
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px] bg-card">
         <DialogHeader>
-          <DialogTitle className="text-primary">Edit Player</DialogTitle>
+          <DialogTitle className="text-primary">{t('players.editPlayerForm.title')}</DialogTitle>
           <DialogDescription>
-            Change the details for {player.name}. Click save when you're done.
+            {t('players.editPlayerForm.description', {playerName: player.name})}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
           <div className="space-y-2">
             <Label htmlFor="name">
-              Player Name
+              {t('players.addPlayerForm.nameLabel')}
             </Label>
             <Input
               id="name"
@@ -81,13 +86,13 @@ export function EditPlayerForm({ player, isOpen, onOpenChange }: EditPlayerFormP
           </div>
           <div className="space-y-2">
             <Label htmlFor="avatarUrl">
-              Avatar URL (Optional)
+              {t('players.addPlayerForm.avatarLabel')}
             </Label>
             <Input
               id="avatarUrl"
               {...form.register('avatarUrl')}
               className="col-span-3"
-              placeholder="https://example.com/avatar.png"
+              placeholder={t('players.addPlayerForm.avatarPlaceholder')}
             />
             {form.formState.errors.avatarUrl && (
               <p className="text-sm text-destructive">{form.formState.errors.avatarUrl.message}</p>
@@ -95,9 +100,9 @@ export function EditPlayerForm({ player, isOpen, onOpenChange }: EditPlayerFormP
           </div>
           <DialogFooter>
             <DialogClose asChild>
-              <Button type="button" variant="outline">Cancel</Button>
+              <Button type="button" variant="outline">{t('common.cancel')}</Button>
             </DialogClose>
-            <Button type="submit" className="bg-primary hover:bg-primary/90 text-primary-foreground">Save Changes</Button>
+            <Button type="submit" className="bg-primary hover:bg-primary/90 text-primary-foreground">{t('common.save')}</Button>
           </DialogFooter>
         </form>
       </DialogContent>

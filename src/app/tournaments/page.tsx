@@ -4,7 +4,7 @@
 import React, { useState } from 'react';
 import { useAppContext } from '@/context/AppContext';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Trophy, PlusCircle, ShieldAlert } from 'lucide-react';
 import Link from 'next/link';
 import { AddTournamentForm } from './AddTournamentForm';
@@ -22,9 +22,11 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useLanguage } from '@/hooks/use-language';
 
 export default function ManageTournamentsPage() {
   const { tournaments, deleteTournament, getGameById, getPlayerById, isClient, currentUser, getUserById } = useAppContext();
+  const { t } = useLanguage();
   
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -55,10 +57,10 @@ export default function ManageTournamentsPage() {
     return (
        <div className="container mx-auto py-8">
            <Card className="w-full max-w-lg mx-auto shadow-xl bg-card">
-               <CardHeader><CardTitle>Access Denied</CardTitle></CardHeader>
+               <CardHeader><CardTitle>{t('draw.accessDenied')}</CardTitle></CardHeader>
                <CardContent>
-                   <p>Please log in to manage tournaments.</p>
-                   <Link href="/auth" passHref legacyBehavior><Button className="mt-4 w-full">Go to Login</Button></Link>
+                   <p>{t('dashboard.loginPrompt')}</p>
+                   <Link href="/auth" passHref legacyBehavior><Button className="mt-4 w-full">{t('dashboard.goToLogin')}</Button></Link>
                </CardContent>
            </Card>
        </div>
@@ -72,18 +74,18 @@ export default function ManageTournamentsPage() {
     <div className="container mx-auto py-8">
       <header className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-4xl font-bold tracking-tight text-primary flex items-center gap-2"><Trophy /> Tournaments</h1>
-          <p className="text-lg text-muted-foreground">Create and manage tournaments to crown a champion.</p>
+          <h1 className="text-4xl font-bold tracking-tight text-primary flex items-center gap-2"><Trophy /> {t('tournaments.pageTitle')}</h1>
+          <p className="text-lg text-muted-foreground">{t('tournaments.pageDescription')}</p>
         </div>
         <Button onClick={() => setIsAddDialogOpen(true)}>
-          <PlusCircle className="mr-2 h-5 w-5" /> Create New Tournament
+          <PlusCircle className="me-2 h-5 w-5" /> {t('tournaments.createButton')}
         </Button>
       </header>
 
       <Tabs defaultValue="active" className="w-full">
         <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="active">Active ({activeTournaments.length})</TabsTrigger>
-            <TabsTrigger value="completed">Completed ({completedTournaments.length})</TabsTrigger>
+            <TabsTrigger value="active">{t('tournaments.activeTab', {count: activeTournaments.length})}</TabsTrigger>
+            <TabsTrigger value="completed">{t('tournaments.completedTab', {count: completedTournaments.length})}</TabsTrigger>
         </TabsList>
         <TabsContent value="active" className="mt-6">
             {activeTournaments.length > 0 ? (
@@ -104,7 +106,7 @@ export default function ManageTournamentsPage() {
                         )
                     })}
                 </div>
-            ) : <p className="text-center text-muted-foreground py-8">No active tournaments. Create one to get started!</p>}
+            ) : <p className="text-center text-muted-foreground py-8">{t('tournaments.noActive')}</p>}
         </TabsContent>
          <TabsContent value="completed" className="mt-6">
             {completedTournaments.length > 0 ? (
@@ -126,7 +128,7 @@ export default function ManageTournamentsPage() {
                         )
                     })}
                 </div>
-            ) : <p className="text-center text-muted-foreground py-8">No tournaments have been completed yet.</p>}
+            ) : <p className="text-center text-muted-foreground py-8">{t('tournaments.noCompleted')}</p>}
         </TabsContent>
       </Tabs>
       
@@ -144,15 +146,15 @@ export default function ManageTournamentsPage() {
          <AlertDialog open={!!tournamentToDelete} onOpenChange={() => setTournamentToDelete(null)}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle className="flex items-center gap-2"><ShieldAlert/>Confirm Deletion</AlertDialogTitle>
+              <AlertDialogTitle className="flex items-center gap-2"><ShieldAlert/>{t('tournaments.deleteDialog.title')}</AlertDialogTitle>
               <AlertDialogDescription>
-                Are you sure you want to delete the tournament "{tournamentToDelete.name}"? This action cannot be undone.
+                {t('tournaments.deleteDialog.description', {tournamentName: tournamentToDelete.name})}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
               <AlertDialogAction onClick={confirmDelete} className="bg-destructive hover:bg-destructive/90">
-                  Delete
+                  {t('common.delete')}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

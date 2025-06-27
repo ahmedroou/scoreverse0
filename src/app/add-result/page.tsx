@@ -1,8 +1,11 @@
 
+'use client';
+
 import { AddResultForm } from './AddResultForm';
 import { Suspense } from 'react';
 import { Label } from '@/components/ui/label'; // Example, not actually used but shows Suspense needs context sometimes
 import { Loader2 } from 'lucide-react';
+import { useLanguage } from '@/hooks/use-language';
 
 // Helper component to allow AddResultForm to use useSearchParams
 function AddResultFormWrapper() {
@@ -11,12 +14,13 @@ function AddResultFormWrapper() {
 }
 
 export default function AddResultPage() {
+  const { t } = useLanguage();
   return (
     <div className="container mx-auto py-8">
       <Suspense fallback={
         <div className="flex flex-col items-center justify-center h-64 p-8 bg-card rounded-lg shadow-xl">
           <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
-          <p className="text-lg text-muted-foreground">Loading game form...</p>
+          <p className="text-lg text-muted-foreground">{t('addResult.loadingForm')}</p>
         </div>
       }>
         <AddResultFormWrapper />
