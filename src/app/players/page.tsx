@@ -6,10 +6,9 @@ import { useAppContext } from '@/context/AppContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { EditPlayerForm } from './EditPlayerForm';
 import { AddPlayerForm } from './AddPlayerForm';
 import type { Player } from '@/types';
-import { Loader2, Users, Edit3, UserPlus, Trash2, ShieldAlert, BarChartHorizontal, UserCog } from 'lucide-react';
+import { Loader2, Users, UserPlus, Trash2, ShieldAlert, BarChartHorizontal, UserCog } from 'lucide-react';
 import Link from 'next/link';
 import {
   AlertDialog,
@@ -36,21 +35,9 @@ const stringToHslColor = (str: string, s: number, l: number): string => {
 
 
 export default function ManagePlayersPage() {
-  const { players, deletePlayer, isClient, currentUser, getUserById, deleteAllPlayers } = useAppContext();
+  const { players, isClient, currentUser, getUserById, deleteAllPlayers } = useAppContext();
   const { t } = useLanguage();
-  const [editingPlayer, setEditingPlayer] = useState<Player | null>(null);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isAddPlayerDialogOpen, setIsAddPlayerDialogOpen] = useState(false);
-
-  const handleEditClick = (player: Player) => {
-    setEditingPlayer(player);
-    setIsEditDialogOpen(true);
-  };
-
-  const handleEditDialogClose = () => {
-    setIsEditDialogOpen(false);
-    setEditingPlayer(null);
-  };
 
   const handleAddPlayerDialogOpen = () => {
     setIsAddPlayerDialogOpen(true);
@@ -100,7 +87,6 @@ export default function ManagePlayersPage() {
             <ul className="space-y-3">
               {players.map((player) => {
                 const owner = currentUser.isAdmin ? getUserById(player.ownerId) : null;
-                const canEdit = currentUser.isAdmin || currentUser.id === player.ownerId;
                 return (
                 <li
                   key={player.id}
@@ -130,43 +116,6 @@ export default function ManagePlayersPage() {
                             <span className="hidden sm:inline">{t('players.stats')}</span>
                         </Button>
                     </Link>
-                    {canEdit && (
-                    <Button variant="outline" size="sm" onClick={() => handleEditClick(player)} className="border-accent text-accent hover:bg-accent hover:text-accent-foreground">
-                      <Edit3 className="h-4 w-4 me-1 sm:me-2" />
-                      <span className="hidden sm:inline">{t('common.edit')}</span>
-                    </Button>
-                    )}
-                    
-                    {canEdit && (
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="destructive" size="sm" className="bg-destructive/80 hover:bg-destructive text-destructive-foreground">
-                          <Trash2 className="h-4 w-4 me-1 sm:me-2" />
-                          <span className="hidden sm:inline">{t('common.delete')}</span>
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle className="flex items-center gap-2">
-                            <ShieldAlert className="text-destructive h-6 w-6"/>
-                            {t('players.deleteConfirmTitle')}
-                          </AlertDialogTitle>
-                          <AlertDialogDescription>
-                            {t('players.deleteConfirmDescription', {playerName: player.name})}
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
-                          <AlertDialogAction
-                            onClick={() => deletePlayer(player.id)}
-                            className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
-                          >
-                            {t('players.deleteButton')}
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                    )}
                   </div>
                 </li>
               )})}
@@ -210,14 +159,6 @@ export default function ManagePlayersPage() {
           )}
         </CardFooter>
       </Card>
-
-      {editingPlayer && (
-        <EditPlayerForm
-          player={editingPlayer}
-          isOpen={isEditDialogOpen}
-          onOpenChange={handleEditDialogClose}
-        />
-      )}
       
       <AddPlayerForm 
         isOpen={isAddPlayerDialogOpen}
