@@ -418,6 +418,18 @@ export const translationsEn = {
       winner: 'Winner:',
       completedOn: 'Completed on {{date}}',
     },
+    details: {
+      title: 'Tournament Details',
+      progressTitle: "Leader's Progress",
+      leader: 'Leader',
+      noProgress: 'No progress yet',
+      standings: 'Tournament Standings',
+      winnerTitle: 'Tournament Champion',
+      notFound: 'Tournament Not Found',
+      notFoundDesc: "The tournament you are looking for doesn't exist.",
+      backButton: 'Back to Tournaments',
+      completedOn: 'Completed on {{date}}'
+    },
     addForm: {
       title: 'Create New Tournament',
       description: 'The first player to reach the target score in the selected game wins.',

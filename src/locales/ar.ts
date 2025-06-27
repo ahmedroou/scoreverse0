@@ -418,6 +418,18 @@ export const translationsAr = {
       winner: 'الفائز:',
       completedOn: 'اكتملت في {{date}}',
     },
+    details: {
+      title: 'تفاصيل البطولة',
+      progressTitle: 'تقدم المتصدر',
+      leader: 'المتصدر',
+      noProgress: 'لا يوجد تقدم بعد',
+      standings: 'ترتيب البطولة',
+      winnerTitle: 'بطل البطولة',
+      notFound: 'لم يتم العثور على البطولة',
+      notFoundDesc: 'البطولة التي تبحث عنها غير موجودة.',
+      backButton: 'العودة إلى البطولات',
+      completedOn: 'اكتملت في {{date}}'
+    },
     addForm: {
       title: 'إنشاء بطولة جديدة',
       description: 'أول لاعب يصل إلى النتيجة المستهدفة في اللعبة المحددة يفوز.',

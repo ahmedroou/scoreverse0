@@ -5,49 +5,18 @@ import React, { useState } from 'react';
 import { useAppContext } from '@/context/AppContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Trophy, PlusCircle, ShieldAlert } from 'lucide-react';
+import { Loader2, Trophy, PlusCircle } from 'lucide-react';
 import Link from 'next/link';
 import { AddTournamentForm } from './AddTournamentForm';
-import { EditTournamentForm } from './EditTournamentForm';
 import { TournamentCard } from './TournamentCard';
-import type { Tournament } from '@/types';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useLanguage } from '@/hooks/use-language';
 
 export default function ManageTournamentsPage() {
-  const { tournaments, deleteTournament, getGameById, getPlayerById, isClient, currentUser, getUserById } = useAppContext();
+  const { tournaments, getGameById, getGameLeaderboard, isClient, currentUser, getUserById } = useAppContext();
   const { t } = useLanguage();
   
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [editingTournament, setEditingTournament] = useState<Tournament | null>(null);
-  const [tournamentToDelete, setTournamentToDelete] = useState<Tournament | null>(null);
-
-  const handleEditClick = (tournament: Tournament) => {
-    setEditingTournament(tournament);
-    setIsEditDialogOpen(true);
-  };
-  
-  const handleDeleteClick = (tournament: Tournament) => {
-    setTournamentToDelete(tournament);
-  };
-
-  const confirmDelete = () => {
-    if (tournamentToDelete) {
-      deleteTournament(tournamentToDelete.id);
-      setTournamentToDelete(null);
-    }
-  };
 
   if (!isClient) {
     return <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
@@ -89,20 +58,21 @@ export default function ManageTournamentsPage() {
         </TabsList>
         <TabsContent value="active" className="mt-6">
             {activeTournaments.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {activeTournaments.map(t => {
-                        const canEdit = currentUser.isAdmin || currentUser.id === t.ownerId;
                         const owner = currentUser.isAdmin ? getUserById(t.ownerId) : undefined;
+                        const game = getGameById(t.gameId);
+                        const leaderboard = game ? getGameLeaderboard(t.gameId) : [];
+                        const leader = leaderboard[0];
                         return (
-                           <TournamentCard 
-                                key={t.id}
+                           <Link key={t.id} href={`/tournaments/${t.id}`} className="block hover:scale-[1.02] transition-transform duration-200 h-full">
+                             <TournamentCard 
                                 tournament={t}
-                                game={getGameById(t.gameId)}
-                                onEdit={() => handleEditClick(t)}
-                                onDelete={() => handleDeleteClick(t)}
-                                canEdit={canEdit}
+                                game={game}
+                                leader={leader}
                                 ownerUsername={owner?.username}
-                            />
+                              />
+                           </Link>
                         )
                     })}
                 </div>
@@ -110,21 +80,21 @@ export default function ManageTournamentsPage() {
         </TabsContent>
          <TabsContent value="completed" className="mt-6">
             {completedTournaments.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {completedTournaments.map(t => {
-                        const canEdit = currentUser.isAdmin || currentUser.id === t.ownerId;
                         const owner = currentUser.isAdmin ? getUserById(t.ownerId) : undefined;
+                        const game = getGameById(t.gameId);
+                        const leaderboard = game ? getGameLeaderboard(t.gameId) : [];
+                        const winner = leaderboard.find(p => p.playerId === t.winnerPlayerId)
                         return (
-                           <TournamentCard 
-                                key={t.id}
+                           <Link key={t.id} href={`/tournaments/${t.id}`} className="block hover:scale-[1.02] transition-transform duration-200 h-full">
+                             <TournamentCard 
                                 tournament={t}
-                                game={getGameById(t.gameId)}
-                                winner={getPlayerById(t.winnerPlayerId || '')}
-                                onEdit={() => handleEditClick(t)}
-                                onDelete={() => handleDeleteClick(t)}
-                                canEdit={canEdit}
+                                game={game}
+                                leader={winner} // For completed, the leader is the winner
                                 ownerUsername={owner?.username}
-                            />
+                              />
+                           </Link>
                         )
                     })}
                 </div>
@@ -133,33 +103,6 @@ export default function ManageTournamentsPage() {
       </Tabs>
       
       <AddTournamentForm isOpen={isAddDialogOpen} onOpenChange={setIsAddDialogOpen} />
-      
-      {editingTournament && (
-        <EditTournamentForm 
-            isOpen={isEditDialogOpen} 
-            onOpenChange={setIsEditDialogOpen} 
-            tournament={editingTournament} 
-        />
-      )}
-
-      {tournamentToDelete && (
-         <AlertDialog open={!!tournamentToDelete} onOpenChange={() => setTournamentToDelete(null)}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle className="flex items-center gap-2"><ShieldAlert/>{t('tournaments.deleteDialog.title')}</AlertDialogTitle>
-              <AlertDialogDescription>
-                {t('tournaments.deleteDialog.description', {tournamentName: tournamentToDelete.name})}
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
-              <AlertDialogAction onClick={confirmDelete} className="bg-destructive hover:bg-destructive/90">
-                  {t('common.delete')}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      )}
     </div>
   );
 }
