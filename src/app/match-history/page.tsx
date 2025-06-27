@@ -28,6 +28,8 @@ export default function MatchHistoryPage() {
   const [matchToDelete, setMatchToDelete] = useState<Match | null>(null);
   const [editingMatch, setEditingMatch] = useState<Match | null>(null);
 
+  const canManage = currentUser.isAdmin || (!!activeSpace && activeSpace.ownerId === currentUser.id);
+
   const relevantMatches = useMemo(() => {
     if (!activeSpaceId) return matches.filter(m => m.spaceId === undefined);
     return matches.filter(m => m.spaceId === activeSpaceId);
@@ -176,8 +178,8 @@ export default function MatchHistoryPage() {
               match={match} 
               game={getGameById(match.gameId)}
               getPlayerById={getPlayerById}
-              onEdit={currentUser.isAdmin ? () => setEditingMatch(match) : undefined}
-              onDelete={currentUser.isAdmin ? () => setMatchToDelete(match) : undefined}
+              onEdit={canManage ? () => setEditingMatch(match) : undefined}
+              onDelete={canManage ? () => setMatchToDelete(match) : undefined}
             />
           ))}
         </div>

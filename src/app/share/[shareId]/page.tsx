@@ -31,8 +31,12 @@ function SharedPageContent() {
   useEffect(() => {
     if (encodedData) {
       try {
-        const decoded = atob(decodeURIComponent(encodedData));
-        const decompressed = pako.inflate(decoded, { to: 'string' });
+        const binaryString = atob(decodeURIComponent(encodedData));
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+        }
+        const decompressed = pako.inflate(bytes, { to: 'string' });
         const sharedData = JSON.parse(decompressed);
         setData(sharedData);
       } catch (e) {

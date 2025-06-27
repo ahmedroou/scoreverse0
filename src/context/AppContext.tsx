@@ -582,14 +582,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const sharedData = { space: spaceToShare, players: spacePlayers, matches: spaceMatches, games: spaceGames };
     try {
       const json = JSON.stringify(sharedData);
-      const compressed = pako.deflate(json, { to: 'string' });
-      const encoded = btoa(compressed);
+      const compressed = pako.deflate(json); // Returns Uint8Array
+      const binaryString = Array.from(compressed, byte => String.fromCharCode(byte)).join('');
+      const encoded = btoa(binaryString);
       return `${window.location.origin}/share/${spaceId}?data=${encodeURIComponent(encoded)}`;
     } catch (e) {
-      toast({ title: "Sharing Error", variant: "destructive"});
+      console.error("Failed to create share link:", e);
+      toast({ title: t('spaces.shareDialog.toasts.error'), description: (e as Error).message, variant: "destructive"});
       return null;
     }
-  }, [isClient, spaces, matches, players, games, toast]);
+  }, [isClient, spaces, matches, players, games, toast, t]);
   
   const getUserById = useCallback((userId: string) => {
     return allUsers.find(u => u.id === userId);
