@@ -152,7 +152,7 @@ export default function ManagePlayersPage() {
                             {t('players.deleteConfirmTitle')}
                           </AlertDialogTitle>
                           <AlertDialogDescription>
-                            {t('players.deleteConfirmDescription', {playerName: player.name})}
+                            {t('players.deleteConfirmDescriptionNew', {playerName: player.name})}
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>

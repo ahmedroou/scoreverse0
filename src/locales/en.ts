@@ -290,6 +290,7 @@ export const translationsEn = {
     stats: 'Stats',
     deleteConfirmTitle: 'Are you sure you want to delete this player?',
     deleteConfirmDescription: 'This action cannot be undone. Deleting "{{playerName}}" will remove them from the player list and all associated match records for their owner.',
+    deleteConfirmDescriptionNew: 'Are you sure you want to delete {{playerName}}? This action cannot be undone. You can only delete players who have not participated in any matches.',
     deleteButton: 'Delete Player',
     addNewPlayer: 'Add New Player',
     addPlayerForm: {
@@ -314,7 +315,8 @@ export const translationsEn = {
         playerAddedDesc: '{{name}} has been added.',
         playerDeleted: 'Player Deleted',
         playerDeletedDesc: 'Player has been removed.',
-        playerUpdated: 'Player Updated'
+        playerUpdated: 'Player Updated',
+        playerInUse: 'Cannot delete a player who has participated in matches.'
     }
   },
   share: {

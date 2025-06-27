@@ -290,6 +290,7 @@ export const translationsAr = {
     stats: 'إحصائيات',
     deleteConfirmTitle: 'هل أنت متأكد من حذف هذا اللاعب؟',
     deleteConfirmDescription: 'هذا الإجراء لا يمكن التراجع عنه. حذف "{{playerName}}" سيزيلهم من قائمة اللاعبين وجميع سجلات المواجهات المرتبطة بمالكهم.',
+    deleteConfirmDescriptionNew: 'هل أنت متأكد من رغبتك في حذف {{playerName}}؟ لا يمكن التراجع عن هذا الإجراء. يمكنك فقط حذف اللاعبين الذين لم يشاركوا في أي مباريات.',
     deleteButton: 'حذف اللاعب',
     addNewPlayer: 'إضافة لاعب جديد',
     addPlayerForm: {
@@ -314,7 +315,8 @@ export const translationsAr = {
         playerAddedDesc: 'تمت إضافة {{name}}.',
         playerDeleted: 'تم حذف اللاعب',
         playerDeletedDesc: 'تمت إزالة اللاعب.',
-        playerUpdated: 'تم تحديث اللاعب'
+        playerUpdated: 'تم تحديث اللاعب',
+        playerInUse: 'لا يمكن حذف لاعب شارك في مباريات.'
     }
   },
   share: {

@@ -23,7 +23,7 @@ import {
 
 import { auth, db, isFirebaseConfigured, firebaseConfig } from '@/lib/firebase';
 import type { Game, Player, Match, ScoreData, Space, UserAccount, PlayerStats, Tournament } from '@/types';
-import { INITIAL_MOCK_GAMES, INITIAL_MOCK_PLAYERS } from '@/data/mock-data';
+import { INITIAL_MOCK_GAMES } from '@/data/mock-data';
 import { useToast } from '@/hooks/use-toast';
 import { playSound } from '@/lib/audio';
 import { useLanguage } from '@/hooks/use-language';
@@ -261,11 +261,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const batch = writeBatch(db);
       const defaultSpaceRef = doc(collection(db, 'users', newUser.uid, 'spaces'));
       batch.set(defaultSpaceRef, { name: "Personal Space", ownerId: newUser.uid });
-      
-      INITIAL_MOCK_PLAYERS.forEach(player => {
-        const playerRef = doc(collection(db, 'users', newUser.uid, 'players'));
-        batch.set(playerRef, { ...player, ownerId: newUser.uid });
-      });
 
       INITIAL_MOCK_GAMES.forEach(game => {
         const gameRef = doc(collection(db, 'users', newUser.uid, 'games'));
@@ -313,6 +308,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const deletePlayer = async (playerId: string) => {
     if (!firebaseUser) return;
+    
+    const playerHasMatches = matches.some(match => match.playerIds.includes(playerId));
+    if (playerHasMatches) {
+        toast({
+            title: t('games.toasts.cannotDelete'),
+            description: t('players.toasts.playerInUse'),
+            variant: "destructive"
+        });
+        playSound('error');
+        return;
+    }
+
     const playerDocRef = doc(db, 'users', firebaseUser.uid, 'players', playerId);
     await deleteDoc(playerDocRef);
     toast({ title: t('players.toasts.playerDeleted'), description: t('players.toasts.playerDeletedDesc')});
