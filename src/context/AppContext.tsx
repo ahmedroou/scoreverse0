@@ -23,7 +23,6 @@ import {
 
 import { auth, db, isFirebaseConfigured, firebaseConfig } from '@/lib/firebase';
 import type { Game, Player, Match, ScoreData, Space, UserAccount, PlayerStats, Tournament } from '@/types';
-import { INITIAL_MOCK_GAMES } from '@/data/mock-data';
 import { useToast } from '@/hooks/use-toast';
 import { playSound } from '@/lib/audio';
 import { useLanguage } from '@/hooks/use-language';
@@ -261,11 +260,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const batch = writeBatch(db);
       const defaultSpaceRef = doc(collection(db, 'users', newUser.uid, 'spaces'));
       batch.set(defaultSpaceRef, { name: "Personal Space", ownerId: newUser.uid });
-
-      INITIAL_MOCK_GAMES.forEach(game => {
-        const gameRef = doc(collection(db, 'users', newUser.uid, 'games'));
-        batch.set(gameRef, { ...game, ownerId: newUser.uid });
-      });
       
       await batch.commit();
 
@@ -308,18 +302,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const deletePlayer = async (playerId: string) => {
     if (!firebaseUser) return;
-    
-    const playerHasMatches = matches.some(match => match.playerIds.includes(playerId));
-    if (playerHasMatches) {
-        toast({
-            title: t('games.toasts.cannotDelete'),
-            description: t('players.toasts.playerInUse'),
-            variant: "destructive"
-        });
-        playSound('error');
-        return;
-    }
-
     const playerDocRef = doc(db, 'users', firebaseUser.uid, 'players', playerId);
     await deleteDoc(playerDocRef);
     toast({ title: t('players.toasts.playerDeleted'), description: t('players.toasts.playerDeletedDesc')});
@@ -392,7 +374,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const deleteSpace = async (spaceIdToDelete: string) => {
     if (!firebaseUser) return;
     const userSpaces = await getSpacesForCurrentUser();
-    if (userSpaces.length <= 1) {
+    if (userSpaces.length <= 1 && !currentUser.isAdmin) {
         toast({ title: t('spaces.toasts.cannotDelete'), description: t('spaces.toasts.mustHaveOne'), variant: "destructive"});
         playSound('error');
         return;
@@ -403,6 +385,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const matchesQuery = query(collection(db, 'users', firebaseUser.uid, 'matches'), where("spaceId", "==", spaceIdToDelete));
     const matchesSnapshot = await getDocs(matchesQuery);
     matchesSnapshot.forEach(doc => batch.delete(doc.ref));
+
+    const tournamentsQuery = query(collection(db, 'users', firebaseUser.uid, 'tournaments'), where("spaceId", "==", spaceIdToDelete));
+    const tournamentsSnapshot = await getDocs(tournamentsQuery);
+    tournamentsSnapshot.forEach(doc => batch.delete(doc.ref));
+
     await batch.commit();
 
     if (activeSpaceId === spaceIdToDelete) {

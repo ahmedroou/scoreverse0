@@ -289,8 +289,7 @@ export const translationsAr = {
     owner: 'المالك: {{username}}',
     stats: 'إحصائيات',
     deleteConfirmTitle: 'هل أنت متأكد من حذف هذا اللاعب؟',
-    deleteConfirmDescription: 'هذا الإجراء لا يمكن التراجع عنه. حذف "{{playerName}}" سيزيلهم من قائمة اللاعبين وجميع سجلات المواجهات المرتبطة بمالكهم.',
-    deleteConfirmDescriptionNew: 'هل أنت متأكد من رغبتك في حذف {{playerName}}؟ لا يمكن التراجع عن هذا الإجراء. يمكنك فقط حذف اللاعبين الذين لم يشاركوا في أي مباريات.',
+    deleteConfirmDescription: 'هذا الإجراء دائم ولا يمكن التراجع عنه. سيؤدي حذف "{{playerName}}" إلى إزالتهم من قائمة اللاعبين. سيظهرون كـ "لاعب غير معروف" في أي مباريات سابقة شاركوا فيها.',
     deleteButton: 'حذف اللاعب',
     addNewPlayer: 'إضافة لاعب جديد',
     addPlayerForm: {
@@ -373,7 +372,7 @@ export const translationsAr = {
     },
     deleteDialog: {
       title: 'هل أنت متأكد؟',
-      description: 'سيؤدي هذا إلى حذف مساحة "{{spaceName}}" وجميع المواجهات المرتبطة بها. لا يمكن التراجع عن هذا الإجراء.',
+      description: 'سيؤدي هذا إلى حذف مساحة "{{spaceName}}" وجميع المواجهات والبطولات المرتبطة بها. لا يمكن التراجع عن هذا الإجراء.',
       mustHaveOne: 'يجب أن يكون لديك مساحة واحدة على الأقل.',
       deleteButton: 'حذف المساحة',
     },
@@ -384,7 +383,7 @@ export const translationsAr = {
         cannotDelete: 'لا يمكن الحذف',
         mustHaveOne: 'يجب أن يكون لديك مساحة واحدة على الأقل.',
         spaceDeleted: 'تم حذف المساحة',
-        spaceDeletedDesc: 'تم حذف المساحة ومواجهاتها.',
+        spaceDeletedDesc: 'تم حذف المساحة ومواجهاتها وبطولاتها.',
         clearHistoryConfirmTitle: 'تأكيد إعادة التعيين',
         clearHistoryConfirmDescription: 'هل أنت متأكد من أنك تريد حذف جميع سجلات المباريات والبطولات في مساحة "{{spaceName}}"؟ لا يمكن التراجع عن هذا الإجراء.',
         noMatchesToClear: 'لا توجد مباريات أو بطولات لمسحها.',
@@ -438,7 +437,7 @@ export const translationsAr = {
     },
     details: {
       title: 'تفاصيل البطولة',
-      progressTitle: 'تقدم المتصدر',
+      progressTitle: "تقدم المتصدر",
       leader: 'المتصدر',
       noProgress: 'لا يوجد تقدم بعد',
       standings: 'ترتيب البطولة',

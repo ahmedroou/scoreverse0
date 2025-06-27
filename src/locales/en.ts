@@ -289,8 +289,7 @@ export const translationsEn = {
     owner: 'Owner: {{username}}',
     stats: 'Stats',
     deleteConfirmTitle: 'Are you sure you want to delete this player?',
-    deleteConfirmDescription: 'This action cannot be undone. Deleting "{{playerName}}" will remove them from the player list and all associated match records for their owner.',
-    deleteConfirmDescriptionNew: 'Are you sure you want to delete {{playerName}}? This action cannot be undone. You can only delete players who have not participated in any matches.',
+    deleteConfirmDescription: 'This action is permanent and cannot be undone. Deleting "{{playerName}}" will remove them from the player roster. They will appear as "Unknown Player" in any past matches they participated in.',
     deleteButton: 'Delete Player',
     addNewPlayer: 'Add New Player',
     addPlayerForm: {
@@ -373,7 +372,7 @@ export const translationsEn = {
     },
     deleteDialog: {
       title: 'Are you sure?',
-      description: 'This will delete the space "{{spaceName}}" and all matches associated with it. This action cannot be undone.',
+      description: 'This will delete the space "{{spaceName}}" and all matches and tournaments associated with it. This action cannot be undone.',
       mustHaveOne: 'You must always have at least one space.',
       deleteButton: 'Delete Space',
     },
@@ -384,7 +383,7 @@ export const translationsEn = {
         cannotDelete: 'Cannot Delete',
         mustHaveOne: 'You must have at least one space.',
         spaceDeleted: 'Space Deleted',
-        spaceDeletedDesc: 'Space and its matches deleted.',
+        spaceDeletedDesc: 'Space and its matches and tournaments have been deleted.',
         clearHistoryConfirmTitle: 'Confirm History Clear',
         clearHistoryConfirmDescription: 'Are you sure you want to delete all match records and tournaments in the "{{spaceName}}" space? This action cannot be undone.',
         noMatchesToClear: 'No matches or tournaments to clear.',
