@@ -19,7 +19,7 @@ import { useLanguage } from '@/hooks/use-language';
 export function AppSidebar() {
   const pathname = usePathname();
   const { currentUser } = useAppContext();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
 
   const navItems = [
     { href: '/dashboard', label: t('sidebar.dashboard'), icon: LayoutDashboard },
@@ -40,7 +40,7 @@ export function AppSidebar() {
 
 
   return (
-    <Sidebar collapsible="icon" side="left" variant="sidebar">
+    <Sidebar collapsible="icon" side={language === 'ar' ? 'right' : 'left'} variant="sidebar">
       <SidebarHeader className="p-4 justify-center items-center hidden md:flex">
       </SidebarHeader>
       <SidebarContent>
