@@ -479,19 +479,31 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const addMatch = useCallback(async (matchData: Omit<Match, 'id' | 'date' | 'spaceId'>) => {
     if (!firebaseUser) return;
-    const newMatch: Omit<Match, 'id'> = {
+
+    // Create a new object for Firestore, ensuring no `undefined` values are sent.
+    const newMatchForDb: { [key: string]: any } = {
       ...matchData,
       date: new Date().toISOString(),
-      spaceId: activeSpaceId || undefined,
     };
+
+    if (activeSpaceId) {
+      newMatchForDb.spaceId = activeSpaceId;
+    }
+    
+    // Explicitly delete the key if the value is undefined, as Firestore doesn't support it.
+    if (newMatchForDb.handicapSuggestions === undefined) {
+        delete newMatchForDb.handicapSuggestions;
+    }
+
     const matchesCollection = collection(db, 'users', firebaseUser.uid, 'matches');
-    await addDoc(matchesCollection, newMatch);
+    await addDoc(matchesCollection, newMatchForDb);
     
     // Tournament Completion Check
-    const allMatchesForUser = [...matches, {...newMatch, id: 'temp' }]; // Add new match for calculation
-    const relevantMatchesForGame = allMatchesForUser.filter(m => m.gameId === newMatch.gameId && m.spaceId === (activeSpaceId || undefined));
+    // We can use the cleaned `newMatchForDb` object for local calculations too.
+    const allMatchesForUser = [...matches, {...newMatchForDb, id: 'temp' } as Match]; 
+    const relevantMatchesForGame = allMatchesForUser.filter(m => m.gameId === newMatchForDb.gameId && m.spaceId === (activeSpaceId || undefined));
     const gameLeaderboard = calculateScores(relevantMatchesForGame);
-    const activeTournamentsForGame = tournaments.filter(t => t.gameId === newMatch.gameId && t.status === 'active');
+    const activeTournamentsForGame = tournaments.filter(t => t.gameId === newMatchForDb.gameId && t.status === 'active');
     
     for (const tourney of activeTournamentsForGame) {
       const winner = gameLeaderboard.find(score => score.totalPoints >= tourney.targetPoints);
