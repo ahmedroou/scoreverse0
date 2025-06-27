@@ -17,13 +17,14 @@ import {
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Bot, Loader2, Shuffle, Users, Swords, User, CornerDownRight } from 'lucide-react';
+import { Bot, Loader2, Shuffle, Users, Swords, User, CornerDownRight, UserCheck } from 'lucide-react';
 import { handleSuggestMatchupsAction } from './actions';
 import type { SuggestMatchupsOutput } from '@/ai/flows/suggest-matchups';
 import { useToast } from '@/hooks/use-toast';
 import { PlayerTag } from '@/components/PlayerTag';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useLanguage } from '@/hooks/use-language';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
 const createFormSchema = (t: (key: string) => string) => z.object({
   gameId: z.string().min(1, t('addResult.validation.gameRequired')),
@@ -31,13 +32,15 @@ const createFormSchema = (t: (key: string) => string) => z.object({
 });
 
 export function DrawForm() {
-  const { games, players, getPlayerById, isClient, currentUser } = useAppContext();
+  const { games, players, getPlayerById, isClient, currentUser, addMatch, getGameById } = useAppContext();
   const { toast } = useToast();
   const { t, language } = useLanguage();
 
   const [matchups, setMatchups] = useState<SuggestMatchupsOutput | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [winners, setWinners] = useState<Record<string, string>>({});
+  const [isRecording, setIsRecording] = useState(false);
 
   const formSchema = createFormSchema(t);
 
@@ -55,6 +58,16 @@ export function DrawForm() {
   const availablePlayersForSelection = useMemo(() => {
     return players.filter(p => !watchedSelectedPlayerIds.includes(p.id));
   }, [players, watchedSelectedPlayerIds]);
+    
+  const selectedPlayers = useMemo(() =>
+    players.filter(p => watchedSelectedPlayerIds.includes(p.id)),
+    [players, watchedSelectedPlayerIds]
+  );
+
+  const nameToIdMap = useMemo(() =>
+    new Map(selectedPlayers.map(p => [p.name, p.id])),
+    [selectedPlayers]
+  );
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     if (!currentUser) {
@@ -68,8 +81,8 @@ export function DrawForm() {
       return;
     }
 
-    const selectedPlayers = values.selectedPlayerIds.map(id => getPlayerById(id)).filter(p => !!p);
-    if (selectedPlayers.length < 2) {
+    const currentSelectedPlayers = values.selectedPlayerIds.map(id => getPlayerById(id)).filter(p => !!p);
+    if (currentSelectedPlayers.length < 2) {
       toast({ title: t('common.error'), description: t('draw.toasts.notEnoughPlayers'), variant: "destructive" });
       return;
     }
@@ -77,10 +90,11 @@ export function DrawForm() {
     setIsGenerating(true);
     setError(null);
     setMatchups(null);
+    setWinners({});
 
     const result = await handleSuggestMatchupsAction({
       gameName: game.name,
-      playerNames: selectedPlayers.map(p => p!.name),
+      playerNames: currentSelectedPlayers.map(p => p!.name),
       language: language,
     });
 
@@ -98,9 +112,58 @@ export function DrawForm() {
     }
   };
   
+  const handleRecordResults = async () => {
+    if (!currentUser || !matchups) return;
+    
+    const game = getGameById(watchedGameId);
+    if (!game) {
+        toast({ title: t('common.error'), description: t('draw.toasts.gameNotFound'), variant: "destructive" });
+        return;
+    }
+
+    setIsRecording(true);
+    try {
+        const promises = matchups.pairings.map(pairing => {
+            const winnerName = winners[`${pairing.player1}-${pairing.player2}`];
+            if (!winnerName) return Promise.resolve();
+
+            const player1Id = nameToIdMap.get(pairing.player1);
+            const player2Id = nameToIdMap.get(pairing.player2);
+            const winnerId = nameToIdMap.get(winnerName);
+
+            if (!player1Id || !player2Id || !winnerId) {
+                console.error("Could not find player ID for name during match recording.");
+                return Promise.resolve();
+            }
+            
+            return addMatch({
+                gameId: game.id,
+                playerIds: [player1Id, player2Id],
+                winnerIds: [winnerId],
+                pointsAwarded: [{ playerId: winnerId, points: game.pointsPerWin }],
+            });
+        });
+
+        await Promise.all(promises);
+
+        toast({
+            title: t('draw.toasts.resultsRecorded'),
+            description: t('draw.toasts.resultsRecordedDesc', { count: matchups.pairings.length })
+        });
+        resetDraw();
+
+    } catch (error) {
+        console.error("Failed to record match results:", error);
+        toast({ title: t('common.error'), description: t('draw.toasts.recordResultsError'), variant: "destructive" });
+    } finally {
+        setIsRecording(false);
+    }
+  };
+
   const resetDraw = () => {
     setMatchups(null);
     setError(null);
+    setWinners({});
     form.reset({ gameId: watchedGameId, selectedPlayerIds: [] });
   }
 
@@ -146,18 +209,38 @@ export function DrawForm() {
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.3, delay: index * 0.1 }}
                         >
-                            <Card className="bg-muted/30">
-                                <CardContent className="p-4 flex items-center justify-center text-center gap-4">
+                            <Card className="bg-muted/30 overflow-hidden">
+                                <CardContent className="p-4 flex flex-col sm:flex-row items-center justify-between text-center gap-4">
                                     <div className="flex items-center gap-2 font-semibold text-lg text-card-foreground">
                                         <User className="h-5 w-5 text-primary"/>
                                         {pairing.player1}
                                     </div>
-                                    <Swords className="h-6 w-6 text-destructive"/>
+                                    <Swords className="h-6 w-6 text-destructive hidden sm:block"/>
                                      <div className="flex items-center gap-2 font-semibold text-lg text-card-foreground">
                                         <User className="h-5 w-5 text-secondary"/>
                                         {pairing.player2}
                                     </div>
                                 </CardContent>
+                                <CardFooter className="p-3 bg-background/50 border-t">
+                                    <RadioGroup
+                                        onValueChange={(winnerName) => {
+                                            const pairingKey = `${pairing.player1}-${pairing.player2}`;
+                                            setWinners(prev => ({...prev, [pairingKey]: winnerName}));
+                                        }}
+                                        value={winners[`${pairing.player1}-${pairing.player2}`]}
+                                        className="w-full flex justify-center items-center gap-x-6 gap-y-2 flex-wrap"
+                                    >
+                                        <Label className="font-semibold me-4">{t('draw.selectWinner')}:</Label>
+                                        <div className="flex items-center space-x-2">
+                                            <RadioGroupItem value={pairing.player1} id={`${pairing.player1}-${index}`} />
+                                            <Label htmlFor={`${pairing.player1}-${index}`}>{pairing.player1}</Label>
+                                        </div>
+                                        <div className="flex items-center space-x-2">
+                                            <RadioGroupItem value={pairing.player2} id={`${pairing.player2}-${index}`} />
+                                            <Label htmlFor={`${pairing.player2}-${index}`}>{pairing.player2}</Label>
+                                        </div>
+                                    </RadioGroup>
+                                </CardFooter>
                             </Card>
                         </motion.div>
                     ))}
@@ -178,9 +261,17 @@ export function DrawForm() {
                     </Alert>
                 </motion.div>
             )}
-             <CardFooter className="pt-6">
-                <Button onClick={resetDraw} className="w-full" variant="outline">
+             <CardFooter className="pt-6 flex flex-col sm:flex-row gap-2">
+                <Button onClick={resetDraw} className="w-full sm:w-auto" variant="outline">
                     <Shuffle className="me-2 h-4 w-4" /> {t('draw.newDrawButton')}
+                </Button>
+                <Button 
+                    onClick={handleRecordResults} 
+                    disabled={Object.keys(winners).length !== matchups.pairings.length || isRecording}
+                    className="w-full sm:w-auto flex-grow bg-primary hover:bg-primary/90"
+                >
+                    {isRecording ? <Loader2 className="animate-spin me-2" /> : <UserCheck className="me-2" />}
+                    {isRecording ? t('draw.recordingResults') : t('draw.recordResultsButton')}
                 </Button>
             </CardFooter>
         </CardContent>
