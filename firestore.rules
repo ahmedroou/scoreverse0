@@ -1,22 +1,16 @@
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Users can only read/write their own data subcollections
+    // Private user data: Only the authenticated owner can read/write.
     match /users/{userId}/{document=**} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
-    
-    // User profile is readable by owner, and publicly for username
-    match /users/{userId} {
-       allow read, write: if request.auth != null && request.auth.uid == userId;
-    }
 
-    // The public_shares collection is readable by anyone
+    // Public share data: Anyone can read, but only the owner can write.
     match /public_shares/{shareId} {
       allow read: if true;
-      // Only the authenticated user who owns the share can create/update it.
-      // We'll check that the incoming data's ownerId matches the user's UID.
-      allow write: if request.auth != null && request.resource.data.owner.id == request.auth.uid;
+      allow write: if request.auth != null && request.auth.uid == resource.data.ownerId;
     }
   }
 }
