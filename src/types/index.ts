@@ -61,7 +61,6 @@ export interface UserAccount {
   username: string;
   email?: string;
   isAdmin?: boolean;
-  shareId?: string; // Unique, unguessable ID for sharing this user's data
 }
 
 export interface PlayerGameStats {
@@ -96,16 +95,4 @@ export interface PlayerStats {
   totalPoints: number;
   averagePointsPerMatch: number;
   gameStats: PlayerGameStats[];
-}
-
-export interface PublicShareData {
-    owner: {
-        id: string; // For security rule matching
-        username: string;
-    },
-    players: Player[];
-    games: Game[];
-    matches: Match[];
-    tournaments: Tournament[];
-    spaces: Space[];
 }

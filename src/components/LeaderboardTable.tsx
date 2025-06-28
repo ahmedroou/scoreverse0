@@ -22,7 +22,6 @@ import React from 'react';
 interface LeaderboardTableProps {
   scores: ScoreData[];
   title?: string;
-  isPublicView?: boolean;
 }
 
 // Helper function to generate a consistent "random" color from a string
@@ -48,7 +47,7 @@ const getWinRatePercentage = (wins: number, gamesPlayed: number) => {
   return `${((wins / gamesPlayed) * 100).toFixed(1)}%`;
 };
 
-export function LeaderboardTable({ scores, title, isPublicView = false }: LeaderboardTableProps) {
+export function LeaderboardTable({ scores, title }: LeaderboardTableProps) {
   const { t } = useLanguage();
 
   if (!scores || scores.length === 0) {
@@ -59,11 +58,9 @@ export function LeaderboardTable({ scores, title, isPublicView = false }: Leader
         <p className="text-muted-foreground mt-1">
           {t('leaderboards.table.noScoresDescription', {title: title || ''})}
         </p>
-        {!isPublicView && (
-            <p className="text-muted-foreground mt-1">
-                {t('leaderboards.table.noScoresPrompt')}
-            </p>
-        )}
+        <p className="text-muted-foreground mt-1">
+            {t('leaderboards.table.noScoresPrompt')}
+        </p>
       </div>
     );
   }
@@ -85,17 +82,6 @@ export function LeaderboardTable({ scores, title, isPublicView = false }: Leader
         <TableBody>
           {scores.map((score, index) => {
             const rank = index + 1;
-            const playerCellContent = (
-              <div className="group flex items-center gap-3 py-2 rounded-md -m-2 p-2">
-                 <Avatar className="h-12 w-12 border-2 border-primary/30 group-hover:border-primary">
-                    <AvatarImage src={score.avatarUrl} alt={score.playerName} />
-                    <AvatarFallback style={{ backgroundColor: stringToHslColor(score.playerName, 50, 60) }}>
-                      {score.playerName.substring(0, 2).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                  <span className="font-medium text-lg text-card-foreground group-hover:text-primary">{score.playerName}</span>
-              </div>
-            );
 
             return (
               <TableRow 
@@ -112,13 +98,17 @@ export function LeaderboardTable({ scores, title, isPublicView = false }: Leader
                     </div>
                 </TableCell>
                 <TableCell>
-                  {isPublicView ? (
-                    playerCellContent
-                  ) : (
-                    <Link href={`/stats/${score.playerId}`} className="transition-colors hover:bg-primary/10 block -m-2 p-2 rounded-md">
-                      {playerCellContent}
-                    </Link>
-                  )}
+                  <Link href={`/stats/${score.playerId}`} className="transition-colors hover:bg-primary/10 block -m-2 p-2 rounded-md group">
+                     <div className="flex items-center gap-3 py-2 rounded-md -m-2 p-2">
+                       <Avatar className="h-12 w-12 border-2 border-primary/30 group-hover:border-primary">
+                          <AvatarImage src={score.avatarUrl} alt={score.playerName} />
+                          <AvatarFallback style={{ backgroundColor: stringToHslColor(score.playerName, 50, 60) }}>
+                            {score.playerName.substring(0, 2).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span className="font-medium text-lg text-card-foreground group-hover:text-primary">{score.playerName}</span>
+                    </div>
+                  </Link>
                 </TableCell>
                 <TableCell className="text-center font-bold text-2xl text-accent">{score.totalPoints}</TableCell>
                 <TableCell className="text-center text-lg text-muted-foreground">{score.gamesPlayed}</TableCell>

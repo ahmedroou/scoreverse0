@@ -8,13 +8,11 @@ import Link from 'next/link';
 import { PlusCircle, BarChart3, History, Users, Swords, Layers, UserCircle, Shuffle, Award, Trophy, BarChartHorizontal, UserCog, Share2 } from 'lucide-react';
 import React, { useState } from 'react';
 import { useLanguage } from '@/hooks/use-language';
-import { ShareDialog } from './ShareDialog';
 
 export default function DashboardPage() {
   const { currentUser, isClient, getActiveSpace, isLoadingAuth } = useAppContext();
   const { t } = useLanguage();
   const activeSpace = getActiveSpace();
-  const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
 
   if (!isClient || isLoadingAuth) { 
     return (
@@ -73,10 +71,6 @@ export default function DashboardPage() {
                         <span>{t('dashboard.globalContext')}</span>
                     </div>
                 )}
-                 <Button onClick={() => setIsShareDialogOpen(true)}>
-                    <Share2 className="me-2 h-4 w-4" />
-                    {t('dashboard.shareSpace')}
-                </Button>
             </div>
         </div>
       </header>
@@ -105,10 +99,6 @@ export default function DashboardPage() {
         ))}
       </div>
     </div>
-    <ShareDialog 
-        isOpen={isShareDialogOpen} 
-        onOpenChange={setIsShareDialogOpen} 
-    />
     </>
   );
 }
