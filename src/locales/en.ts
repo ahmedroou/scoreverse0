@@ -1,4 +1,3 @@
-
 export const translationsEn = {
   common: {
     add: 'Add',
@@ -326,11 +325,11 @@ export const translationsEn = {
     }
   },
   share: {
-    loadingTitle: 'Loading Shared Leaderboard...',
-    errorTitle: 'Could not load leaderboard',
-    errorDescription: 'The shared link is invalid or corrupted.',
-    noDataError: 'No sharing data found in the link.',
+    errorTitle: 'Sharing Disabled',
+    errorDescription: 'The page sharing feature has been removed from this application.',
     header: 'You are viewing a shared leaderboard for',
+    loadingTitle: 'Loading Shared Leaderboard...',
+    noDataError: 'No sharing data found in the link.',
     noMatches: 'No Matches Played Yet',
     noMatchesDescription: 'Once matches are recorded in the "{{spaceName}}" space, the leaderboards will appear here.',
   },

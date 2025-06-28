@@ -1,4 +1,3 @@
-
 "use client";
 import type { ReactNode } from 'react';
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
@@ -60,7 +59,6 @@ interface AppContextType {
   addGame: (gameData: Omit<Game, 'id' | 'icon' | 'ownerId'>) => Promise<void>;
   updateGame: (gameId: string, gameData: Partial<Omit<Game, 'id' | 'icon' | 'ownerId'>>) => Promise<void>;
   deleteGame: (gameId: string) => Promise<void>;
-  shareSpace: (spaceId: string) => string | null;
   getUserById: (userId: string) => UserAccount | undefined;
   deleteUserAccount: (userId: string) => Promise<void>;
   addTournament: (tournamentData: Omit<Tournament, 'id' | 'status' | 'ownerId' | 'winnerPlayerId' | 'dateCompleted' | 'spaceId'>) => Promise<void>;
@@ -689,21 +687,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   
   const getActiveSpace = useCallback(() => activeSpaceId ? spaces.find(s => s.id === activeSpaceId) : undefined, [activeSpaceId, spaces]);
   
-  const shareSpace = useCallback((spaceId: string): string | null => {
-    if (!isClient || !currentUser) return null;
-    const spaceToShare = spaces.find(s => s.id === spaceId);
-    if (!spaceToShare) return null;
-
-    try {
-      const shareId = `${currentUser.id}--${spaceId}`;
-      return `${window.location.origin}/share/${shareId}`;
-    } catch (e) {
-      console.error("Failed to create share link:", e);
-      toast({ title: t('spaces.shareDialog.toasts.error'), description: (e as Error).message, variant: "destructive"});
-      return null;
-    }
-  }, [isClient, currentUser, spaces, toast, t]);
-  
   const getUserById = useCallback((userId: string) => {
     return allUsers.find(u => u.id === userId);
   }, [allUsers]);
@@ -791,7 +774,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       getGameById, getPlayerById, getOverallLeaderboard, getGameLeaderboard, getPlayerStats, isClient,
       currentUser, login, signup, logout, isLoadingAuth, addSpace, updateSpace, deleteSpace, 
       setActiveSpaceId, getSpacesForCurrentUser, getActiveSpace, addGame, updateGame, deleteGame,
-      shareSpace, getUserById, deleteUserAccount, addTournament, updateTournament, deleteTournament,
+      getUserById, deleteUserAccount, addTournament, updateTournament, deleteTournament,
       deleteMatch, updateMatch, clearSpaceHistory,
       firebaseConfigured: isFirebaseConfigured()
     }}>

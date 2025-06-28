@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useMemo } from 'react';
@@ -8,7 +7,6 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Loader2, Layers, PlusCircle, ShieldAlert } from 'lucide-react';
 import { AddSpaceForm } from './AddSpaceForm';
 import { EditSpaceForm } from './EditSpaceForm';
-import { ShareSpaceDialog } from './ShareSpaceDialog';
 import { SpaceCard } from './SpaceCard';
 import type { Space } from '@/types';
 import Link from 'next/link';
@@ -33,7 +31,6 @@ export default function ManageSpacesPage() {
     isClient, 
     currentUser,
     getSpacesForCurrentUser,
-    shareSpace,
     getUserById,
     clearSpaceHistory,
   } = useAppContext();
@@ -41,11 +38,9 @@ export default function ManageSpacesPage() {
 
   const [isAddSpaceDialogOpen, setIsAddSpaceDialogOpen] = useState(false);
   const [isEditSpaceDialogOpen, setIsEditSpaceDialogOpen] = useState(false);
-  const [isShareSpaceDialogOpen, setIsShareSpaceDialogOpen] = useState(false);
   
   const [editingSpace, setEditingSpace] = useState<Space | null>(null);
   const [spaceToDelete, setSpaceToDelete] = useState<Space | null>(null);
-  const [spaceToShare, setSpaceToShare] = useState<Space | null>(null);
   const [spaceToClear, setSpaceToClear] = useState<Space | null>(null);
 
   const userSpaces = useMemo(() => getSpacesForCurrentUser(), [getSpacesForCurrentUser]);
@@ -61,11 +56,6 @@ export default function ManageSpacesPage() {
   
   const handleClearHistoryClick = (space: Space) => {
     setSpaceToClear(space);
-  };
-
-  const handleShareClick = (space: Space) => {
-    setSpaceToShare(space);
-    setIsShareSpaceDialogOpen(true);
   };
 
   const confirmDelete = () => {
@@ -141,7 +131,6 @@ export default function ManageSpacesPage() {
                       onSetActive={() => setActiveSpaceId(space.id)}
                       onEdit={() => canEdit && handleEditClick(space)}
                       onDelete={() => canEdit && handleDeleteClick(space)}
-                      onShare={() => handleShareClick(space)}
                       onClearHistory={canEdit ? () => handleClearHistoryClick(space) : undefined}
                       ownerUsername={owner?.username}
                       canEdit={canEdit}
@@ -171,18 +160,6 @@ export default function ManageSpacesPage() {
             setIsEditSpaceDialogOpen(open);
             if (!open) setEditingSpace(null);
           }}
-        />
-      )}
-      
-      {spaceToShare && (
-        <ShareSpaceDialog
-            space={spaceToShare}
-            isOpen={isShareSpaceDialogOpen}
-            onOpenChange={(open) => {
-                setIsShareSpaceDialogOpen(open);
-                if (!open) setSpaceToShare(null);
-            }}
-            onShareSpace={shareSpace}
         />
       )}
 

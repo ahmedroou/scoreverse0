@@ -1,10 +1,9 @@
-
 "use client";
 
 import type { Space } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
-import { Layers, Edit3, Trash2, CheckCircle, Radio, Share2, UserCog, RotateCcw } from 'lucide-react';
+import { Layers, Edit3, Trash2, CheckCircle, Radio, UserCog, RotateCcw } from 'lucide-react';
 import { useLanguage } from '@/hooks/use-language';
 
 interface SpaceCardProps {
@@ -13,13 +12,12 @@ interface SpaceCardProps {
   onSetActive: () => void;
   onEdit: () => void;
   onDelete: () => void;
-  onShare: () => void;
   onClearHistory?: () => void;
   ownerUsername?: string;
   canEdit?: boolean;
 }
 
-export function SpaceCard({ space, isActive, onSetActive, onEdit, onDelete, onShare, onClearHistory, ownerUsername, canEdit = true }: SpaceCardProps) {
+export function SpaceCard({ space, isActive, onSetActive, onEdit, onDelete, onClearHistory, ownerUsername, canEdit = true }: SpaceCardProps) {
   const { t } = useLanguage();
   return (
     <Card className={`border hover:shadow-md transition-shadow duration-150 ${isActive ? 'border-primary ring-2 ring-primary bg-primary/5' : 'border-border bg-card'}`}>
@@ -47,14 +45,6 @@ export function SpaceCard({ space, isActive, onSetActive, onEdit, onDelete, onSh
       </CardHeader>
       <CardFooter className="flex flex-wrap justify-end gap-2 border-t border-border/50 pt-3 px-4 pb-4">
         <div className="flex-grow flex gap-2">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={onShare}
-              className="border-blue-500/50 text-blue-500 hover:bg-blue-500/10 hover:text-blue-400"
-            >
-              <Share2 className="h-4 w-4 me-1.5" /> {t('spaces.share')}
-            </Button>
             {canEdit && onClearHistory && (
                  <Button variant="outline" size="sm" onClick={onClearHistory} className="border-destructive/50 text-destructive hover:bg-destructive/10 hover:text-destructive">
                     <RotateCcw className="h-4 w-4 me-1.5" /> {t('common.reset')}

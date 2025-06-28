@@ -1,4 +1,3 @@
-
 export const translationsAr = {
   common: {
     add: 'إضافة',
@@ -326,11 +325,11 @@ export const translationsAr = {
     }
   },
   share: {
-    loadingTitle: 'جارٍ تحميل لوحة الصدارة المشتركة...',
-    errorTitle: 'لا يمكن تحميل لوحة الصدارة',
-    errorDescription: 'الرابط المشترك غير صالح أو تالف.',
-    noDataError: 'لم يتم العثور على بيانات مشاركة في الرابط.',
+    errorTitle: 'المشاركة معطلة',
+    errorDescription: 'تمت إزالة ميزة مشاركة الصفحة من هذا التطبيق.',
     header: 'أنت تعرض لوحة صدارة مشتركة لـ',
+    loadingTitle: 'جارٍ تحميل لوحة الصدارة المشتركة...',
+    noDataError: 'لم يتم العثور على بيانات مشاركة في الرابط.',
     noMatches: 'لم يتم لعب أي مواجهات بعد',
     noMatchesDescription: 'بمجرد تسجيل المواجهات في مساحة "{{spaceName}}"، ستظهر لوحات الصدارة هنا.',
   },
