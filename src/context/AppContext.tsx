@@ -19,7 +19,9 @@ import {
   where,
   getDocs,
 } from 'firebase/firestore';
-import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
+import { v4 as uuidv4 } from 'uuid';
+
 
 import { auth, db, storage, isFirebaseConfigured, firebaseConfig } from '@/lib/firebase';
 import type { Game, Player, Match, ScoreData, Space, UserAccount, PlayerStats, Tournament } from '@/types';
@@ -68,6 +70,7 @@ interface AppContextType {
   deleteMatch: (matchId: string) => Promise<void>;
   updateMatch: (matchId: string, matchData: Partial<Pick<Match, 'winnerIds' | 'pointsAwarded'>>) => Promise<void>;
   clearSpaceHistory: (spaceId: string) => Promise<void>;
+  getOrCreateShareLink: () => Promise<string | null>;
   firebaseConfigured: boolean;
 }
 
@@ -323,13 +326,25 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
     const playerDocRef = doc(db, 'users', firebaseUser.uid, 'players', playerId);
     try {
+        const playerToDelete = players.find(p => p.id === playerId);
+        if (playerToDelete?.avatarUrl) {
+            try {
+                const avatarRef = ref(storage, playerToDelete.avatarUrl);
+                await deleteObject(avatarRef);
+            } catch (storageError: any) {
+                // Non-fatal: Log if avatar deletion fails but continue deleting the player document
+                if (storageError.code !== 'storage/object-not-found') {
+                    console.warn("Could not delete player avatar from storage:", storageError);
+                }
+            }
+        }
         await deleteDoc(playerDocRef);
         toast({ title: t('players.toasts.playerDeleted'), description: t('players.toasts.playerDeletedDesc')});
     } catch (e) {
         console.error("Failed to delete player:", e);
         toast({ title: t('common.error'), description: 'Failed to delete the player. Please try again.', variant: 'destructive' });
     }
-  }, [firebaseUser, toast, t]);
+  }, [firebaseUser, toast, t, players]);
 
   const deleteAllPlayers = useCallback(async () => {
     if (!firebaseUser) {
@@ -702,9 +717,22 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
 
     try {
-        const batch = writeBatch(db);
         const userDocRef = doc(db, 'users', userIdToDelete);
+        const userDocSnap = await getDoc(userDocRef);
+        const userData = userDocSnap.data() as UserAccount | undefined;
+
+        const batch = writeBatch(db);
+        
+        // Delete the main user document
         batch.delete(userDocRef);
+        
+        // Delete the share document if it exists
+        if (userData?.shareId) {
+            const shareDocRef = doc(db, 'shares', userData.shareId);
+            batch.delete(shareDocRef);
+        }
+
+        // Delete all subcollections
         const subcollections = ['players', 'games', 'matches', 'spaces', 'tournaments'];
         for (const sub of subcollections) {
             const subcollectionRef = collection(db, 'users', userIdToDelete, sub);
@@ -767,6 +795,34 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   }, [firebaseUser, toast, t]);
 
+  const getOrCreateShareLink = useCallback(async (): Promise<string | null> => {
+    if (!currentUser || !firebaseUser) return null;
+    
+    try {
+      if (currentUser.shareId) {
+        return currentUser.shareId;
+      }
+      
+      const newShareId = uuidv4();
+      const userDocRef = doc(db, 'users', firebaseUser.uid);
+      const shareDocRef = doc(db, 'shares', newShareId);
+      
+      const batch = writeBatch(db);
+      batch.update(userDocRef, { shareId: newShareId });
+      batch.set(shareDocRef, { ownerId: firebaseUser.uid });
+      await batch.commit();
+
+      // Manually update local state to avoid waiting for snapshot listener
+      setCurrentUser(prev => prev ? { ...prev, shareId: newShareId } : null);
+      
+      return newShareId;
+    } catch (e) {
+      console.error("Failed to create share link:", e);
+      toast({ title: t('common.error'), description: t('spaces.shareDialog.toasts.error'), variant: 'destructive' });
+      return null;
+    }
+  }, [currentUser, firebaseUser, toast, t]);
+
   return (
     <AppContext.Provider value={{ 
       games, players, matches, spaces, tournaments, allUsers, activeSpaceId, addPlayer, deletePlayer, deleteAllPlayers, addMatch, updatePlayer, 
@@ -774,7 +830,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       currentUser, login, signup, logout, isLoadingAuth, addSpace, updateSpace, deleteSpace, 
       setActiveSpaceId, getSpacesForCurrentUser, getActiveSpace, addGame, updateGame, deleteGame,
       getUserById, deleteUserAccount, addTournament, updateTournament, deleteTournament,
-      deleteMatch, updateMatch, clearSpaceHistory,
+      deleteMatch, updateMatch, clearSpaceHistory, getOrCreateShareLink,
       firebaseConfigured: isFirebaseConfigured()
     }}>
       {children}

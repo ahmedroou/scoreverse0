@@ -14,18 +14,16 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import type { Space } from '@/types';
 import { Copy, Check, Share2, Loader2 } from 'lucide-react';
 import { useLanguage } from '@/hooks/use-language';
 import { useAppContext } from '@/context/AppContext';
 
 interface ShareDialogProps {
-  space: Space | null; // null represents the global space
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-export function ShareDialog({ space, isOpen, onOpenChange }: ShareDialogProps) {
+export function ShareDialog({ isOpen, onOpenChange }: ShareDialogProps) {
   const { getOrCreateShareLink } = useAppContext();
   const { toast } = useToast();
   const { t } = useLanguage();
@@ -39,18 +37,20 @@ export function ShareDialog({ space, isOpen, onOpenChange }: ShareDialogProps) {
       setShareUrl('');
       setIsCopied(false);
 
-      getOrCreateShareLink(space?.id ?? null)
+      getOrCreateShareLink()
         .then(shareId => {
           if (shareId) {
             const url = `${window.location.origin}/share/${shareId}`;
             setShareUrl(url);
+          } else {
+            toast({ title: t('common.error'), description: t('spaces.shareDialog.toasts.error'), variant: "destructive" });
           }
         })
         .finally(() => {
           setIsLoading(false);
         });
     }
-  }, [isOpen, space, getOrCreateShareLink]);
+  }, [isOpen, getOrCreateShareLink, toast, t]);
 
   const handleCopyToClipboard = () => {
     if (!shareUrl) return;
@@ -64,13 +64,11 @@ export function ShareDialog({ space, isOpen, onOpenChange }: ShareDialogProps) {
     });
   };
 
-  const spaceName = space?.name || t('dashboard.globalContext');
-
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md bg-card">
         <DialogHeader>
-          <DialogTitle className="text-primary flex items-center gap-2"><Share2 /> {t('dashboard.shareTitle', { spaceName })}</DialogTitle>
+          <DialogTitle className="text-primary flex items-center gap-2"><Share2 /> {t('dashboard.shareTitle')}</DialogTitle>
           <DialogDescription>
             {t('dashboard.shareDescription')}
           </DialogDescription>
@@ -103,4 +101,3 @@ export function ShareDialog({ space, isOpen, onOpenChange }: ShareDialogProps) {
     </Dialog>
   );
 }
-

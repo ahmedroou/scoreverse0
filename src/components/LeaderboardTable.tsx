@@ -16,6 +16,8 @@ import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { Badge } from './ui/badge';
 import { useLanguage } from '@/hooks/use-language';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from './ui/select';
+import React from 'react';
 
 interface LeaderboardTableProps {
   scores: ScoreData[];
@@ -48,6 +50,7 @@ const getWinRatePercentage = (wins: number, gamesPlayed: number) => {
 
 export function LeaderboardTable({ scores, title, isPublicView = false }: LeaderboardTableProps) {
   const { t } = useLanguage();
+
   if (!scores || scores.length === 0) {
     return (
       <div className="text-center py-12 bg-card border-border shadow-md rounded-lg">
