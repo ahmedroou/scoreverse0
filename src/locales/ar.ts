@@ -1,3 +1,4 @@
+
 export const translationsAr = {
   common: {
     add: 'إضافة',
@@ -72,6 +73,10 @@ export const translationsAr = {
     title: 'مرحباً بعودتك، {{username}}!',
     activeSpace: 'أنت حاليًا في مساحة "{{spaceName}}".',
     noActiveSpace: 'أنت حاليًا في السياق العام (لم يتم تحديد مساحة).',
+    globalContext: 'السياق العام',
+    shareSpace: 'مشاركة',
+    shareTitle: 'مشاركة "{{spaceName}}"',
+    shareDescription: 'أي شخص لديه هذا الرابط يمكنه عرض نظرة عامة للقراءة فقط على هذه المساحة.',
     quickAccess: {
       recordMatch: 'تسجيل مواجهة جديدة',
       recordMatchDesc: 'سجل لعبة تم لعبها مؤخرًا.',
@@ -325,13 +330,15 @@ export const translationsAr = {
     }
   },
   share: {
-    errorTitle: 'المشاركة معطلة',
-    errorDescription: 'تمت إزالة ميزة مشاركة الصفحة من هذا التطبيق.',
-    header: 'أنت تعرض لوحة صدارة مشتركة لـ',
-    loadingTitle: 'جارٍ تحميل لوحة الصدارة المشتركة...',
-    noDataError: 'لم يتم العثور على بيانات مشاركة في الرابط.',
-    noMatches: 'لم يتم لعب أي مواجهات بعد',
-    noMatchesDescription: 'بمجرد تسجيل المواجهات في مساحة "{{spaceName}}"، ستظهر لوحات الصدارة هنا.',
+    errorTitle: 'خطأ في المشاركة',
+    errorDescription: 'لم نتمكن من العثور على البيانات المشتركة. قد يكون الرابط غير صالح أو تم حذفه.',
+    headerSpace: 'عرض مساحة "{{spaceName}}" الخاصة بـ {{owner}}',
+    headerGlobal: 'عرض السياق العام لـ {{owner}}',
+    headerDescription: 'هذه صفحة للقراءة فقط. يتم تحديث البيانات تلقائياً.',
+    loadingTitle: 'جارٍ تحميل البيانات المشتركة...',
+    noLink: 'معرف المشاركة غير موجود.',
+    fetchError: 'فشل جلب البيانات المشتركة.',
+    players: 'اللاعبون'
   },
   spaces: {
     pageTitle: 'إدارة مساحاتك',
@@ -391,7 +398,7 @@ export const translationsAr = {
         spaceDeleted: 'تم حذف المساحة',
         spaceDeletedDesc: 'تم حذف المساحة ومواجهاتها وبطولاتها.',
         clearHistoryConfirmTitle: 'تأكيد إعادة التعيين',
-        clearHistoryConfirmDescription: 'هل أنت متأكد من أنك تريد حذف جميع سجلات المباريات والبطولات في مساحة "{{spaceName}}"؟ لا يمكن التراجع عن هذا الإجراء.',
+        clearHistoryConfirmDescription: 'هل أنت متأكد من أنك تريد حذف جميع سجلات المباريات والبطولات في مساحة "{{spaceName}}؟" لا يمكن التراجع عن هذا الإجراء.',
         noMatchesToClear: 'لا توجد مباريات أو بطولات لمسحها.',
         historyCleared: 'تم مسح سجل المساحة والبطولات بنجاح.'
     }

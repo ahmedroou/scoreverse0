@@ -5,14 +5,16 @@ import { useAppContext } from '@/context/AppContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { PlusCircle, BarChart3, History, Users, Swords, Layers, UserCircle, Shuffle, Award, Trophy, BarChartHorizontal, UserCog } from 'lucide-react';
-import React from 'react';
+import { PlusCircle, BarChart3, History, Users, Swords, Layers, UserCircle, Shuffle, Award, Trophy, BarChartHorizontal, UserCog, Share2 } from 'lucide-react';
+import React, { useState } from 'react';
 import { useLanguage } from '@/hooks/use-language';
+import { ShareDialog } from './ShareDialog';
 
 export default function DashboardPage() {
   const { currentUser, isClient, getActiveSpace, isLoadingAuth } = useAppContext();
   const { t } = useLanguage();
   const activeSpace = getActiveSpace();
+  const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
 
   if (!isClient || isLoadingAuth) { 
     return (
@@ -58,12 +60,23 @@ export default function DashboardPage() {
                   {activeSpace ? t('dashboard.activeSpace', {spaceName: activeSpace.name}) : t('dashboard.noActiveSpace')}
                 </p>
             </div>
-             {activeSpace && (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 border border-border rounded-lg bg-card shadow-sm whitespace-nowrap">
-                    <Layers className="h-5 w-5 text-accent"/>
-                    <span>Active Space: <strong className="text-accent">{activeSpace.name}</strong></span>
-                </div>
-            )}
+            <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2">
+                {activeSpace ? (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 border border-border rounded-lg bg-card shadow-sm whitespace-nowrap">
+                        <Layers className="h-5 w-5 text-accent"/>
+                        <span>Active Space: <strong className="text-accent">{activeSpace.name}</strong></span>
+                    </div>
+                ): (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 border border-border rounded-lg bg-card shadow-sm whitespace-nowrap">
+                        <Layers className="h-5 w-5 text-accent"/>
+                        <span>{t('dashboard.globalContext')}</span>
+                    </div>
+                )}
+                 <Button variant="outline" onClick={() => setIsShareDialogOpen(true)}>
+                    <Share2 className="h-4 w-4 me-2"/>
+                    {t('dashboard.shareSpace')}
+                </Button>
+            </div>
         </div>
       </header>
 
@@ -90,6 +103,12 @@ export default function DashboardPage() {
           </Card>
         ))}
       </div>
+      
+      <ShareDialog
+        isOpen={isShareDialogOpen}
+        onOpenChange={setIsShareDialogOpen}
+        space={getActiveSpace() ?? null}
+      />
 
     </div>
   );

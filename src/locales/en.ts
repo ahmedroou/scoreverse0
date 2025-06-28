@@ -1,3 +1,4 @@
+
 export const translationsEn = {
   common: {
     add: 'Add',
@@ -72,6 +73,10 @@ export const translationsEn = {
     title: 'Welcome back, {{username}}!',
     activeSpace: 'You are currently in the "{{spaceName}}" space.',
     noActiveSpace: 'You are currently in your Global context (no space selected).',
+    globalContext: 'Global Context',
+    shareSpace: 'Share',
+    shareTitle: 'Share "{{spaceName}}"',
+    shareDescription: 'Anyone with this link can view a read-only overview of this space.',
     quickAccess: {
       recordMatch: 'Record New Match',
       recordMatchDesc: 'Log a recently played game.',
@@ -325,13 +330,15 @@ export const translationsEn = {
     }
   },
   share: {
-    errorTitle: 'Sharing Disabled',
-    errorDescription: 'The page sharing feature has been removed from this application.',
-    header: 'You are viewing a shared leaderboard for',
-    loadingTitle: 'Loading Shared Leaderboard...',
-    noDataError: 'No sharing data found in the link.',
-    noMatches: 'No Matches Played Yet',
-    noMatchesDescription: 'Once matches are recorded in the "{{spaceName}}" space, the leaderboards will appear here.',
+    errorTitle: 'Sharing Error',
+    errorDescription: "We couldn't find the shared data. The link may be invalid or has been deleted.",
+    headerSpace: 'Viewing the "{{spaceName}}" space of {{owner}}',
+    headerGlobal: "Viewing {{owner}}'s Global Context",
+    headerDescription: 'This is a read-only page. Data is updated automatically.',
+    loadingTitle: 'Loading Shared Data...',
+    noLink: 'Share ID is missing.',
+    fetchError: 'Failed to fetch shared data.',
+    players: 'Players'
   },
   spaces: {
     pageTitle: 'Manage Your Spaces',

@@ -1,3 +1,4 @@
+
 "use client";
 import type { ReactNode } from 'react';
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
@@ -21,7 +22,7 @@ import {
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 import { auth, db, storage, isFirebaseConfigured, firebaseConfig } from '@/lib/firebase';
-import type { Game, Player, Match, ScoreData, Space, UserAccount, PlayerStats, Tournament } from '@/types';
+import type { Game, Player, Match, ScoreData, Space, UserAccount, PlayerStats, Tournament, Share } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { playSound } from '@/lib/audio';
 import { useLanguage } from '@/hooks/use-language';
@@ -67,6 +68,7 @@ interface AppContextType {
   deleteMatch: (matchId: string) => Promise<void>;
   updateMatch: (matchId: string, matchData: Partial<Pick<Match, 'winnerIds' | 'pointsAwarded'>>) => Promise<void>;
   clearSpaceHistory: (spaceId: string) => Promise<void>;
+  getOrCreateShareLink: (spaceId: string | null) => Promise<string | null>;
   firebaseConfigured: boolean;
 }
 
@@ -517,11 +519,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         const newTournamentData: { [key: string]: any } = { 
             ...data, 
             status: 'active', 
-            ownerId: firebaseUser.uid 
+            ownerId: firebaseUser.uid,
+            spaceId: activeSpaceId, // Always set spaceId, will be null for global
         };
-        if (activeSpaceId) {
-            newTournamentData.spaceId = activeSpaceId;
-        }
         await addDoc(tournamentsCollection, newTournamentData);
         toast({ title: t('tournaments.toasts.tournamentCreated'), description: t('tournaments.toasts.tournamentCreatedDesc', {name: data.name}) });
         playSound('success');
@@ -590,17 +590,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const addMatch = useCallback(async (matchData: Omit<Match, 'id' | 'date' | 'spaceId'>) => {
     if (!firebaseUser) return;
     try {
-      const newMatchForDb: { [key: string]: any } = { ...matchData, date: new Date().toISOString() };
-      if (activeSpaceId) newMatchForDb.spaceId = activeSpaceId;
+      const newMatchForDb: { [key: string]: any } = { 
+          ...matchData,
+          date: new Date().toISOString(),
+          spaceId: activeSpaceId, // Will be null for global context
+      };
       if (!newMatchForDb.handicapSuggestions) delete newMatchForDb.handicapSuggestions;
 
       const matchesCollection = collection(db, 'users', firebaseUser.uid, 'matches');
       await addDoc(matchesCollection, newMatchForDb);
       
       const allMatchesForUser = [...matches, {...newMatchForDb, id: 'temp' } as Match]; 
-      const relevantMatchesForGame = allMatchesForUser.filter(m => m.gameId === newMatchForDb.gameId && m.spaceId === (activeSpaceId || undefined));
+      const relevantMatchesForGame = allMatchesForUser.filter(m => m.gameId === newMatchForDb.gameId && (m.spaceId || null) === (activeSpaceId || null));
       const gameLeaderboard = calculateScores(relevantMatchesForGame);
-      const activeTournamentsForGame = tournaments.filter(t => t.gameId === newMatchForDb.gameId && t.status === 'active');
+      const activeTournamentsForGame = tournaments.filter(t => t.gameId === newMatchForDb.gameId && t.status === 'active' && (t.spaceId || null) === (activeSpaceId || null));
       
       for (const tourney of activeTournamentsForGame) {
         const winner = gameLeaderboard.find(score => score.totalPoints >= tourney.targetPoints);
@@ -622,14 +625,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, [firebaseUser, activeSpaceId, matches, tournaments, toast, calculateScores, getPlayerById, t]);
 
   const getOverallLeaderboard = useCallback(() => {
-    const filtered = activeSpaceId ? matches.filter(m => m.spaceId === activeSpaceId) : matches.filter(m => m.spaceId === undefined);
+    const filtered = matches.filter(m => (m.spaceId || null) === (activeSpaceId || null));
     return calculateScores(filtered);
   }, [matches, activeSpaceId, calculateScores]);
 
   const getGameLeaderboard = useCallback((gameId: string) => {
-    let gameMatches = matches.filter(m => m.gameId === gameId);
-    if (activeSpaceId) gameMatches = gameMatches.filter(m => m.spaceId === activeSpaceId);
-    else gameMatches = gameMatches.filter(m => m.spaceId === undefined);
+    const gameMatches = matches.filter(m => m.gameId === gameId && (m.spaceId || null) === (activeSpaceId || null));
     return calculateScores(gameMatches);
   }, [matches, activeSpaceId, calculateScores]);
   
@@ -767,6 +768,37 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   }, [firebaseUser, toast, t]);
 
+  const getOrCreateShareLink = useCallback(async (spaceId: string | null): Promise<string | null> => {
+    if (!firebaseUser) {
+        toast({ title: t('auth.authError'), description: "You must be logged in to share.", variant: "destructive" });
+        return null;
+    }
+
+    try {
+        const sharesCollection = collection(db, 'shares');
+        const q = query(sharesCollection, where("ownerId", "==", firebaseUser.uid), where("spaceId", "==", spaceId));
+        
+        const querySnapshot = await getDocs(q);
+
+        if (!querySnapshot.empty) {
+            const existingShare = querySnapshot.docs[0];
+            return existingShare.id;
+        } else {
+            const newShareRef = doc(collection(db, 'shares'));
+            const newShareData: Omit<Share, 'id'> = {
+                ownerId: firebaseUser.uid,
+                spaceId: spaceId,
+                createdAt: new Date().toISOString(),
+            };
+            await setDoc(newShareRef, newShareData);
+            return newShareRef.id;
+        }
+    } catch (error) {
+        console.error("Error getting or creating share link:", error);
+        toast({ title: t('common.error'), description: t('spaces.shareDialog.toasts.error'), variant: "destructive" });
+        return null;
+    }
+  }, [firebaseUser, toast, t]);
 
   return (
     <AppContext.Provider value={{ 
@@ -775,7 +807,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       currentUser, login, signup, logout, isLoadingAuth, addSpace, updateSpace, deleteSpace, 
       setActiveSpaceId, getSpacesForCurrentUser, getActiveSpace, addGame, updateGame, deleteGame,
       getUserById, deleteUserAccount, addTournament, updateTournament, deleteTournament,
-      deleteMatch, updateMatch, clearSpaceHistory,
+      deleteMatch, updateMatch, clearSpaceHistory, getOrCreateShareLink,
       firebaseConfigured: isFirebaseConfigured()
     }}>
       {children}

@@ -25,6 +25,7 @@ interface LeaderboardTableProps {
 
 // Helper function to generate a consistent "random" color from a string
 const stringToHslColor = (str: string, s: number, l: number): string => {
+  if (!str) return `hsl(0, ${s}%, ${l}%)`;
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
     hash = str.charCodeAt(i) + ((hash << 5) - hash);
@@ -55,9 +56,11 @@ export function LeaderboardTable({ scores, title, isPublicView = false }: Leader
         <p className="text-muted-foreground mt-1">
           {t('leaderboards.table.noScoresDescription', {title: title || ''})}
         </p>
-        <p className="text-muted-foreground mt-1">
-          {t('leaderboards.table.noScoresPrompt')}
-        </p>
+        {!isPublicView && (
+            <p className="text-muted-foreground mt-1">
+                {t('leaderboards.table.noScoresPrompt')}
+            </p>
+        )}
       </div>
     );
   }

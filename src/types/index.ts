@@ -1,4 +1,5 @@
 
+
 import type { LucideIcon } from "lucide-react";
 import type { SuggestHandicapOutput } from "@/ai/flows/suggest-handicap";
 
@@ -43,7 +44,7 @@ export interface Match {
   winnerIds: string[];
   pointsAwarded: Array<{ playerId: string; points: number }>;
   handicapSuggestions?: SuggestHandicapOutput; // Store the suggestions made for this match
-  spaceId?: string; // Optional: ID of the space this match belongs to
+  spaceId: string | null; // Optional: ID of the space this match belongs to
 }
 
 export interface ScoreData {
@@ -79,7 +80,7 @@ export interface Tournament {
   winnerPlayerId?: string;
   dateCompleted?: string; // ISO string
   ownerId: string;
-  spaceId?: string;
+  spaceId: string | null;
 }
 
 export interface PlayerStats {
@@ -94,4 +95,11 @@ export interface PlayerStats {
   totalPoints: number;
   averagePointsPerMatch: number;
   gameStats: PlayerGameStats[];
+}
+
+export interface Share {
+  id: string; // The document ID is the shareId
+  ownerId: string;
+  spaceId: string | null;
+  createdAt: string; // ISO string
 }
