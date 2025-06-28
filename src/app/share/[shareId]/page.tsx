@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
@@ -17,14 +18,14 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
-const stringToHslColor = (str: string, s: number, l: number): string => {
-  if (!str) return `hsl(0, ${s}%, ${l}%)`;
+const stringToHslColor = (str: string, s: number, l: number, a: number = 1): string => {
+  if (!str) return `hsla(0, ${s}%, ${l}%, ${a})`;
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
     hash = str.charCodeAt(i) + ((hash << 5) - hash);
   }
   const h = hash % 360;
-  return `hsl(${h}, ${s}%, ${l}%)`;
+  return `hsla(${h}, ${s}%, ${l}%, ${a})`;
 };
 
 const formatDate = (dateString?: string) => {
@@ -189,7 +190,7 @@ export default function SharedPage() {
     const activeSpace = activeSpaceId ? data.spaces.find(s => s.id === activeSpaceId) : null;
 
     return (
-        <div className="bg-background min-h-screen">
+        <div className="bg-background min-h-screen bg-gradient-to-b from-card/20 to-background">
             <header className="bg-card border-b border-border p-4 sticky top-0 z-10">
                 <div className="container mx-auto">
                     <h1 className="text-2xl font-bold text-primary truncate">{t('share.headerSpace', { spaceName: activeSpace?.name || 'Global', owner: data.owner.username })}</h1>
@@ -224,15 +225,15 @@ export default function SharedPage() {
 
                 <Tabs defaultValue="leaderboards" className="w-full">
                     <TabsList className="grid w-full grid-cols-2 md:grid-cols-5 h-auto">
-                        <TabsTrigger value="leaderboards" className="py-2"><BarChart3 className="me-2"/>{t('sidebar.leaderboards')}</TabsTrigger>
-                        <TabsTrigger value="tournaments" className="py-2"><Trophy className="me-2"/>{t('sidebar.tournaments')}</TabsTrigger>
-                        <TabsTrigger value="trophy-room" className="py-2"><Award className="me-2"/>{t('sidebar.trophyRoom')}</TabsTrigger>
-                        <TabsTrigger value="history" className="py-2"><History className="me-2"/>{t('sidebar.matchHistory')}</TabsTrigger>
-                        <TabsTrigger value="players" className="py-2"><Users className="me-2"/>{t('share.players')}</TabsTrigger>
+                        <TabsTrigger value="leaderboards" className="py-2.5 text-sm md:text-base"><BarChart3 className="me-2"/>{t('sidebar.leaderboards')}</TabsTrigger>
+                        <TabsTrigger value="tournaments" className="py-2.5 text-sm md:text-base"><Trophy className="me-2"/>{t('sidebar.tournaments')}</TabsTrigger>
+                        <TabsTrigger value="trophy-room" className="py-2.5 text-sm md:text-base"><Award className="me-2"/>{t('sidebar.trophyRoom')}</TabsTrigger>
+                        <TabsTrigger value="history" className="py-2.5 text-sm md:text-base"><History className="me-2"/>{t('sidebar.matchHistory')}</TabsTrigger>
+                        <TabsTrigger value="players" className="py-2.5 text-sm md:text-base"><Users className="me-2"/>{t('share.players')}</TabsTrigger>
                     </TabsList>
 
                     <TabsContent value="leaderboards" className="mt-6">
-                        <div className="space-y-6">
+                        <div className="space-y-8">
                             <LeaderboardTable scores={overallLeaderboard} title={t('leaderboards.overallLeaderboard')} isPublicView />
                             {data.games.map(game => {
                                 const gameScores = gameLeaderboards[game.id] || [];
@@ -295,13 +296,16 @@ export default function SharedPage() {
                     </TabsContent>
 
                     <TabsContent value="players" className="mt-6">
-                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6">
                             {data.players.map(player => (
-                                <Card key={player.id} className="text-center">
-                                    <CardContent className="pt-6">
-                                        <Avatar className="h-20 w-20 mx-auto border-2 border-primary"><AvatarImage src={player.avatarUrl} alt={player.name} /><AvatarFallback style={{backgroundColor: stringToHslColor(player.name, 50, 60)}} className="text-2xl">{player.name.substring(0, 2).toUpperCase()}</AvatarFallback></Avatar>
-                                        <h3 className="mt-4 font-semibold text-lg">{player.name}</h3>
-                                    </CardContent>
+                                <Card key={player.id} className="text-center p-4 pt-6 transition-all duration-200 hover:shadow-xl hover:-translate-y-1 border-2 border-transparent hover:border-primary/50">
+                                    <Avatar className="h-24 w-24 mx-auto border-4" style={{ borderColor: stringToHslColor(player.name, 50, 60) }}>
+                                        <AvatarImage src={player.avatarUrl} alt={player.name} />
+                                        <AvatarFallback className="text-3xl font-bold" style={{ backgroundColor: stringToHslColor(player.name, 50, 85), color: stringToHslColor(player.name, 60, 30) }}>
+                                            {player.name.substring(0, 2).toUpperCase()}
+                                        </AvatarFallback>
+                                    </Avatar>
+                                    <h3 className="mt-4 font-bold text-lg text-card-foreground truncate" title={player.name}>{player.name}</h3>
                                 </Card>
                             ))}
                         </div>

@@ -8,7 +8,6 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-  TableCaption,
 } from '@/components/ui/table';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Medal, ShieldQuestion, ArrowUp, ArrowDown } from 'lucide-react';
@@ -16,14 +15,7 @@ import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { Badge } from './ui/badge';
 import { useLanguage } from '@/hooks/use-language';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from './ui/select';
-import React from 'react';
-
-interface LeaderboardTableProps {
-  scores: ScoreData[];
-  title?: string;
-  isPublicView?: boolean;
-}
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 
 // Helper function to generate a consistent "random" color from a string
 const stringToHslColor = (str: string, s: number, l: number): string => {
@@ -65,78 +57,90 @@ export function LeaderboardTable({ scores, title, isPublicView = false }: Leader
 
   if (!scores || scores.length === 0) {
     return (
-      <div className="text-center py-12 bg-card border-border shadow-md rounded-lg">
-        <ShieldQuestion className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-        <p className="text-xl font-semibold text-card-foreground">{t('leaderboards.table.noScores')}</p>
-        <p className="text-muted-foreground mt-1">
-          {t('leaderboards.table.noScoresDescription', {title: title || ''})}
-        </p>
-        <p className="text-muted-foreground mt-1">
-            {t('leaderboards.table.noScoresPrompt')}
-        </p>
-      </div>
+      <Card className="text-center py-12 bg-card border-border shadow">
+          <CardHeader>
+            <ShieldQuestion className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+            <CardTitle className="text-2xl text-card-foreground">{t('leaderboards.table.noScores')}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-muted-foreground">
+                {t('leaderboards.table.noScoresDescription', {title: title || ''})}
+            </p>
+            <p className="text-muted-foreground mt-1">
+                {t('leaderboards.table.noScoresPrompt')}
+            </p>
+          </CardContent>
+      </Card>
     );
   }
 
   return (
-    <div className="overflow-x-auto">
-      <Table className="bg-card border-border shadow-md rounded-lg min-w-[700px]">
-        {title && <TableCaption className="text-xl font-bold py-4 text-primary bg-card-foreground/5 rounded-t-lg">{title}</TableCaption>}
-        <TableHeader className="bg-muted/30">
-          <TableRow className="hover:bg-muted/40 border-b-2 border-border">
-            <TableHead className="w-[80px] text-center font-semibold text-base">{t('leaderboards.table.rank')}</TableHead>
-            <TableHead className="font-semibold text-base">{t('leaderboards.table.player')}</TableHead>
-            <TableHead className="text-center font-semibold text-base">{t('leaderboards.table.totalPoints')}</TableHead>
-            <TableHead className="text-center font-semibold text-base">{t('leaderboards.table.gamesPlayed')}</TableHead>
-            <TableHead className="text-center font-semibold text-base">{t('leaderboards.table.winsLosses')}</TableHead>
-            <TableHead className="text-center font-semibold text-base">{t('leaderboards.table.winRate')}</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {scores.map((score, index) => {
-            const rank = index + 1;
-
-            return (
-              <TableRow 
-                key={score.playerId} 
-                className={cn("transition-colors border-b border-border last:border-b-0", 
-                  rank === 1 && "bg-yellow-500/10 hover:bg-yellow-500/20",
-                  rank === 2 && "bg-slate-400/10 hover:bg-slate-400/20",
-                  rank === 3 && "bg-orange-500/10 hover:bg-orange-500/20"
-                )}
-              >
-                <TableCell className="text-center font-medium">
-                    <div className="flex items-center justify-center h-full">
-                        {getRankIndicator(rank)}
-                    </div>
-                </TableCell>
-                <TableCell>
-                 {isPublicView ? (
-                    <div className="p-2 -m-2"><PlayerContent score={score} /></div>
-                  ) : (
-                    <Link href={`/stats/${score.playerId}`} className="transition-colors hover:bg-primary/10 block -m-2 p-2 rounded-md group">
-                      <PlayerContent score={score} />
-                    </Link>
-                  )}
-                </TableCell>
-                <TableCell className="text-center font-bold text-2xl text-accent">{score.totalPoints}</TableCell>
-                <TableCell className="text-center text-lg text-muted-foreground">{score.gamesPlayed}</TableCell>
-                <TableCell className="text-center text-lg">
-                  <div className="flex items-center justify-center gap-2">
-                    <Badge variant="default" className="bg-green-600/80 hover:bg-green-600 text-white gap-1">
-                      <ArrowUp className="h-3 w-3"/>{score.wins}
-                    </Badge>
-                     <Badge variant="destructive" className="bg-red-600/70 hover:bg-red-600 text-white gap-1">
-                       <ArrowDown className="h-3 w-3"/>{score.gamesPlayed - score.wins}
-                    </Badge>
-                  </div>
-                </TableCell>
-                <TableCell className="text-center text-xl font-semibold text-muted-foreground">{getWinRatePercentage(score.wins, score.gamesPlayed)}</TableCell>
+    <Card className="overflow-hidden shadow-lg border-border">
+      {title && (
+        <CardHeader>
+          <CardTitle className="text-2xl font-bold text-primary">{title}</CardTitle>
+        </CardHeader>
+      )}
+      <CardContent className="p-0">
+        <div className="overflow-x-auto">
+          <Table className="min-w-[700px]">
+            <TableHeader className="bg-muted/30">
+              <TableRow className="hover:bg-muted/40 border-b-2 border-border">
+                <TableHead className="w-[80px] text-center font-semibold text-base">{t('leaderboards.table.rank')}</TableHead>
+                <TableHead className="font-semibold text-base">{t('leaderboards.table.player')}</TableHead>
+                <TableHead className="text-center font-semibold text-base">{t('leaderboards.table.totalPoints')}</TableHead>
+                <TableHead className="text-center font-semibold text-base">{t('leaderboards.table.gamesPlayed')}</TableHead>
+                <TableHead className="text-center font-semibold text-base">{t('leaderboards.table.winsLosses')}</TableHead>
+                <TableHead className="text-center font-semibold text-base">{t('leaderboards.table.winRate')}</TableHead>
               </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
-    </div>
+            </TableHeader>
+            <TableBody>
+              {scores.map((score, index) => {
+                const rank = index + 1;
+
+                return (
+                  <TableRow 
+                    key={score.playerId} 
+                    className={cn("transition-colors border-b border-border last:border-b-0", 
+                      rank === 1 && "bg-yellow-500/10 hover:bg-yellow-500/20",
+                      rank === 2 && "bg-slate-400/10 hover:bg-slate-400/20",
+                      rank === 3 && "bg-orange-500/10 hover:bg-orange-500/20"
+                    )}
+                  >
+                    <TableCell className="text-center font-medium">
+                        <div className="flex items-center justify-center h-full">
+                            {getRankIndicator(rank)}
+                        </div>
+                    </TableCell>
+                    <TableCell>
+                     {isPublicView ? (
+                        <div className="p-2 -m-2"><PlayerContent score={score} /></div>
+                      ) : (
+                        <Link href={`/stats/${score.playerId}`} className="transition-colors hover:bg-primary/10 block -m-2 p-2 rounded-md group">
+                          <PlayerContent score={score} />
+                        </Link>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-center font-bold text-2xl text-accent">{score.totalPoints}</TableCell>
+                    <TableCell className="text-center text-lg text-muted-foreground">{score.gamesPlayed}</TableCell>
+                    <TableCell className="text-center text-lg">
+                      <div className="flex items-center justify-center gap-2">
+                        <Badge variant="default" className="bg-green-600/80 hover:bg-green-600 text-white gap-1">
+                          <ArrowUp className="h-3 w-3"/>{score.wins}
+                        </Badge>
+                         <Badge variant="destructive" className="bg-red-600/70 hover:bg-red-600 text-white gap-1">
+                           <ArrowDown className="h-3 w-3"/>{score.gamesPlayed - score.wins}
+                        </Badge>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-center text-xl font-semibold text-muted-foreground">{getWinRatePercentage(score.wins, score.gamesPlayed)}</TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
