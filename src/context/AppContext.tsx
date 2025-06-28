@@ -23,7 +23,7 @@ import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'fire
 
 
 import { auth, db, storage, isFirebaseConfigured, firebaseConfig } from '@/lib/firebase';
-import type { Game, Player, Match, ScoreData, Space, UserAccount, PlayerStats, Tournament } from '@/types';
+import type { Game, Player, Match, ScoreData, Space, UserAccount, PlayerStats, Tournament, PublicShareData } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { playSound } from '@/lib/audio';
 import { useLanguage } from '@/hooks/use-language';
@@ -70,6 +70,7 @@ interface AppContextType {
   updateMatch: (matchId: string, matchData: Partial<Pick<Match, 'winnerIds' | 'pointsAwarded'>>) => Promise<void>;
   clearSpaceHistory: (spaceId: string) => Promise<void>;
   firebaseConfigured: boolean;
+  getOrCreateShareId: () => Promise<string | null>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -111,6 +112,36 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setIsClient(true);
   }, []);
   
+  const updatePublicShareData = useCallback(async () => {
+    if (!currentUser || !currentUser.shareId) return;
+
+    const publicData: PublicShareData = {
+      owner: { username: currentUser.username },
+      players,
+      games,
+      matches,
+      spaces,
+      tournaments,
+    };
+    
+    try {
+      const shareDocRef = doc(db, 'public_shares', currentUser.shareId);
+      await setDoc(shareDocRef, {
+        ...publicData,
+        ownerId: currentUser.id // for security rules
+      });
+    } catch (e) {
+      console.error("Failed to update public share data:", e);
+      // Do not toast here as it could be too noisy.
+    }
+  }, [currentUser, players, games, matches, spaces, tournaments]);
+
+  useEffect(() => {
+    if (currentUser?.shareId) {
+      updatePublicShareData();
+    }
+  }, [currentUser, players, games, matches, spaces, tournaments, updatePublicShareData]);
+
 
   useEffect(() => {
     if (!isFirebaseConfigured()) {
@@ -255,8 +286,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const newUser = userCredential.user;
 
       const username = email.split('@')[0];
+      const shareId = newUser.uid;
 
-      const userDocData: UserAccount = { id: newUser.uid, username, email: newUser.email, isAdmin: false };
+      const userDocData: UserAccount = { id: newUser.uid, username, email: newUser.email, isAdmin: false, shareId };
       await setDoc(doc(db, "users", newUser.uid), userDocData);
 
       const batch = writeBatch(db);
@@ -714,6 +746,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             const snapshot = await getDocs(subcollectionRef);
             snapshot.forEach(doc => batch.delete(doc.ref));
         }
+
+        // Also delete the public share document
+        const shareDocRef = doc(db, 'public_shares', userIdToDelete);
+        batch.delete(shareDocRef);
+
         await batch.commit();
         toast({ title: t('users.toasts.userDeleted'), description: t('users.toasts.userDeletedDesc') });
     } catch (error) {
@@ -769,6 +806,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         toast({ title: t('common.error'), description: 'Failed to clear space history. Please try again.', variant: 'destructive' });
     }
   }, [firebaseUser, toast, t]);
+  
+  const getOrCreateShareId = useCallback(async (): Promise<string | null> => {
+    if (!currentUser?.shareId) {
+      toast({ title: t('common.error'), description: "Share ID not found for user.", variant: "destructive" });
+      return null;
+    }
+    await updatePublicShareData(); 
+    return currentUser.shareId;
+  }, [currentUser, updatePublicShareData, toast, t]);
+
 
   return (
     <AppContext.Provider value={{ 
@@ -777,7 +824,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       currentUser, login, signup, logout, isLoadingAuth, addSpace, updateSpace, deleteSpace, 
       setActiveSpaceId, getSpacesForCurrentUser, getActiveSpace, addGame, updateGame, deleteGame,
       getUserById, deleteUserAccount, addTournament, updateTournament, deleteTournament,
-      deleteMatch, updateMatch, clearSpaceHistory,
+      deleteMatch, updateMatch, clearSpaceHistory, getOrCreateShareId,
       firebaseConfigured: isFirebaseConfigured()
     }}>
       {children}

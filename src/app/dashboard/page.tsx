@@ -8,11 +8,13 @@ import Link from 'next/link';
 import { PlusCircle, BarChart3, History, Users, Swords, Layers, UserCircle, Shuffle, Award, Trophy, BarChartHorizontal, UserCog, Share2 } from 'lucide-react';
 import React, { useState } from 'react';
 import { useLanguage } from '@/hooks/use-language';
+import { ShareDialog } from './ShareDialog';
 
 export default function DashboardPage() {
   const { currentUser, isClient, getActiveSpace, isLoadingAuth } = useAppContext();
   const { t } = useLanguage();
   const activeSpace = getActiveSpace();
+  const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
 
   if (!isClient || isLoadingAuth) { 
     return (
@@ -59,7 +61,10 @@ export default function DashboardPage() {
                   {activeSpace ? t('dashboard.activeSpace', {spaceName: activeSpace.name}) : t('dashboard.noActiveSpace')}
                 </p>
             </div>
-            <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2">
+            <div className="flex flex-col sm:flex-row items-center gap-2">
+               <Button onClick={() => setIsShareDialogOpen(true)}>
+                  <Share2 className="me-2 h-4 w-4" /> {t('dashboard.shareSpace')}
+                </Button>
                 {activeSpace ? (
                     <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 border border-border rounded-lg bg-card shadow-sm whitespace-nowrap">
                         <Layers className="h-5 w-5 text-accent"/>
@@ -99,6 +104,10 @@ export default function DashboardPage() {
         ))}
       </div>
     </div>
+    <ShareDialog
+      isOpen={isShareDialogOpen}
+      onOpenChange={setIsShareDialogOpen}
+    />
     </>
   );
 }

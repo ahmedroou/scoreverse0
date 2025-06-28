@@ -31,7 +31,7 @@ export interface MatchPlayer extends Player {
 }
 
 export interface Space {
-  id: string;
+  id:string;
   name:string;
   ownerId: string; // ID of the user who owns this space
 }
@@ -61,6 +61,7 @@ export interface UserAccount {
   username: string;
   email?: string;
   isAdmin?: boolean;
+  shareId?: string;
 }
 
 export interface PlayerGameStats {
@@ -95,4 +96,15 @@ export interface PlayerStats {
   totalPoints: number;
   averagePointsPerMatch: number;
   gameStats: PlayerGameStats[];
+}
+
+export interface PublicShareData {
+  owner: {
+      username: string;
+  };
+  players: Player[];
+  games: Game[];
+  matches: Match[];
+  spaces: Space[];
+  tournaments: Tournament[];
 }

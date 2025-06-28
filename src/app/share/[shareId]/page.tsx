@@ -7,13 +7,15 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, ShieldX, Trophy, BarChart3, History, Users, Award, Medal, Gamepad2, Calendar } from 'lucide-react';
+import { Loader2, ShieldX, Trophy, BarChart3, History, Users, Award, Medal, Gamepad2, Calendar, Layers } from 'lucide-react';
 import { LeaderboardTable } from '@/components/LeaderboardTable';
-import { TournamentCard } from '@/components/TournamentCard';
+import { TournamentCard } from '@/app/tournaments/TournamentCard';
 import { MatchHistoryCard } from '@/components/MatchHistoryCard';
 import { useLanguage } from '@/hooks/use-language';
 import type { PublicShareData, Player, Game, Match, Space, Tournament, ScoreData } from '@/types';
 import { format, parseISO } from 'date-fns';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const stringToHslColor = (str: string, s: number, l: number): string => {
   if (!str) return `hsl(0, ${s}%, ${l}%)`;
@@ -86,16 +88,13 @@ export default function SharedPage() {
     } = useMemo(() => {
         if (!data) return { filteredMatches: [], overallLeaderboard: [], gameLeaderboards: {}, completedTournaments: [], activeTournaments: [], trophiesByPlayer: {} };
 
-        const currentSpace = activeSpaceId || undefined;
+        const currentSpaceId = activeSpaceId || null;
 
-        // Filter all data by active space
-        const fMatches = data.matches.filter(m => (m.spaceId || undefined) === currentSpace);
-        const fTournaments = data.tournaments.filter(t => (t.spaceId || undefined) === currentSpace);
+        const fMatches = data.matches.filter(m => (m.spaceId || null) === currentSpaceId);
+        const fTournaments = data.tournaments.filter(t => (t.spaceId || null) === currentSpaceId);
 
-        // Sort matches
         const sortedMatches = [...fMatches].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
         
-        // Calculate scores
         const calculateScores = (matchesForCalc: Match[]): ScoreData[] => {
             const playerScores: Record<string, ScoreData> = {};
             const relevantPlayerIds = new Set(matchesForCalc.flatMap(m => m.playerIds));
@@ -133,11 +132,9 @@ export default function SharedPage() {
             gamesLB[game.id] = calculateScores(gameMatches);
         });
 
-        // Filter and sort tournaments
         const activeT = fTournaments.filter(t => t.status === 'active');
         const completedT = fTournaments.filter(t => t.status === 'completed' && t.winnerPlayerId);
 
-        // Calculate trophies
         const trophies = completedT.reduce((acc, tourney) => {
             const winnerId = tourney.winnerPlayerId!;
             if (!acc[winnerId]) acc[winnerId] = [];
@@ -200,8 +197,8 @@ export default function SharedPage() {
                 </div>
             </header>
             <main className="container mx-auto py-8">
-                <div className="mb-6">
-                    <Label>{t('spaces.pageTitle')}</Label>
+                <div className="mb-6 max-w-sm">
+                    <Label className="flex items-center gap-2 mb-2"><Layers />{t('spaces.pageTitle')}</Label>
                     <Select value={activeSpaceId || 'global'} onValueChange={(value) => setActiveSpaceId(value === 'global' ? null : value)}>
                         <SelectTrigger>
                             <SelectValue placeholder="Select a space" />
@@ -227,9 +224,11 @@ export default function SharedPage() {
                     <TabsContent value="leaderboards" className="mt-6">
                         <div className="space-y-6">
                             <LeaderboardTable scores={overallLeaderboard} title={t('leaderboards.overallLeaderboard')} isPublicView />
-                            {data.games.map(game => (
-                                <LeaderboardTable key={game.id} scores={gameLeaderboards[game.id] || []} title={t('leaderboards.gameLeaderboard', { gameName: game.name })} isPublicView />
-                            ))}
+                            {data.games.map(game => {
+                                const gameScores = gameLeaderboards[game.id] || [];
+                                if (gameScores.length === 0) return null;
+                                return <LeaderboardTable key={game.id} scores={gameScores} title={t('leaderboards.gameLeaderboard', { gameName: game.name })} isPublicView />
+                            })}
                         </div>
                     </TabsContent>
                     
@@ -237,14 +236,14 @@ export default function SharedPage() {
                         <h2 className="text-2xl font-bold mb-4">{t('tournaments.activeTab', { count: activeTournaments.length })}</h2>
                         {activeTournaments.length > 0 ? (
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                {activeTournaments.map(t => <TournamentCard key={t.id} tournament={t} game={getGameById(t.gameId)} leader={(gameLeaderboards[t.gameId] || [])[0]} isPublicView />)}
+                                {activeTournaments.map(t => <TournamentCard key={t.id} tournament={t} game={getGameById(t.gameId)} leader={(gameLeaderboards[t.gameId] || [])[0]} />)}
                             </div>
                         ) : <p className="text-center text-muted-foreground py-8">{t('tournaments.noActive')}</p>}
 
                         <h2 className="text-2xl font-bold mt-8 mb-4">{t('tournaments.completedTab', { count: completedTournaments.length })}</h2>
                          {completedTournaments.length > 0 ? (
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                {completedTournaments.map(t => <TournamentCard key={t.id} tournament={t} game={getGameById(t.gameId)} leader={(gameLeaderboards[t.gameId] || []).find(p => p.playerId === t.winnerPlayerId)} isPublicView />)}
+                                {completedTournaments.map(t => <TournamentCard key={t.id} tournament={t} game={getGameById(t.gameId)} leader={(gameLeaderboards[t.gameId] || []).find(p => p.playerId === t.winnerPlayerId)} />)}
                             </div>
                         ) : <p className="text-center text-muted-foreground py-8">{t('tournaments.noCompleted')}</p>}
                     </TabsContent>
@@ -302,4 +301,3 @@ export default function SharedPage() {
         </div>
     );
 }
-
