@@ -5,6 +5,9 @@ import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { PublicShareData } from '@/types';
 
+// Force the route to be dynamic and not cached. This ensures the latest data is always fetched.
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest, { params }: { params: { shareId: string } }) {
   const { shareId } = params;
 
