@@ -129,7 +129,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     
     try {
       const shareDocRef = doc(db, 'public_shares', currentUser.shareId);
-      await setDoc(shareDocRef, publicData);
+      await setDoc(shareDocRef, publicData, { merge: true });
     } catch (e) {
       console.error("Failed to update public share data:", e);
     }
@@ -746,7 +746,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             snapshot.forEach(doc => batch.delete(doc.ref));
         }
 
-        // Also delete the public share document
         const shareDocRef = doc(db, 'public_shares', userIdToDelete);
         batch.delete(shareDocRef);
 
@@ -822,18 +821,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (!currentUser) return null;
     try {
         const snapshotCollectionRef = collection(db, 'public_shares');
-        const newDocRef = doc(snapshotCollectionRef); // Let Firestore generate the ID
+        const newDocRef = doc(snapshotCollectionRef);
 
+        // Create clean, deep copies to avoid any potential mutation or serialization issues.
         const snapshotData: PublicShareData = {
             owner: { username: currentUser.username },
             ownerId: currentUser.id,
             type: 'snapshot',
             createdAt: new Date().toISOString(),
-            players,
-            games,
-            matches,
-            spaces,
-            tournaments,
+            players: JSON.parse(JSON.stringify(players || [])),
+            games: JSON.parse(JSON.stringify(games || [])),
+            matches: JSON.parse(JSON.stringify(matches || [])),
+            spaces: JSON.parse(JSON.stringify(spaces || [])),
+            tournaments: JSON.parse(JSON.stringify(tournaments || [])),
         };
 
         await setDoc(newDocRef, snapshotData);
