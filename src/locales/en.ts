@@ -75,8 +75,8 @@ export const translationsEn = {
     noActiveSpace: 'You are currently in your Global context (no space selected).',
     globalContext: 'Global Context',
     shareSpace: 'Share',
-    shareTitle: 'Share "{{spaceName}}"',
-    shareDescription: 'Anyone with this link can view a read-only overview of this space.',
+    shareTitle: 'Share Your Data',
+    shareDescription: 'Use the link below to share a live, read-only view of your stats. The link is permanent and updates automatically.',
     quickAccess: {
       recordMatch: 'Record New Match',
       recordMatchDesc: 'Log a recently played game.',
@@ -334,11 +334,15 @@ export const translationsEn = {
     errorDescription: "We couldn't find the shared data. The link may be invalid or has been deleted.",
     headerSpace: 'Viewing the "{{spaceName}}" space of {{owner}}',
     headerGlobal: "Viewing {{owner}}'s Global Context",
-    headerDescription: 'This is a read-only page. Data is updated automatically.',
+    headerDescription: 'Showing live data which updates automatically.',
     loadingTitle: 'Loading Shared Data...',
     noLink: 'Share ID is missing.',
     fetchError: 'Failed to fetch shared data.',
-    players: 'Players'
+    players: 'Players',
+    liveLinkTitle: 'Live Share Link',
+    liveLinkDescription: 'A permanent link that always shows your latest data. Updates automatically.',
+    yourLiveLink: 'Your Live Link',
+    getLiveLink: 'Get Live Link',
   },
   spaces: {
     pageTitle: 'Manage Your Spaces',
@@ -368,7 +372,7 @@ export const translationsEn = {
     },
     shareDialog: {
       title: 'Share Space: {{spaceName}}',
-      description: "Create a public, read-only link to share this space's leaderboards.",
+      description: 'Create a public, read-only link to share this space\'s leaderboards.',
       descriptionReady: 'Anyone with this link can view the leaderboards for this space. No one can make changes.',
       generateButton: 'Generate Share Link',
       generating: 'Generating...',

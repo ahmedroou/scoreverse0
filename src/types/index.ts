@@ -103,8 +103,7 @@ export interface PublicShareData {
       username: string;
   };
   ownerId: string;
-  type: 'live' | 'snapshot';
-  createdAt?: string;
+  type: 'live';
   players: Player[];
   games: Game[];
   matches: Match[];

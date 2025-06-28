@@ -75,8 +75,8 @@ export const translationsAr = {
     noActiveSpace: 'أنت حاليًا في السياق العام (لم يتم تحديد مساحة).',
     globalContext: 'السياق العام',
     shareSpace: 'مشاركة',
-    shareTitle: 'مشاركة "{{spaceName}}"',
-    shareDescription: 'أي شخص لديه هذا الرابط يمكنه عرض نظرة عامة للقراءة فقط على هذه المساحة.',
+    shareTitle: 'مشاركة بياناتك',
+    shareDescription: 'استخدم الرابط أدناه لمشاركة عرض مباشر للقراءة فقط لإحصائياتك. الرابط دائم ويتم تحديثه تلقائيًا.',
     quickAccess: {
       recordMatch: 'تسجيل مواجهة جديدة',
       recordMatchDesc: 'سجل لعبة تم لعبها مؤخرًا.',
@@ -334,11 +334,15 @@ export const translationsAr = {
     errorDescription: 'لم نتمكن من العثور على البيانات المشتركة. قد يكون الرابط غير صالح أو تم حذفه.',
     headerSpace: 'عرض مساحة "{{spaceName}}" الخاصة بـ {{owner}}',
     headerGlobal: 'عرض السياق العام لـ {{owner}}',
-    headerDescription: 'هذه صفحة للقراءة فقط. يتم تحديث البيانات تلقائياً.',
+    headerDescription: 'عرض بيانات مباشرة يتم تحديثها تلقائيًا.',
     loadingTitle: 'جارٍ تحميل البيانات المشتركة...',
     noLink: 'معرف المشاركة غير موجود.',
     fetchError: 'فشل جلب البيانات المشتركة.',
-    players: 'اللاعبون'
+    players: 'اللاعبون',
+    liveLinkTitle: 'رابط المشاركة المباشر',
+    liveLinkDescription: 'رابط دائم يعرض دائمًا أحدث بياناتك. يتم تحديثه تلقائيًا.',
+    yourLiveLink: 'رابطك المباشر',
+    getLiveLink: 'الحصول على الرابط المباشر',
   },
   spaces: {
     pageTitle: 'إدارة مساحاتك',

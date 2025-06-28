@@ -71,7 +71,6 @@ interface AppContextType {
   clearSpaceHistory: (spaceId: string) => Promise<void>;
   firebaseConfigured: boolean;
   getLiveShareUrl: () => Promise<string | null>;
-  createSnapshotUrl: () => Promise<string | null>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -815,40 +814,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       return `${window.location.origin}/share/${currentUser.shareId}`;
     }
     return null;
-  }, [currentUser, updateLiveShareData, toast, t]);
-  
-  const createSnapshotUrl = useCallback(async (): Promise<string | null> => {
-    if (!currentUser) return null;
-    try {
-        const snapshotCollectionRef = collection(db, 'public_shares');
-        const newDocRef = doc(snapshotCollectionRef);
-
-        // Create clean, deep copies to avoid any potential mutation or serialization issues.
-        const snapshotData: PublicShareData = {
-            owner: { username: currentUser.username },
-            ownerId: currentUser.id,
-            type: 'snapshot',
-            createdAt: new Date().toISOString(),
-            players: JSON.parse(JSON.stringify(players || [])),
-            games: JSON.parse(JSON.stringify(games || [])),
-            matches: JSON.parse(JSON.stringify(matches || [])),
-            spaces: JSON.parse(JSON.stringify(spaces || [])),
-            tournaments: JSON.parse(JSON.stringify(tournaments || [])),
-        };
-
-        await setDoc(newDocRef, snapshotData);
-
-        if (typeof window !== 'undefined') {
-            return `${window.location.origin}/share/${newDocRef.id}`;
-        }
-        return null;
-    } catch (e) {
-        console.error("Failed to create snapshot link:", e);
-        toast({ title: t('common.error'), description: 'Failed to create snapshot. Please try again.', variant: 'destructive' });
-        return null;
-    }
-  }, [currentUser, players, games, matches, spaces, tournaments, toast, t]);
-
+  }, [currentUser, updateLiveShareData, toast]);
 
   return (
     <AppContext.Provider value={{ 
@@ -857,7 +823,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       currentUser, login, signup, logout, isLoadingAuth, addSpace, updateSpace, deleteSpace, 
       setActiveSpaceId, getSpacesForCurrentUser, getActiveSpace, addGame, updateGame, deleteGame,
       getUserById, deleteUserAccount, addTournament, updateTournament, deleteTournament,
-      deleteMatch, updateMatch, clearSpaceHistory, getLiveShareUrl, createSnapshotUrl,
+      deleteMatch, updateMatch, clearSpaceHistory, getLiveShareUrl,
       firebaseConfigured: isFirebaseConfigured()
     }}>
       {children}

@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, ShieldX, Trophy, BarChart3, History, Users, Award, Medal, Gamepad2, Calendar, Layers, Clock, Zap } from 'lucide-react';
+import { Loader2, ShieldX, Trophy, BarChart3, History, Users, Award, Medal, Gamepad2, Calendar, Layers, Zap } from 'lucide-react';
 import { LeaderboardTable } from '@/components/LeaderboardTable';
 import { TournamentCard } from '@/app/tournaments/TournamentCard';
 import { MatchHistoryCard } from '@/components/MatchHistoryCard';
@@ -194,17 +194,9 @@ export default function SharedPage() {
             <header className="bg-card border-b border-border p-4 sticky top-0 z-10">
                 <div className="container mx-auto">
                     <h1 className="text-2xl font-bold text-primary truncate">{t('share.headerSpace', { spaceName: activeSpace?.name || 'Global', owner: data.owner.username })}</h1>
-                    <p className="text-sm text-muted-foreground">{t('share.headerDescription')}</p>
-                     {data.type === 'snapshot' && data.createdAt && (
-                         <Alert variant="default" className="mt-2 text-xs p-2 border-blue-500/30 bg-blue-500/10 text-blue-800 dark:text-blue-300">
-                             <AlertTitle className="flex items-center gap-2 font-normal"><Clock className="h-4 w-4"/>This is a snapshot created on {format(parseISO(data.createdAt), "PPPp")}. It does not receive live updates.</AlertTitle>
-                         </Alert>
-                     )}
-                     {data.type === 'live' && (
-                          <Alert variant="default" className="mt-2 text-xs p-2 border-green-500/30 bg-green-500/10 text-green-800 dark:text-green-300">
-                             <AlertTitle className="flex items-center gap-2 font-normal"><Zap className="h-4 w-4"/>Showing live data which updates automatically.</AlertTitle>
-                         </Alert>
-                     )}
+                    <Alert variant="default" className="mt-2 text-xs p-2 border-green-500/30 bg-green-500/10 text-green-800 dark:text-green-300">
+                        <AlertTitle className="flex items-center gap-2 font-normal"><Zap className="h-4 w-4"/>{t('share.headerDescription')}</AlertTitle>
+                    </Alert>
                 </div>
             </header>
             <main className="container mx-auto py-8">
@@ -234,7 +226,9 @@ export default function SharedPage() {
 
                     <TabsContent value="leaderboards" className="mt-6">
                         <div className="space-y-8">
-                            <LeaderboardTable scores={overallLeaderboard} title={t('leaderboards.overallLeaderboard')} isPublicView />
+                             {overallLeaderboard.length > 0 ? (
+                                <LeaderboardTable scores={overallLeaderboard} title={t('leaderboards.overallLeaderboard')} isPublicView />
+                            ) : null}
                             {data.games.map(game => {
                                 const gameScores = gameLeaderboards[game.id] || [];
                                 if (gameScores.length === 0) return null;
