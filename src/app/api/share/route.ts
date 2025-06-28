@@ -5,9 +5,8 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 export async function GET(request: NextRequest) {
-  const { searchParams } = new URL(request.url);
-  const ownerId = searchParams.get('ownerId');
-  const spaceId = searchParams.get('spaceId');
+  const ownerId = request.nextUrl.searchParams.get('ownerId');
+  const spaceId = request.nextUrl.searchParams.get('spaceId');
 
   if (!ownerId || !spaceId) {
     return NextResponse.json({ error: 'Missing ownerId or spaceId' }, { status: 400 });
