@@ -1,20 +1,17 @@
-
 "use client";
 
 import { useAppContext } from '@/context/AppContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { PlusCircle, BarChart3, History, Users, Swords, Layers, UserCircle, Shuffle, Award, Trophy, BarChartHorizontal, UserCog, Share2 } from 'lucide-react';
-import React, { useState } from 'react';
+import { PlusCircle, BarChart3, History, Users, Swords, Layers, UserCircle, Shuffle, Award, Trophy, BarChartHorizontal, UserCog } from 'lucide-react';
+import React from 'react';
 import { useLanguage } from '@/hooks/use-language';
-import { ShareDialog } from './ShareDialog';
 
 export default function DashboardPage() {
   const { currentUser, isClient, getActiveSpace, isLoadingAuth } = useAppContext();
   const { t } = useLanguage();
   const activeSpace = getActiveSpace();
-  const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
 
   if (!isClient || isLoadingAuth) { 
     return (
@@ -72,10 +69,6 @@ export default function DashboardPage() {
                         <span>{t('dashboard.globalContext')}</span>
                     </div>
                 )}
-                 <Button variant="outline" onClick={() => setIsShareDialogOpen(true)}>
-                    <Share2 className="h-4 w-4 me-2"/>
-                    {t('dashboard.shareSpace')}
-                </Button>
             </div>
         </div>
       </header>
@@ -103,13 +96,6 @@ export default function DashboardPage() {
           </Card>
         ))}
       </div>
-      
-      <ShareDialog
-        isOpen={isShareDialogOpen}
-        onOpenChange={setIsShareDialogOpen}
-        space={getActiveSpace() ?? null}
-      />
-
     </div>
   );
 }

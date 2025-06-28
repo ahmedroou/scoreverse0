@@ -22,7 +22,7 @@ import {
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 import { auth, db, storage, isFirebaseConfigured, firebaseConfig } from '@/lib/firebase';
-import type { Game, Player, Match, ScoreData, Space, UserAccount, PlayerStats, Tournament, Share } from '@/types';
+import type { Game, Player, Match, ScoreData, Space, UserAccount, PlayerStats, Tournament } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { playSound } from '@/lib/audio';
 import { useLanguage } from '@/hooks/use-language';
@@ -68,7 +68,6 @@ interface AppContextType {
   deleteMatch: (matchId: string) => Promise<void>;
   updateMatch: (matchId: string, matchData: Partial<Pick<Match, 'winnerIds' | 'pointsAwarded'>>) => Promise<void>;
   clearSpaceHistory: (spaceId: string) => Promise<void>;
-  getOrCreateShareLink: (spaceId: string | null) => Promise<string | null>;
   firebaseConfigured: boolean;
 }
 
@@ -499,10 +498,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         const tournamentsSnapshot = await getDocs(tournamentsQuery);
         tournamentsSnapshot.forEach(doc => batch.delete(doc.ref));
 
-        const sharesQuery = query(collection(db, 'shares'), where("ownerId", "==", firebaseUser.uid), where("spaceId", "==", spaceIdToDelete));
-        const sharesSnapshot = await getDocs(sharesQuery);
-        sharesSnapshot.forEach(doc => batch.delete(doc.ref));
-
         await batch.commit();
 
         if (activeSpaceId === spaceIdToDelete) {
@@ -772,38 +767,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   }, [firebaseUser, toast, t]);
 
-  const getOrCreateShareLink = useCallback(async (spaceId: string | null): Promise<string | null> => {
-    if (!firebaseUser) {
-        toast({ title: t('auth.authError'), description: "You must be logged in to share.", variant: "destructive" });
-        return null;
-    }
-
-    try {
-        const sharesCollection = collection(db, 'shares');
-        const q = query(sharesCollection, where("ownerId", "==", firebaseUser.uid), where("spaceId", "==", spaceId));
-        
-        const querySnapshot = await getDocs(q);
-
-        if (!querySnapshot.empty) {
-            const existingShare = querySnapshot.docs[0];
-            return existingShare.id;
-        } else {
-            const newShareRef = doc(collection(db, 'shares'));
-            const newShareData: Omit<Share, 'id'> = {
-                ownerId: firebaseUser.uid,
-                spaceId: spaceId,
-                createdAt: new Date().toISOString(),
-            };
-            await setDoc(newShareRef, newShareData);
-            return newShareRef.id;
-        }
-    } catch (error) {
-        console.error("Error getting or creating share link:", error);
-        toast({ title: t('common.error'), description: t('spaces.shareDialog.toasts.error'), variant: "destructive" });
-        return null;
-    }
-  }, [firebaseUser, toast, t]);
-
   return (
     <AppContext.Provider value={{ 
       games, players, matches, spaces, tournaments, allUsers, activeSpaceId, addPlayer, deletePlayer, deleteAllPlayers, addMatch, updatePlayer, 
@@ -811,7 +774,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       currentUser, login, signup, logout, isLoadingAuth, addSpace, updateSpace, deleteSpace, 
       setActiveSpaceId, getSpacesForCurrentUser, getActiveSpace, addGame, updateGame, deleteGame,
       getUserById, deleteUserAccount, addTournament, updateTournament, deleteTournament,
-      deleteMatch, updateMatch, clearSpaceHistory, getOrCreateShareLink,
+      deleteMatch, updateMatch, clearSpaceHistory,
       firebaseConfigured: isFirebaseConfigured()
     }}>
       {children}

@@ -96,10 +96,3 @@ export interface PlayerStats {
   averagePointsPerMatch: number;
   gameStats: PlayerGameStats[];
 }
-
-export interface Share {
-  id: string; // The document ID is the shareId
-  ownerId: string;
-  spaceId: string | null;
-  createdAt: string; // ISO string
-}
