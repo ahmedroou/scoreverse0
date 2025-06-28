@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams } from 'next/navigation';
-import { Loader2, ShieldX, Trophy, Gamepad2, History, Users, BarChart3, Award, Medal } from 'lucide-react';
+import { Loader2, ShieldX, Trophy, Gamepad2, History, Users, BarChart3, Award, Medal, Calendar } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { useLanguage } from '@/hooks/use-language';
 import type { Player, Game, Match, Tournament, ScoreData } from '@/types';
@@ -328,6 +328,7 @@ function SharedPageContent() {
 
 
 export default function SharedPage() {
+    const { t } = useLanguage();
     return (
         <React.Suspense fallback={
             <div className="flex flex-col items-center justify-center min-h-screen text-center p-4">
@@ -339,4 +340,3 @@ export default function SharedPage() {
         </React.Suspense>
     )
 }
-
