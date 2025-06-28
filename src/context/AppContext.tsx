@@ -499,6 +499,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         const tournamentsSnapshot = await getDocs(tournamentsQuery);
         tournamentsSnapshot.forEach(doc => batch.delete(doc.ref));
 
+        const sharesQuery = query(collection(db, 'shares'), where("ownerId", "==", firebaseUser.uid), where("spaceId", "==", spaceIdToDelete));
+        const sharesSnapshot = await getDocs(sharesQuery);
+        sharesSnapshot.forEach(doc => batch.delete(doc.ref));
+
         await batch.commit();
 
         if (activeSpaceId === spaceIdToDelete) {
