@@ -15,7 +15,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import type { Space } from '@/types';
-import { Copy, Check, Share2, Loader2 } from 'lucide-react';
+import { Copy, Check, Share2 } from 'lucide-react';
 import { useLanguage } from '@/hooks/use-language';
 
 interface ShareSpaceDialogProps {
@@ -30,28 +30,21 @@ export function ShareSpaceDialog({ space, isOpen, onOpenChange, onShareSpace }: 
   const { t } = useLanguage();
   const [shareUrl, setShareUrl] = useState('');
   const [isCopied, setIsCopied] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     // Reset state when dialog opens or space changes
     setShareUrl('');
     setIsCopied(false);
-    setIsLoading(false);
   }, [isOpen, space]);
 
   const handleShare = () => {
-    setIsLoading(true);
-    // Use a timeout to allow the loading state to render before the potentially blocking share operation
-    setTimeout(() => {
-        const newShareUrl = onShareSpace(space.id);
-        if (newShareUrl) {
-            setShareUrl(newShareUrl);
-            toast({ title: t('spaces.shareDialog.toasts.linkReady'), description: t('spaces.shareDialog.toasts.linkReadyDesc') });
-        } else {
-            toast({ title: t('common.error'), description: t('spaces.shareDialog.toasts.error'), variant: "destructive" });
-        }
-        setIsLoading(false);
-    }, 50);
+    const newShareUrl = onShareSpace(space.id);
+    if (newShareUrl) {
+      setShareUrl(newShareUrl);
+      toast({ title: t('spaces.shareDialog.toasts.linkReady'), description: t('spaces.shareDialog.toasts.linkReadyDesc') });
+    } else {
+      toast({ title: t('common.error'), description: t('spaces.shareDialog.toasts.error'), variant: "destructive" });
+    }
   };
 
   const handleCopyToClipboard = () => {
@@ -91,9 +84,9 @@ export function ShareSpaceDialog({ space, isOpen, onOpenChange, onShareSpace }: 
               </div>
             </div>
           ) : (
-            <Button className="w-full" onClick={handleShare} disabled={isLoading}>
-              {isLoading ? <Loader2 className="h-4 w-4 me-2 animate-spin" /> : <Share2 className="h-4 w-4 me-2" />}
-              {isLoading ? t('spaces.shareDialog.generating') : t('spaces.shareDialog.generateButton')}
+            <Button className="w-full" onClick={handleShare}>
+              <Share2 className="h-4 w-4 me-2" />
+              {t('spaces.shareDialog.generateButton')}
             </Button>
           )}
         </div>

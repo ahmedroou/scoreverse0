@@ -3,7 +3,6 @@
 import type { ReactNode } from 'react';
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import pako from 'pako';
 import type { User as FirebaseUser } from 'firebase/auth';
 import { onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { 
@@ -691,27 +690,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const getActiveSpace = useCallback(() => activeSpaceId ? spaces.find(s => s.id === activeSpaceId) : undefined, [activeSpaceId, spaces]);
   
   const shareSpace = useCallback((spaceId: string): string | null => {
-    if (!isClient) return null;
+    if (!isClient || !currentUser) return null;
     const spaceToShare = spaces.find(s => s.id === spaceId);
     if (!spaceToShare) return null;
-    const spaceMatches = matches.filter(m => m.spaceId === spaceId);
-    const playerIdsInSpace = new Set<string>(spaceMatches.flatMap(m => m.playerIds));
-    const spacePlayers = players.filter(p => playerIdsInSpace.has(p.id));
-    const gameIdsInSpace = new Set(spaceMatches.map(m => m.gameId));
-    const spaceGames = games.filter(g => gameIdsInSpace.has(g.id));
-    const sharedData = { space: spaceToShare, players: spacePlayers, matches: spaceMatches, games: spaceGames };
+
     try {
-      const json = JSON.stringify(sharedData);
-      const compressed = pako.deflate(json); // Returns Uint8Array
-      const binaryString = Array.from(compressed, byte => String.fromCharCode(byte)).join('');
-      const encoded = btoa(binaryString);
-      return `${window.location.origin}/share/${spaceId}?data=${encodeURIComponent(encoded)}`;
+      const shareId = `${currentUser.id}--${spaceId}`;
+      return `${window.location.origin}/share/${shareId}`;
     } catch (e) {
       console.error("Failed to create share link:", e);
       toast({ title: t('spaces.shareDialog.toasts.error'), description: (e as Error).message, variant: "destructive"});
       return null;
     }
-  }, [isClient, spaces, matches, players, games, toast, t]);
+  }, [isClient, currentUser, spaces, toast, t]);
   
   const getUserById = useCallback((userId: string) => {
     return allUsers.find(u => u.id === userId);
