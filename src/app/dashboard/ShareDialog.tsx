@@ -24,7 +24,7 @@ interface ShareDialogProps {
 }
 
 export function ShareDialog({ isOpen, onOpenChange }: ShareDialogProps) {
-  const { getOrCreateShareLink } = useAppContext();
+  const { getOrCreateShareId } = useAppContext();
   const { toast } = useToast();
   const { t } = useLanguage();
   const [shareUrl, setShareUrl] = useState('');
@@ -37,7 +37,7 @@ export function ShareDialog({ isOpen, onOpenChange }: ShareDialogProps) {
       setShareUrl('');
       setIsCopied(false);
 
-      getOrCreateShareLink()
+      getOrCreateShareId()
         .then(shareId => {
           if (shareId) {
             const url = `${window.location.origin}/share/${shareId}`;
@@ -50,7 +50,7 @@ export function ShareDialog({ isOpen, onOpenChange }: ShareDialogProps) {
           setIsLoading(false);
         });
     }
-  }, [isOpen, getOrCreateShareLink, toast, t]);
+  }, [isOpen, getOrCreateShareId, toast, t]);
 
   const handleCopyToClipboard = () => {
     if (!shareUrl) return;

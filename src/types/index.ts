@@ -100,6 +100,7 @@ export interface PlayerStats {
 
 export interface PublicShareData {
     owner: {
+        id: string; // For security rule matching
         username: string;
     },
     players: Player[];
