@@ -62,7 +62,7 @@ export default function DashboardPage() {
                 </p>
             </div>
             <div className="flex flex-col sm:flex-row items-center gap-2">
-               <Button onClick={() => setIsShareDialogOpen(true)}>
+               <Button onClick={() => setIsShareDialogOpen(true)} className="bg-accent hover:bg-accent/90 text-accent-foreground">
                   <Share2 className="me-2 h-4 w-4" /> {t('dashboard.shareSpace')}
                 </Button>
                 {activeSpace ? (

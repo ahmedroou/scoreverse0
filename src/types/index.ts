@@ -102,6 +102,9 @@ export interface PublicShareData {
   owner: {
       username: string;
   };
+  ownerId: string;
+  type: 'live' | 'snapshot';
+  createdAt?: string;
   players: Player[];
   games: Game[];
   matches: Match[];

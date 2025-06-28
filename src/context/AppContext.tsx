@@ -70,7 +70,8 @@ interface AppContextType {
   updateMatch: (matchId: string, matchData: Partial<Pick<Match, 'winnerIds' | 'pointsAwarded'>>) => Promise<void>;
   clearSpaceHistory: (spaceId: string) => Promise<void>;
   firebaseConfigured: boolean;
-  getOrCreateShareId: () => Promise<string | null>;
+  getLiveShareUrl: () => Promise<string | null>;
+  createSnapshotUrl: () => Promise<string | null>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -112,11 +113,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setIsClient(true);
   }, []);
   
-  const updatePublicShareData = useCallback(async () => {
+  const updateLiveShareData = useCallback(async () => {
     if (!currentUser || !currentUser.shareId) return;
 
     const publicData: PublicShareData = {
       owner: { username: currentUser.username },
+      ownerId: currentUser.id,
+      type: 'live',
       players,
       games,
       matches,
@@ -126,21 +129,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     
     try {
       const shareDocRef = doc(db, 'public_shares', currentUser.shareId);
-      await setDoc(shareDocRef, {
-        ...publicData,
-        ownerId: currentUser.id // for security rules
-      });
+      await setDoc(shareDocRef, publicData);
     } catch (e) {
       console.error("Failed to update public share data:", e);
-      // Do not toast here as it could be too noisy.
     }
   }, [currentUser, players, games, matches, spaces, tournaments]);
 
   useEffect(() => {
     if (currentUser?.shareId) {
-      updatePublicShareData();
+      updateLiveShareData();
     }
-  }, [currentUser, players, games, matches, spaces, tournaments, updatePublicShareData]);
+  }, [currentUser, players, games, matches, spaces, tournaments, updateLiveShareData]);
 
 
   useEffect(() => {
@@ -807,14 +806,48 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   }, [firebaseUser, toast, t]);
   
-  const getOrCreateShareId = useCallback(async (): Promise<string | null> => {
+  const getLiveShareUrl = useCallback(async (): Promise<string | null> => {
     if (!currentUser?.shareId) {
       toast({ title: t('common.error'), description: "Share ID not found for user.", variant: "destructive" });
       return null;
     }
-    await updatePublicShareData(); 
-    return currentUser.shareId;
-  }, [currentUser, updatePublicShareData, toast, t]);
+    await updateLiveShareData(); // Make sure data is fresh before sharing
+    if (typeof window !== 'undefined') {
+      return `${window.location.origin}/share/${currentUser.shareId}`;
+    }
+    return null;
+  }, [currentUser, updateLiveShareData, toast, t]);
+  
+  const createSnapshotUrl = useCallback(async (): Promise<string | null> => {
+    if (!currentUser) return null;
+    try {
+        const snapshotCollectionRef = collection(db, 'public_shares');
+        const newDocRef = doc(snapshotCollectionRef); // Let Firestore generate the ID
+
+        const snapshotData: PublicShareData = {
+            owner: { username: currentUser.username },
+            ownerId: currentUser.id,
+            type: 'snapshot',
+            createdAt: new Date().toISOString(),
+            players,
+            games,
+            matches,
+            spaces,
+            tournaments,
+        };
+
+        await setDoc(newDocRef, snapshotData);
+
+        if (typeof window !== 'undefined') {
+            return `${window.location.origin}/share/${newDocRef.id}`;
+        }
+        return null;
+    } catch (e) {
+        console.error("Failed to create snapshot link:", e);
+        toast({ title: t('common.error'), description: 'Failed to create snapshot. Please try again.', variant: 'destructive' });
+        return null;
+    }
+  }, [currentUser, players, games, matches, spaces, tournaments, toast, t]);
 
 
   return (
@@ -824,7 +857,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       currentUser, login, signup, logout, isLoadingAuth, addSpace, updateSpace, deleteSpace, 
       setActiveSpaceId, getSpacesForCurrentUser, getActiveSpace, addGame, updateGame, deleteGame,
       getUserById, deleteUserAccount, addTournament, updateTournament, deleteTournament,
-      deleteMatch, updateMatch, clearSpaceHistory, getOrCreateShareId,
+      deleteMatch, updateMatch, clearSpaceHistory, getLiveShareUrl, createSnapshotUrl,
       firebaseConfigured: isFirebaseConfigured()
     }}>
       {children}

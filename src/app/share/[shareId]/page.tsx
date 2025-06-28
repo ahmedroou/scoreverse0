@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
@@ -7,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, ShieldX, Trophy, BarChart3, History, Users, Award, Medal, Gamepad2, Calendar, Layers } from 'lucide-react';
+import { Loader2, ShieldX, Trophy, BarChart3, History, Users, Award, Medal, Gamepad2, Calendar, Layers, Clock, Zap } from 'lucide-react';
 import { LeaderboardTable } from '@/components/LeaderboardTable';
 import { TournamentCard } from '@/app/tournaments/TournamentCard';
 import { MatchHistoryCard } from '@/components/MatchHistoryCard';
@@ -16,6 +15,7 @@ import type { PublicShareData, Player, Game, Match, Space, Tournament, ScoreData
 import { format, parseISO } from 'date-fns';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const stringToHslColor = (str: string, s: number, l: number): string => {
   if (!str) return `hsl(0, ${s}%, ${l}%)`;
@@ -194,6 +194,16 @@ export default function SharedPage() {
                 <div className="container mx-auto">
                     <h1 className="text-2xl font-bold text-primary truncate">{t('share.headerSpace', { spaceName: activeSpace?.name || 'Global', owner: data.owner.username })}</h1>
                     <p className="text-sm text-muted-foreground">{t('share.headerDescription')}</p>
+                     {data.type === 'snapshot' && data.createdAt && (
+                         <Alert variant="default" className="mt-2 text-xs p-2 border-blue-500/30 bg-blue-500/10 text-blue-800 dark:text-blue-300">
+                             <AlertTitle className="flex items-center gap-2 font-normal"><Clock className="h-4 w-4"/>This is a snapshot created on {format(parseISO(data.createdAt), "PPPp")}. It does not receive live updates.</AlertTitle>
+                         </Alert>
+                     )}
+                     {data.type === 'live' && (
+                          <Alert variant="default" className="mt-2 text-xs p-2 border-green-500/30 bg-green-500/10 text-green-800 dark:text-green-300">
+                             <AlertTitle className="flex items-center gap-2 font-normal"><Zap className="h-4 w-4"/>Showing live data which updates automatically.</AlertTitle>
+                         </Alert>
+                     )}
                 </div>
             </header>
             <main className="container mx-auto py-8">
@@ -236,14 +246,14 @@ export default function SharedPage() {
                         <h2 className="text-2xl font-bold mb-4">{t('tournaments.activeTab', { count: activeTournaments.length })}</h2>
                         {activeTournaments.length > 0 ? (
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                {activeTournaments.map(t => <TournamentCard key={t.id} tournament={t} game={getGameById(t.gameId)} leader={(gameLeaderboards[t.gameId] || [])[0]} />)}
+                                {activeTournaments.map(t => <TournamentCard key={t.id} tournament={t} game={getGameById(t.gameId)} leader={(gameLeaderboards[t.gameId] || [])[0]} isPublicView />)}
                             </div>
                         ) : <p className="text-center text-muted-foreground py-8">{t('tournaments.noActive')}</p>}
 
                         <h2 className="text-2xl font-bold mt-8 mb-4">{t('tournaments.completedTab', { count: completedTournaments.length })}</h2>
                          {completedTournaments.length > 0 ? (
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                {completedTournaments.map(t => <TournamentCard key={t.id} tournament={t} game={getGameById(t.gameId)} leader={(gameLeaderboards[t.gameId] || []).find(p => p.playerId === t.winnerPlayerId)} />)}
+                                {completedTournaments.map(t => <TournamentCard key={t.id} tournament={t} game={getGameById(t.gameId)} leader={(gameLeaderboards[t.gameId] || []).find(p => p.playerId === t.winnerPlayerId)} isPublicView />)}
                             </div>
                         ) : <p className="text-center text-muted-foreground py-8">{t('tournaments.noCompleted')}</p>}
                     </TabsContent>
