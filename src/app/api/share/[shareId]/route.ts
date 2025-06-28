@@ -23,6 +23,12 @@ export async function GET(request: NextRequest, { params }: { params: { shareId:
     const shareData = shareDocSnap.data() as Omit<Share, 'id'>;
     const { ownerId, spaceId } = shareData;
 
+    // Add a guard clause to ensure the share document is not malformed.
+    if (!ownerId) {
+      console.error(`Share document ${shareId} is corrupted and missing an ownerId.`);
+      return NextResponse.json({ error: 'The share link data is corrupted.' }, { status: 500 });
+    }
+
     // Fetch owner username
     const ownerDocRef = doc(db, 'users', ownerId);
     const ownerDocSnap = await getDoc(ownerDocRef);
@@ -49,8 +55,9 @@ export async function GET(request: NextRequest, { params }: { params: { shareId:
     const allTournaments: Tournament[] = tournamentsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Tournament));
 
     // Filter by spaceId. Handle null or undefined spaceId for global context.
-    const matches = allMatches.filter(m => (m.spaceId || null) === spaceId);
-    const tournaments = allTournaments.filter(t => (t.spaceId || null) === spaceId);
+    const currentSpaceId = spaceId || null;
+    const matches = allMatches.filter(m => (m.spaceId || null) === currentSpaceId);
+    const tournaments = allTournaments.filter(t => (t.spaceId || null) === currentSpaceId);
 
     // Get the name of the space, if it exists
     let spaceName = null;
@@ -58,7 +65,7 @@ export async function GET(request: NextRequest, { params }: { params: { shareId:
         const spaceDocRef = doc(db, `users/${ownerId}/spaces`, spaceId);
         const spaceDocSnap = await getDoc(spaceDocRef);
         if (spaceDocSnap.exists()) {
-            spaceName = spaceDocSnap.data().name;
+            spaceName = spaceDocSnap.data()?.name || null;
         }
     }
 
