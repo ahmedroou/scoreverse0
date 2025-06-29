@@ -1,4 +1,3 @@
-
 "use client";
 import type { ScoreData } from '@/types';
 import {
@@ -51,6 +50,12 @@ const PlayerContent = ({ score }: { score: ScoreData }) => (
       <span className="font-medium text-lg text-card-foreground group-hover:text-primary">{score.playerName}</span>
     </div>
   );
+
+interface LeaderboardTableProps {
+  scores: ScoreData[];
+  title?: string;
+  isPublicView?: boolean;
+}
 
 export function LeaderboardTable({ scores, title, isPublicView = false }: LeaderboardTableProps) {
   const { t } = useLanguage();
