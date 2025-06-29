@@ -324,19 +324,70 @@ export function AddResultForm() {
                         )}
                     >
                         <CalendarIcon className="me-2 h-4 w-4" />
-                        {customDate ? format(customDate, "PPP") : <span>{t('addResult.optional.pickDate')}</span>}
+                        {customDate ? format(customDate, "PPP p") : <span>{t('addResult.optional.pickDate')}</span>}
                     </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0">
                     <Calendar
                         mode="single"
                         selected={customDate}
-                        onSelect={setCustomDate}
+                        onSelect={(day) => {
+                            if (!day) {
+                                setCustomDate(undefined);
+                                return;
+                            }
+                            const newDate = customDate ? new Date(customDate) : new Date();
+                            newDate.setFullYear(day.getFullYear(), day.getMonth(), day.getDate());
+                            setCustomDate(newDate);
+                        }}
                         disabled={(date) =>
                         date > new Date() || date < new Date("2000-01-01")
                         }
                         initialFocus
                     />
+                    <div className="p-4 border-t border-border">
+                        <div className="flex items-center gap-2 justify-center">
+                            <div className="grid gap-1 text-center">
+                                <Label htmlFor="hours" className="text-xs">{t('addResult.optional.hour')}</Label>
+                                <Input
+                                id="hours"
+                                type="number"
+                                min="0"
+                                max="23"
+                                value={customDate ? customDate.getHours() : ''}
+                                onChange={(e) => {
+                                    const updatedDate = customDate ? new Date(customDate) : new Date();
+                                    const newHours = parseInt(e.target.value, 10);
+                                    if (!isNaN(newHours) && newHours >= 0 && newHours <= 23) {
+                                        updatedDate.setHours(newHours);
+                                        setCustomDate(updatedDate);
+                                    }
+                                }}
+                                className="w-16 h-8 text-center"
+                                />
+                            </div>
+                            <div className="pt-3 font-mono text-lg">:</div>
+                            <div className="grid gap-1 text-center">
+                                <Label htmlFor="minutes" className="text-xs">{t('addResult.optional.minute')}</Label>
+                                <Input
+                                id="minutes"
+                                type="number"
+                                min="0"
+                                max="59"
+                                value={customDate ? customDate.getMinutes() : ''}
+                                onChange={(e) => {
+                                    const updatedDate = customDate ? new Date(customDate) : new Date();
+                                    const newMinutes = parseInt(e.target.value, 10);
+                                    if (!isNaN(newMinutes) && newMinutes >= 0 && newMinutes <= 59) {
+                                        updatedDate.setMinutes(newMinutes);
+                                        setCustomDate(updatedDate);
+                                    }
+                                }}
+                                className="w-16 h-8 text-center"
+                                />
+                            </div>
+                        </div>
+                    </div>
                     </PopoverContent>
                 </Popover>
                 <p className="text-xs text-muted-foreground">

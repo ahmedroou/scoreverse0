@@ -133,8 +133,10 @@ export const translationsAr = {
     },
     optional: {
       title: 'إعدادات اختيارية',
-      pickDate: 'اختر تاريخًا',
+      pickDate: 'اختر تاريخًا ووقتًا',
       description: 'اتركه فارغًا لاستخدام التاريخ والوقت الحاليين.',
+      hour: 'الساعة',
+      minute: 'الدقيقة',
     },
   },
   draw: {

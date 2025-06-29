@@ -133,8 +133,10 @@ export const translationsEn = {
     },
     optional: {
       title: 'Optional Settings',
-      pickDate: 'Pick a date',
+      pickDate: 'Pick a date and time',
       description: 'Leave blank to use the current date and time.',
+      hour: 'Hour',
+      minute: 'Minute',
     },
   },
   draw: {
