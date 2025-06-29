@@ -154,7 +154,7 @@ function SharePageContent() {
         const fetchData = async () => {
             setIsLoading(true);
             try {
-                const response = await fetch(`/api/share/${shareId}`);
+                const response = await fetch(`/api/share/${shareId}`, { cache: 'no-store' });
                 if (!response.ok) {
                     const errorData = await response.json();
                     throw new Error(errorData.error || t('share.fetchError'));
