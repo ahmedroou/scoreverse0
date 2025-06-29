@@ -131,6 +131,11 @@ export const translationsEn = {
       matchRecorded: 'Match Recorded!',
       matchRecordedDesc: '{{gameName}} result has been saved.',
     },
+    optional: {
+      title: 'Optional Settings',
+      pickDate: 'Pick a date',
+      description: 'Leave blank to use the current date and time.',
+    },
   },
   draw: {
     pageTitle: 'Matchup Generator',

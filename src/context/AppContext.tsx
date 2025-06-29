@@ -39,7 +39,7 @@ interface AppContextType {
   addPlayer: (name: string, avatarFile?: File) => Promise<void>;
   deletePlayer: (playerId: string) => Promise<void>;
   deleteAllPlayers: () => Promise<void>;
-  addMatch: (matchData: Omit<Match, 'id' | 'date' | 'spaceId'>) => Promise<void>;
+  addMatch: (matchData: Omit<Match, 'id' | 'spaceId' | 'date'> & { date?: string }) => Promise<void>;
   updatePlayer: (playerId: string, playerData: { name: string; avatarFile?: File }) => Promise<void>;
   getGameById: (gameId: string) => Game | undefined;
   getPlayerById: (playerId: string) => Player | undefined;
@@ -618,12 +618,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       .sort((a, b) => b.totalPoints - a.totalPoints || b.wins - a.wins);
   }, [players]);
 
-  const addMatch = useCallback(async (matchData: Omit<Match, 'id' | 'date' | 'spaceId'>) => {
+  const addMatch = useCallback(async (matchData: Omit<Match, 'id' | 'spaceId' | 'date'> & { date?: string }) => {
     if (!firebaseUser) return;
     try {
       const newMatchForDb: { [key: string]: any } = { 
           ...matchData,
-          date: new Date().toISOString(),
+          date: matchData.date || new Date().toISOString(),
           spaceId: activeSpaceId, 
       };
       if (!newMatchForDb.handicapSuggestions) delete newMatchForDb.handicapSuggestions;

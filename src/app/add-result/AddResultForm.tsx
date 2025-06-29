@@ -18,13 +18,17 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Loader2, ThumbsUp, UserCheck, Users } from 'lucide-react';
+import { Loader2, ThumbsUp, UserCheck, Users, Calendar as CalendarIcon } from 'lucide-react';
 import type { Game, Player } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { PlayerTag } from '@/components/PlayerTag';
 import { useSearchParams } from 'next/navigation';
 import { playSound } from '@/lib/audio';
 import { useLanguage } from '@/hooks/use-language';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 const createFormSchema = (t: (key: string, replacements?: Record<string, string | number>) => string, gamesForValidation: Game[]) => z.object({
   gameId: z.string().min(1, t('addResult.validation.gameRequired')),
@@ -86,6 +90,7 @@ export function AddResultForm() {
 
   const [selectedGame, setSelectedGame] = useState<Game | null>(defaultGameId ? getGameById(defaultGameId) || null : null);
   const [potentialWinners, setPotentialWinners] = useState<Player[]>([]);
+  const [customDate, setCustomDate] = useState<Date>();
   
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -145,10 +150,12 @@ export function AddResultForm() {
       playerIds: values.selectedPlayerIds,
       winnerIds: values.winnerIds,
       pointsAwarded,
+      date: customDate?.toISOString(),
     });
 
     form.reset({ gameId: watchedGameId, selectedPlayerIds: [], winnerIds: [] }); 
     setPotentialWinners([]);
+    setCustomDate(undefined);
     toast({
       title: t('addResult.toasts.matchRecorded'),
       description: t('addResult.toasts.matchRecordedDesc', {gameName: game.name}),
@@ -305,6 +312,37 @@ export function AddResultForm() {
             </div>
           )}
 
+          <div className="space-y-2 pt-6 border-t border-border">
+                <Label className="text-lg font-semibold">{t('addResult.optional.title')}</Label>
+                 <Popover>
+                    <PopoverTrigger asChild>
+                    <Button
+                        variant={"outline"}
+                        className={cn(
+                        "w-full sm:w-[280px] justify-start text-left font-normal",
+                        !customDate && "text-muted-foreground"
+                        )}
+                    >
+                        <CalendarIcon className="me-2 h-4 w-4" />
+                        {customDate ? format(customDate, "PPP") : <span>{t('addResult.optional.pickDate')}</span>}
+                    </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                    <Calendar
+                        mode="single"
+                        selected={customDate}
+                        onSelect={setCustomDate}
+                        disabled={(date) =>
+                        date > new Date() || date < new Date("2000-01-01")
+                        }
+                        initialFocus
+                    />
+                    </PopoverContent>
+                </Popover>
+                <p className="text-xs text-muted-foreground">
+                    {t('addResult.optional.description')}
+                </p>
+            </div>
         </CardContent>
         <CardFooter>
           <Button 

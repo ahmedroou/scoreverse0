@@ -131,6 +131,11 @@ export const translationsAr = {
       matchRecorded: 'تم تسجيل المواجهة!',
       matchRecordedDesc: 'تم حفظ نتيجة {{gameName}}.',
     },
+    optional: {
+      title: 'إعدادات اختيارية',
+      pickDate: 'اختر تاريخًا',
+      description: 'اتركه فارغًا لاستخدام التاريخ والوقت الحاليين.',
+    },
   },
   draw: {
     pageTitle: 'مولد المواجهات',
