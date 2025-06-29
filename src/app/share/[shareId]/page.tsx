@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, ShieldX, Trophy, BarChart3, History, Users, Award, Medal, Gamepad2, Calendar, Layers, Zap, ArrowUp, ArrowDown, Repeat, Sigma, BarChartHorizontal, Star } from 'lucide-react';
+import { Loader2, ShieldX, Trophy, BarChart3, History, Users, Award, Medal, Gamepad2, Calendar, Layers, Zap, ArrowUp, ArrowDown, Repeat, Sigma, BarChartHorizontal, Star, RefreshCw } from 'lucide-react';
 import { LeaderboardTable } from '@/components/LeaderboardTable';
 import { TournamentCard } from '@/app/tournaments/TournamentCard';
 import { MatchHistoryCard } from '@/components/MatchHistoryCard';
@@ -139,39 +139,52 @@ function SharePageContent() {
 
     const [data, setData] = useState<PublicShareData | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [isRefreshing, setIsRefreshing] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [activeSpaceId, setActiveSpaceId] = useState<string | null>(null);
     
     const [statsDialogPlayer, setStatsDialogPlayer] = useState<Player | null>(null);
 
-    useEffect(() => {
+    const fetchData = useCallback(async (isInitialLoad = false) => {
         if (!shareId) {
             setError(t('share.noLink'));
-            setIsLoading(false);
+            if(isInitialLoad) setIsLoading(false);
             return;
         }
 
-        const fetchData = async () => {
+        if (isInitialLoad) {
             setIsLoading(true);
-            try {
-                const response = await fetch(`/api/share/${shareId}`, { cache: 'no-store' });
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.error || t('share.fetchError'));
-                }
-                const fetchedData: PublicShareData = await response.json();
-                setData(fetchedData);
-                // Set default active space from URL, or the first available space, or null (global)
-                setActiveSpaceId(defaultSpaceId || fetchedData.spaces?.[0]?.id || null);
-            } catch (err: any) {
-                setError(err.message);
-            } finally {
-                setIsLoading(false);
-            }
-        };
+        } else {
+            setIsRefreshing(true);
+        }
 
-        fetchData();
+        try {
+            const response = await fetch(`/api/share/${shareId}?cb=${new Date().getTime()}`, { cache: 'no-store' });
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || t('share.fetchError'));
+            }
+            const fetchedData: PublicShareData = await response.json();
+            setData(fetchedData);
+
+            if (isInitialLoad) {
+                setActiveSpaceId(defaultSpaceId || fetchedData.spaces?.[0]?.id || null);
+            }
+        } catch (err: any) {
+            setError(err.message);
+        } finally {
+            if (isInitialLoad) {
+                setIsLoading(false);
+            } else {
+                setIsRefreshing(false);
+            }
+        }
     }, [shareId, t, defaultSpaceId]);
+
+
+    useEffect(() => {
+        fetchData(true);
+    }, [fetchData]);
 
     const getPlayerById = useCallback((id: string) => data?.players.find(p => p.id === id), [data]);
     const getGameById = useCallback((id: string) => data?.games.find(g => g.id === id), [data]);
@@ -362,8 +375,18 @@ function SharePageContent() {
             <div className="bg-background min-h-screen bg-gradient-to-b from-card/20 to-background">
                 <header className="bg-card border-b border-border p-4 sticky top-0 z-10">
                     <div className="container mx-auto">
-                        <h1 className="text-2xl font-bold text-primary truncate">{t('share.headerSpace', { spaceName: activeSpace?.name || 'Global', owner: data.owner.username })}</h1>
-                        <Alert variant="default" className="mt-2 text-xs p-2 border-green-500/30 bg-green-500/10 text-green-800 dark:text-green-300">
+                        <div className="flex justify-between items-center gap-4 mb-2">
+                             <h1 className="text-2xl font-bold text-primary truncate">{t('share.headerSpace', { spaceName: activeSpace?.name || 'Global', owner: data.owner.username })}</h1>
+                             <Button variant="outline" size="sm" onClick={() => fetchData(false)} disabled={isRefreshing}>
+                                {isRefreshing ? (
+                                    <Loader2 className="me-2 h-4 w-4 animate-spin" />
+                                ) : (
+                                    <RefreshCw className="me-2 h-4 w-4" />
+                                )}
+                                {t('share.refreshButton')}
+                            </Button>
+                        </div>
+                        <Alert variant="default" className="text-xs p-2 border-green-500/30 bg-green-500/10 text-green-800 dark:text-green-300">
                             <AlertTitle className="flex items-center gap-2 font-normal"><Zap className="h-4 w-4"/>{t('share.headerDescription')}</AlertTitle>
                         </Alert>
                     </div>
@@ -507,4 +530,3 @@ export default function SharedPage() {
         </Suspense>
     );
 }
-

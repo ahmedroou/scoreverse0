@@ -350,6 +350,7 @@ export const translationsEn = {
     liveLinkDescription: 'A permanent link that always shows your latest data. Updates automatically.',
     yourLiveLink: 'Your Live Link',
     getLiveLink: 'Get Live Link',
+    refreshButton: 'Refresh Data',
   },
   spaces: {
     pageTitle: 'Manage Your Spaces',

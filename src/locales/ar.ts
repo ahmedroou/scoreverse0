@@ -350,6 +350,7 @@ export const translationsAr = {
     liveLinkDescription: 'رابط دائم يعرض دائمًا أحدث بياناتك. يتم تحديثه تلقائيًا.',
     yourLiveLink: 'رابطك المباشر',
     getLiveLink: 'الحصول على الرابط المباشر',
+    refreshButton: 'تحديث البيانات',
   },
   spaces: {
     pageTitle: 'إدارة مساحاتك',
