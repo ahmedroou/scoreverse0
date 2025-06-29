@@ -811,10 +811,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
     await updateLiveShareData(); // Make sure data is fresh before sharing
     if (typeof window !== 'undefined') {
-      return `${window.location.origin}/share/${currentUser.shareId}`;
+      const baseUrl = `${window.location.origin}/share/${currentUser.shareId}`;
+      // If there's an active space, append it as a query parameter
+      if (activeSpaceId) {
+        return `${baseUrl}?space=${activeSpaceId}`;
+      }
+      return baseUrl;
     }
     return null;
-  }, [currentUser, updateLiveShareData, toast]);
+  }, [currentUser, updateLiveShareData, toast, activeSpaceId]);
 
   return (
     <AppContext.Provider value={{ 
