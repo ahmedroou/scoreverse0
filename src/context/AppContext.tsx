@@ -1,7 +1,7 @@
 
 "use client";
 import type { ReactNode } from 'react';
-import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import type { User as FirebaseUser } from 'firebase/auth';
 import { onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from 'firebase/auth';
@@ -29,6 +29,7 @@ import type { Game, Player, Match, ScoreData, Space, UserAccount, PlayerStats, T
 import { useToast } from '@/hooks/use-toast';
 import { playSound } from '@/lib/audio';
 import { useLanguage } from '@/hooks/use-language';
+import { useMemo } from 'react';
 
 interface AppContextType {
   games: Game[];
@@ -222,16 +223,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   // Listener for joined spaces data
   useEffect(() => {
-      if (!currentUser?.sharedSpaces) {
+      if (!currentUser?.joinedSpaces) {
         setJoinedData({});
         return;
       }
-
-      const activeSharedSpaces = Object.fromEntries(
-        Object.entries(currentUser.sharedSpaces).filter(([spaceId, ownerId]) => ownerId)
-      );
       
-      const ownerIdSet = new Set(Object.values(activeSharedSpaces));
+      const ownerIdSet = new Set(Object.keys(currentUser.joinedSpaces));
       const unsubscribers: Unsubscribe[] = [];
 
       ownerIdSet.forEach(ownerId => {
@@ -265,7 +262,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
       return () => unsubscribers.forEach(unsub => unsub());
 
-  }, [currentUser?.sharedSpaces]);
+  }, [currentUser?.joinedSpaces]);
 
 
   const login = async (email: string, password?: string): Promise<{ success: boolean; error?: string }> => {
@@ -294,7 +291,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const newUser = userCredential.user;
       const username = email.split('@')[0];
-      const userDocData: UserAccount = { id: newUser.uid, username, email: newUser.email!, isAdmin: false, shareId: newUser.uid, sharedSpaces: {} };
+      const userDocData: UserAccount = { id: newUser.uid, username, email: newUser.email!, isAdmin: false, shareId: newUser.uid, joinedSpaces: {} };
       await setDoc(doc(db, "users", newUser.uid), userDocData);
 
       const spaceRef = doc(collection(db, 'users', newUser.uid, 'spaces'));
@@ -708,7 +705,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         batch.update(spaceRef, { [`members.${currentUser.id}`]: 'viewer' });
         
         const userRef = doc(db, 'users', currentUser.id);
-        batch.update(userRef, { [`sharedSpaces.${spaceId}`]: ownerId });
+        batch.update(userRef, { [`joinedSpaces.${ownerId}.${spaceId}`]: true });
         
         await batch.commit();
         toast({ title: t('common.success'), description: t('spaces.joinDialog.joinSuccess') });
@@ -742,7 +739,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         batch.update(spaceRef, { [`members.${memberId}`]: deleteField() });
         
         const memberUserRef = doc(db, 'users', memberId);
-        batch.update(memberUserRef, { [`sharedSpaces.${spaceId}`]: deleteField() });
+        batch.update(memberUserRef, { [`joinedSpaces.${space.ownerId}.${spaceId}`]: deleteField() });
         
         await batch.commit();
         toast({ title: t('spaces.toasts.memberRemoved') });
@@ -761,7 +758,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
 
         const userRef = doc(db, 'users', currentUser.id);
-        batch.update(userRef, { [`sharedSpaces.${spaceId}`]: deleteField() });
+        batch.update(userRef, { [`joinedSpaces.${ownerId}.${spaceId}`]: deleteField() });
 
         await batch.commit();
         if (activeSpaceId === spaceId) setActiveSpaceIdState(null);
