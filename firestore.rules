@@ -1,62 +1,61 @@
-
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // --- HELPER FUNCTIONS ---
-    function isOwner(userId) {
-      return request.auth != null && request.auth.uid == userId;
-    }
-
+    // Helper function to check if the requester is an admin
     function isAdmin() {
+      // Ensure the user is authenticated and then check the isAdmin flag on their own user document.
       return request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
     }
 
-    function isSpaceMember(ownerId, spaceId, requiredRole) {
-      if (spaceId == null) { return false; }
-      let spaceData = get(/databases/$(database)/documents/users/$(ownerId)/spaces/$(spaceId)).data;
-      if (!('members' in spaceData)) { return false; }
-      let userRole = spaceData.members[request.auth.uid];
-      if (requiredRole == 'viewer') { return userRole in ['viewer', 'editor', 'owner']; }
-      if (requiredRole == 'editor') { return userRole in ['editor', 'owner']; }
-      if (requiredRole == 'owner') { return userRole == 'owner'; }
-      return false;
-    }
-
-    // --- USER PROFILE RULES ---
+    // Rules for the main 'users' collection
     match /users/{userId} {
-      allow list: if isAdmin();
-      allow get: if isAdmin() || isOwner(userId);
-      allow create, update: if isOwner(userId);
-      allow delete: if isAdmin() && !isOwner(userId);
-    }
+      // READ access:
+      // 1. An admin can read any user's document (`get`).
+      // 2. An admin can read the list of all users (`list`).
+      // 3. A user can read their own document (`get`). This is also required for the isAdmin() function to work.
+      allow get, list: if isAdmin();
+      allow get: if request.auth.uid == userId;
 
-    // --- SPACE & DATA SUBCOLLECTION RULES ---
-    // This combined rule handles spaces, players, games, matches, tournaments
-    match /users/{ownerId}/{subcollection}/{docId} {
-      // 1. Allow owners to do anything with their data
-      // 2. Allow admins to read anything
-      // 3. Allow space members to read data from a space they belong to
-      allow read: if isOwner(ownerId) || isAdmin() || (resource.data.spaceId != null && isSpaceMember(ownerId, resource.data.spaceId, 'viewer'));
+      // WRITE access:
+      // 1. A user can create their own document (e.g., on signup).
+      // 2. A user can update their own document.
+      allow create, update: if request.auth.uid == userId;
+
+      // DELETE access:
+      // Only an admin can delete another user's account.
+      allow delete: if isAdmin() && request.auth.uid != userId;
+    }
+    
+    // Rules for all user subcollections (players, games, matches, tournaments, spaces)
+    match /users/{ownerId}/{collection}/{docId} {
+      // The owner can do anything with their own data.
+      allow read, write, delete: if request.auth.uid == ownerId;
+
+      // --- Rules for Shared Space Members ---
       
-      // 1. Allow owners to write to their data
-      // 2. Allow space editors to write to data in a space they belong to
-      allow write: if isOwner(ownerId) || (resource.data.spaceId != null && isSpaceMember(ownerId, resource.data.spaceId, 'editor'));
+      // Allow a member to READ a document (like a match or tournament) if it belongs to a space they are a part of.
+      // This requires the document to have a `spaceId`. This does not cover players/games.
+      allow read: if request.auth != null && resource.data.spaceId != null &&
+                   get(/databases/$(database)/documents/users/$(ownerId)/spaces/$(resource.data.spaceId)).data.members[request.auth.uid] != null;
+                   
+      // Allow a member with the 'editor' role to WRITE a document to a space they are a part of.
+      allow write: if request.auth != null && request.resource.data.spaceId != null &&
+                    get(/databases/$(database)/documents/users/$(ownerId)/spaces/$(request.resource.data.spaceId)).data.members[request.auth.uid] == 'editor';
     }
 
-    // --- SPACE LINK RULES ---
-    // This handles the link document in an invitee's account
-    match /users/{inviteeId}/spaces/{spaceId} {
-      allow get: if isOwner(inviteeId);
-      allow delete: if isOwner(inviteeId);
-      // Let the original space owner create/update the link doc
-      allow write: if request.auth != null && get(/databases/$(database)/documents/users/$(inviteeId)/spaces/$(spaceId)).data.ownerId == request.auth.uid;
+    // Rules for inviting/removing members from a space (manipulating the link docs)
+    match /users/{targetUserId}/spaces/{spaceId} {
+      // Allow the owner of the original space to create/update the link document in the target user's account.
+      allow write: if request.auth != null && request.resource.data.ownerId == request.auth.uid;
+      // Allow a user to delete their own link document (i.e., to leave a space).
+      allow delete: if request.auth.uid == targetUserId;
     }
 
-    // --- PUBLIC SHARE RULES ---
+    // Public share data is read-only for everyone
     match /public_shares/{shareId} {
-      allow get: if true;
-      allow write: if false;
+      allow read: if true;
+      allow write: if false; // Can only be written from a trusted server/backend environment
     }
   }
 }
