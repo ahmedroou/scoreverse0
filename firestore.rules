@@ -1,82 +1,80 @@
-
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // HELPER FUNCTIONS
+    // --- Helper Functions ---
     function isAuth() {
       return request.auth != null;
     }
 
     function isOwner(userId) {
-      return request.auth.uid == userId;
+      return isAuth() && request.auth.uid == userId;
     }
 
     function isAdmin() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+      // Check if the user making the request has the isAdmin flag in their own user document.
+      return isAuth() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    }
+    
+    // Checks if the requesting user has joined ANY space from the target owner (userId).
+    // This is used to grant read access to a space owner's data collections.
+    function isJoinedToOwnerData(ownerId) {
+      let userDoc = get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+      // The sharedSpaces map is { spaceId1: ownerId1, spaceId2: ownerId2, ... }
+      // We check if the ownerId we want to read from is present in the values of our own sharedSpaces map.
+      return isAuth() &&
+             'sharedSpaces' in userDoc &&
+             userDoc.sharedSpaces.values().hasAny([ownerId]);
     }
 
-    function isMember(ownerId, spaceId) {
-      let spaceData = get(/databases/$(database)/documents/users/$(ownerId)/spaces/$(spaceId)).data;
-      return request.auth.uid in spaceData.members && spaceData.members[request.auth.uid] != 'deleted';
-    }
-
-    // USER PROFILE RULES
+    // --- Main Rules ---
     match /users/{userId} {
-      // Admins can read anyone's profile.
-      // Users can read and write their own profile.
-      allow read, write: if isOwner(userId) || isAdmin();
-      allow list: if isAdmin();
+      // User document access:
+      // - You can read/update your own document.
+      // - Admins can read any user document.
+      // - A user can read an owner's document if they have joined one of their spaces.
+      allow get: if isOwner(userId) || isAdmin() || isJoinedToOwnerData(userId);
+      allow update: if isOwner(userId) || isAdmin();
+      allow list: if isAdmin(); // Only admins can list all users.
+
+      // Default write for all subcollections: only the owner or an admin.
+      match /{subcollection}/{docId} {
+        allow write: if isOwner(userId) || isAdmin();
+      }
+      
+      // Read rules for all data subcollections:
+      // A user can read data from an owner if they have joined one of their spaces.
+      match /{subcollection=**} {
+         allow read: if isOwner(userId) || isAdmin() || isJoinedToOwnerData(userId);
+      }
+
+      // Special 'update' permission override for joining a space.
+      match /spaces/{spaceId} {
+        allow update: if isAuth() &&
+                       // The user must be adding themselves (they aren't a member yet).
+                       !(request.auth.uid in resource.data.members) &&
+                       // The incoming data must contain the new member.
+                       request.auth.uid in request.resource.data.members &&
+                       // They must only be adding themselves as a 'viewer'.
+                       request.resource.data.members[request.auth.uid] == 'viewer' &&
+                       // The number of members must only increase by exactly one.
+                       request.resource.data.members.size() == resource.data.members.size() + 1 &&
+                       // No other fields in the document can be changed.
+                       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['members']);
+      }
     }
     
-    // SPACE INVITE RULES
     match /spaceInvites/{inviteCode} {
-        // Any authenticated user can read an invite code to verify it.
-        allow read: if isAuth();
-        // Only the owner of the space can create/update the invite code.
-        allow write: if isOwner(request.resource.data.ownerId);
+        // Any authenticated user can read an invite code to join it.
+        allow get: if isAuth();
+        // Only the owner of the space can create or delete the invite code.
+        allow write, delete: if isAuth() && request.resource.data.ownerId == request.auth.uid;
     }
-    
-    // PUBLIC SHARE RULES
+
     match /public_shares/{shareId} {
-        allow read: if true;
-        allow write: if false; // Nobody can write directly
-    }
-
-    // USER SUBCOLLECTION RULES
-    match /users/{ownerId}/{collection}/{docId} {
-      // The owner has full access.
-      allow read, write: if isOwner(ownerId);
-      
-      // Admins have read access.
-      allow get, list: if isAdmin();
-    }
-
-    // PERMISSIONS FOR JOINED/SHARED SPACES
-    match /users/{ownerId}/spaces/{spaceId} {
-      // Allow members to read the space document itself.
-      allow get: if isOwner(ownerId) || isMember(ownerId, spaceId);
-      
-      // Allow a user to add/remove themselves from the members map for joining/leaving.
-      allow update: if request.auth.uid != ownerId &&
-                      // The change must only affect the 'members' field.
-                      request.resource.data.diff(resource.data).affectedKeys().hasOnly(['members']) &&
-                      // The user must either be adding themselves as 'viewer' or removing themselves entirely.
-                      (
-                        (request.resource.data.members[request.auth.uid] == 'viewer' && !(request.auth.uid in resource.data.members)) ||
-                        (!(request.auth.uid in request.resource.data.members) && resource.data.members[request.auth.uid] != null)
-                      );
-    }
-
-    match /users/{ownerId}/{collection=players|games|matches|tournaments}/{docId} {
-        // Allow read access if the user is a member of ANY space owned by the ownerId.
-        // This is a broader rule for simplicity. It checks if the requesting user's `sharedSpaces` map
-        // contains any entry where the value (ownerId) matches the ownerId from the path.
-        allow get, list: if isOwner(ownerId) || (
-            request.auth.uid in getAfter(/databases/$(database)/documents/users/$(ownerId)/spaces/
-              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.sharedSpaces.keys()[0] // This logic is too complex for rules
-            ).data.members
-        ) || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.sharedSpaces.values().hasAny([ownerId]);
+      allow read: if true;
+      allow write: if false; 
     }
   }
 }
