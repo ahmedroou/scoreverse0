@@ -1,41 +1,101 @@
 
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // Rules for the 'users' collection itself
-    match /users/{userId} {
-      // A user can get their own user document.
-      allow get: if request.auth != null && request.auth.uid == userId;
-      
-      // An admin can get any user's document.
-      allow get: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
-
-      // An admin can list all user documents.
-      allow list: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
-      
-      // A user can update their own document.
-      allow update: if request.auth != null && request.auth.uid == userId;
-      
-      // An admin can delete any user document.
-      allow delete: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
-      
-      // A user can create their own document upon signup.
-      allow create: if request.auth != null && request.auth.uid == userId;
+  
+    // Helper function to check if the requester is the owner of the document path.
+    function isOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
     }
 
-    // Rules for all subcollections within a user's document (players, games, etc.)
-    match /users/{userId}/{document=**} {
-      // A user can read and write to their own subcollections.
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+    // Helper function to check if a user is a member of a specific space with a minimum role.
+    function isMember(ownerId, spaceId, requiredRole) {
+      // Roles with corresponding access levels.
+      let roles = { 'viewer': 1, 'editor': 2, 'owner': 3 };
+      // Get the space document from the owner's subcollection.
+      let space = get(/databases/$(database)/documents/users/$(ownerId)/spaces/$(spaceId)).data;
+      // Get the role of the requesting user from the space's members map.
+      let userRole = space.members[request.auth.uid];
+      
+      // Check if the user is in the members map and if their role level is sufficient.
+      return request.auth.uid in space.members && roles[userRole] >= roles[requiredRole];
+    }
+
+    // --- Top-Level Collection Rules ---
+
+    // USERS collection: Stores public user profiles.
+    match /users/{userId} {
+      // Any authenticated user can read any user's profile (for inviting by email).
+      allow read: if request.auth != null;
+      // A user can only write to their own user document.
+      allow write: if isOwner(userId);
     }
     
-    // Rules for public share data
+    // PUBLIC_SHARES collection: For anonymous, read-only public share links.
     match /public_shares/{shareId} {
-      // Anyone can read shared data.
       allow read: if true;
-      // Nobody can write directly to public shares.
-      allow write: if false;
+      allow write: if false; // Nobody can write directly to public shares.
+    }
+
+    // --- User Sub-Collection Rules ---
+    
+    // SPACES sub-collection: Contains space definitions for each user.
+    match /users/{userId}/spaces/{spaceId} {
+      // Allow read if the user is the owner OR a member of that space.
+      allow read: if isOwner(userId) || isMember(userId, spaceId, 'viewer');
+      
+      // Allow create only by the owner of the user document.
+      allow create: if isOwner(userId);
+      
+      // Allow owner to update anything.
+      allow update: if isOwner(userId);
+      
+      // Allow delete only by the owner.
+      allow delete: if isOwner(userId);
+    }
+    
+    // MATCHES and TOURNAMENTS sub-collections: Tied to a specific space.
+    match /users/{userId}/{collection=**}/matches/{matchId} {
+      // Get the spaceId from the match document being accessed.
+      let spaceId = resource.data.spaceId;
+      // If a match is global (no spaceId), only the owner can access it.
+      let isGlobal = spaceId == null;
+      
+      allow read: if isOwner(userId) || (!isGlobal && isMember(userId, spaceId, 'viewer'));
+      allow create, update, delete: if isOwner(userId) || (!isGlobal && isMember(userId, spaceId, 'editor'));
+    }
+    
+    match /users/{userId}/{collection=**}/tournaments/{tournamentId} {
+      // Get the spaceId from the tournament document being accessed.
+      let spaceId = resource.data.spaceId;
+      let isGlobal = spaceId == null;
+
+      allow read: if isOwner(userId) || (!isGlobal && isMember(userId, spaceId, 'viewer'));
+      allow create, update, delete: if isOwner(userId) || (!isGlobal && isMember(userId, spaceId, 'editor'));
+    }
+
+    // PLAYERS and GAMES sub-collections: Not tied to a space, but to a user.
+    // Access is granted if the requester is a member of ANY of the owner's spaces.
+    // This is managed by checking for a relationship document in the `shared_access` collection.
+    match /users/{userId}/{collection=**}/players/{playerId} {
+       allow read: if isOwner(userId) || exists(/databases/$(database)/documents/shared_access/$(request.auth.uid)_$(userId));
+       allow write: if isOwner(userId); // Only the owner can manage their own list of players.
+    }
+    
+    match /users/{userId}/{collection=**}/games/{gameId} {
+       allow read: if isOwner(userId) || exists(/databases/$(database)/documents/shared_access/$(request.auth.uid)_$(userId));
+       allow write: if isOwner(userId); // Only the owner can manage their own list of games.
+    }
+    
+    // SHARED_ACCESS collection: Manages cross-user read permissions for players/games.
+    // A document here proves that viewer has been invited to at least one of owner's spaces.
+    match /shared_access/{docId} {
+      // The document ID is formatted as `viewerId_ownerId`.
+      // The Owner is the only one who can create or delete this access record.
+      allow write: if request.auth.uid == docId.split('_')[1];
+      // Reading is not necessary as we only check for its existence.
+      allow read: if false;
     }
   }
 }

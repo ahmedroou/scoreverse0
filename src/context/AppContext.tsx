@@ -18,12 +18,14 @@ import {
   query,
   where,
   getDocs,
+  or,
+  Unsubscribe,
 } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 
 
 import { auth, db, storage, isFirebaseConfigured, firebaseConfig } from '@/lib/firebase';
-import type { Game, Player, Match, ScoreData, Space, UserAccount, PlayerStats, Tournament, PublicShareData } from '@/types';
+import type { Game, Player, Match, ScoreData, Space, UserAccount, PlayerStats, Tournament, PublicShareData, SpaceRole } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { playSound } from '@/lib/audio';
 import { useLanguage } from '@/hooks/use-language';
@@ -56,7 +58,6 @@ interface AppContextType {
   updateSpace: (spaceId: string, newName: string) => Promise<void>;
   deleteSpace: (spaceId: string) => Promise<void>;
   setActiveSpaceId: (spaceId: string | null) => void;
-  getSpacesForCurrentUser: () => Space[];
   getActiveSpace: () => Space | undefined;
   addGame: (gameData: Omit<Game, 'id' | 'icon' | 'ownerId'>) => Promise<void>;
   updateGame: (gameId: string, gameData: Partial<Omit<Game, 'id' | 'icon' | 'ownerId'>>) => Promise<void>;
@@ -71,6 +72,9 @@ interface AppContextType {
   clearSpaceHistory: (spaceId: string) => Promise<void>;
   firebaseConfigured: boolean;
   getLiveShareUrl: () => Promise<string | null>;
+  inviteUserToSpace: (spaceId: string, email: string, role: SpaceRole) => Promise<void>;
+  removeUserFromSpace: (spaceId: string, memberId: string) => Promise<void>;
+  updateUserRoleInSpace: (spaceId: string, memberId: string, role: SpaceRole) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -96,6 +100,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const { toast } = useToast();
   const { t } = useLanguage();
   const router = useRouter();
+  
+  const [dataOwnerId, setDataOwnerId] = useState<string | null>(null);
+
 
   const handleFirestoreError = (error: Error, dataType: string) => {
     console.error(`Firestore Error (${dataType}):`, error);
@@ -116,7 +123,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (!currentUser || !currentUser.shareId) return;
 
     const publicData: PublicShareData = {
-      owner: { username: currentUser.username },
+      owner: { username: currentUser.username, email: currentUser.email },
       ownerId: currentUser.id,
       type: 'live',
       players,
@@ -140,101 +147,117 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   }, [currentUser, players, games, matches, spaces, tournaments, updateLiveShareData]);
 
-
+  // Effect to set up user-level listeners (auth, user doc, all users for admin)
   useEffect(() => {
     if (!isFirebaseConfigured()) {
-      setIsLoadingAuth(false);
-      return;
+        setIsLoadingAuth(false);
+        return;
     }
 
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setIsLoadingAuth(true);
-      if (user) {
-        setFirebaseUser(user);
-        const userDocRef = doc(db, 'users', user.uid);
-        
-        const unsubUserDoc = onSnapshot(userDocRef, (docSnap) => {
-          if (docSnap.exists()) {
-            const userData = docSnap.data() as UserAccount;
-            setCurrentUser(userData);
-            const savedActiveSpaceId = localStorage.getItem(`${ACTIVE_SPACE_LS_KEY_PREFIX}${user.uid}`);
-            setActiveSpaceIdState(savedActiveSpaceId ? JSON.parse(savedActiveSpaceId) : null);
-          } else {
-            console.error("User document not found in Firestore. Logging out.");
-            signOut(auth);
-          }
-        }, (error) => handleFirestoreError(error, "user profile"));
+    const authUnsubscribe = onAuthStateChanged(auth, async (user) => {
+        setIsLoadingAuth(true);
+        if (user) {
+            setFirebaseUser(user);
+            const userDocRef = doc(db, 'users', user.uid);
+            return onSnapshot(userDocRef, (docSnap) => {
+                if (docSnap.exists()) {
+                    const userData = docSnap.data() as UserAccount;
+                    setCurrentUser(userData);
+                    const savedActiveSpaceId = localStorage.getItem(`${ACTIVE_SPACE_LS_KEY_PREFIX}${user.uid}`);
+                    setActiveSpaceIdState(savedActiveSpaceId ? JSON.parse(savedActiveSpaceId) : null);
+                } else {
+                    console.error("User document not found. Logging out.");
+                    signOut(auth);
+                }
+                setIsLoadingAuth(false);
+            }, (error) => {
+                handleFirestoreError(error, "user profile");
+                setIsLoadingAuth(false);
+            });
+        } else {
+            setCurrentUser(null);
+            setFirebaseUser(null);
+            setIsLoadingAuth(false);
+        }
+    });
 
-        const unsubPlayers = onSnapshot(collection(db, 'users', user.uid, 'players'), (snapshot) => {
-          setPlayers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Player)));
-        }, (error) => handleFirestoreError(error, "players"));
+    const allUsersUnsubscribe = currentUser?.isAdmin ? onSnapshot(collection(db, 'users'), (snapshot) => {
+        setAllUsers(snapshot.docs.map(doc => doc.data() as UserAccount));
+    }, (error) => handleFirestoreError(error, "all user list (admin)")) : () => {};
 
-        const unsubGames = onSnapshot(collection(db, 'users', user.uid, 'games'), (snapshot) => {
-          setGames(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Game)));
-        }, (error) => handleFirestoreError(error, "games"));
+    return () => {
+        authUnsubscribe();
+        allUsersUnsubscribe();
+    };
+}, [currentUser?.isAdmin]);
 
-        const unsubMatches = onSnapshot(collection(db, 'users', user.uid, 'matches'), (snapshot) => {
-          setMatches(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Match)));
-        }, (error) => handleFirestoreError(error, "matches"));
 
-        const unsubSpaces = onSnapshot(collection(db, 'users', user.uid, 'spaces'), (snapshot) => {
-          const spacesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Space));
-          setSpaces(spacesData);
-           if (spacesData.length > 0) {
-              const currentActiveSpace = localStorage.getItem(`${ACTIVE_SPACE_LS_KEY_PREFIX}${user.uid}`);
-              const activeId = currentActiveSpace ? JSON.parse(currentActiveSpace) : null;
-              if (!spacesData.some(s => s.id === activeId)) {
-                setActiveSpaceIdState(spacesData[0].id);
-              }
-           } else {
-              setActiveSpaceIdState(null);
-           }
-        }, (error) => handleFirestoreError(error, "spaces"));
+  // Effect to set up listeners for spaces (owned and shared)
+  useEffect(() => {
+    if (!currentUser) {
+        setSpaces([]);
+        return;
+    }
+    const q = query(
+        collection(db, 'users', currentUser.id, 'spaces')
+    );
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+        const userSpaces = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Space));
+        setSpaces(userSpaces);
+    }, (error) => handleFirestoreError(error, "spaces"));
 
-        const unsubTournaments = onSnapshot(collection(db, 'users', user.uid, 'tournaments'), (snapshot) => {
-          setTournaments(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Tournament)));
-        }, (error) => handleFirestoreError(error, "tournaments"));
+    return () => unsubscribe();
+}, [currentUser]);
 
-        setIsLoadingAuth(false);
 
-        return () => {
-          unsubUserDoc();
-          unsubPlayers();
-          unsubGames();
-          unsubMatches();
-          unsubSpaces();
-          unsubTournaments();
-        };
+  // Effect to determine the owner of the data based on the active space
+  useEffect(() => {
+    if (!currentUser) {
+        setDataOwnerId(null);
+        return;
+    }
+    if (!activeSpaceId) {
+        setDataOwnerId(currentUser.id); // Global context
+        return;
+    }
+    const space = spaces.find(s => s.id === activeSpaceId);
+    if (space) {
+        setDataOwnerId(space.ownerId);
+    } else {
+        // Space might not be loaded yet, default to current user
+        setDataOwnerId(currentUser.id);
+    }
+  }, [activeSpaceId, spaces, currentUser]);
 
-      } else {
-        setCurrentUser(null);
-        setFirebaseUser(null);
+
+  // Effect to subscribe to data collections (players, games, etc.) based on the dataOwnerId
+  useEffect(() => {
+    if (!dataOwnerId) {
         setPlayers([]);
         setGames([]);
         setMatches([]);
-        setSpaces([]);
         setTournaments([]);
-        setAllUsers([]);
-        setActiveSpaceIdState(null);
-        setIsLoadingAuth(false);
-      }
+        return;
+    }
+
+    const collectionsToWatch = ['players', 'games', 'matches', 'tournaments'];
+    const setters: Record<string, Function> = {
+        players: setPlayers,
+        games: setGames,
+        matches: setMatches,
+        tournaments: setTournaments
+    };
+
+    const unsubscribers = collectionsToWatch.map(coll => {
+        const q = query(collection(db, 'users', dataOwnerId, coll));
+        return onSnapshot(q, (snapshot) => {
+            const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            setters[coll](data);
+        }, (error) => handleFirestoreError(error, coll));
     });
 
-    return () => unsubscribe();
-  }, [isClient]);
-
-  useEffect(() => {
-    if (currentUser?.isAdmin) {
-      const usersCollectionRef = collection(db, 'users');
-      const unsubscribe = onSnapshot(usersCollectionRef, (snapshot) => {
-        setAllUsers(snapshot.docs.map(doc => doc.data() as UserAccount));
-      }, (error) => handleFirestoreError(error, "all user list (admin)"));
-      return () => unsubscribe();
-    } else {
-      setAllUsers([]);
-    }
-  }, [currentUser]);
-
+    return () => unsubscribers.forEach(unsub => unsub());
+  }, [dataOwnerId]);
 
   const login = async (email: string, password?: string): Promise<{ success: boolean; error?: string }> => {
     setError(null);
@@ -286,16 +309,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const username = email.split('@')[0];
       const shareId = newUser.uid;
 
-      const userDocData: UserAccount = { id: newUser.uid, username, email: newUser.email, isAdmin: false, shareId };
+      const userDocData: UserAccount = { id: newUser.uid, username, email: newUser.email!, isAdmin: false, shareId };
       await setDoc(doc(db, "users", newUser.uid), userDocData);
 
-      const batch = writeBatch(db);
-      const defaultSpaceRef = doc(collection(db, 'users', newUser.uid, 'spaces'));
-      batch.set(defaultSpaceRef, { name: "Personal Space", ownerId: newUser.uid });
-      
-      await batch.commit();
+      // Create a default space for the new user
+      const spaceRef = doc(collection(db, 'users', newUser.uid, 'spaces'));
+      await setDoc(spaceRef, { 
+        name: "Personal Space", 
+        ownerId: newUser.uid,
+        members: { [newUser.uid]: 'owner' }
+      });
 
-      localStorage.setItem(`${ACTIVE_SPACE_LS_KEY_PREFIX}${newUser.uid}`, JSON.stringify(defaultSpaceRef.id));
+      localStorage.setItem(`${ACTIVE_SPACE_LS_KEY_PREFIX}${newUser.uid}`, JSON.stringify(spaceRef.id));
+      
       router.push('/dashboard');
       toast({ title: t('auth.signupSuccess'), description: t('auth.welcomeUser', {username}) });
       playSound('success');
@@ -316,26 +342,26 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const logout = async () => {
     const currentUsername = currentUser?.username;
     await signOut(auth);
-    toast({ title: t('header.logout'), description: `Goodbye, ${currentUsername}!` });
     router.push('/auth');
+    toast({ title: t('header.logout'), description: `Goodbye, ${currentUsername}!` });
   };
   
   const addPlayer = useCallback(async (name: string, avatarFile?: File) => {
-    if (!firebaseUser) {
+    if (!dataOwnerId) {
         toast({ title: t('auth.authError'), description: "You must be logged in.", variant: "destructive" });
         return;
     }
     try {
       let avatarUrl: string | undefined = undefined;
       if (avatarFile) {
-        const filePath = `avatars/${firebaseUser.uid}/${Date.now()}-${avatarFile.name}`;
+        const filePath = `avatars/${dataOwnerId}/${Date.now()}-${avatarFile.name}`;
         const storageRef = ref(storage, filePath);
         const snapshot = await uploadBytes(storageRef, avatarFile);
         avatarUrl = await getDownloadURL(snapshot.ref);
       }
 
-      const playersCollection = collection(db, 'users', firebaseUser.uid, 'players');
-      const newPlayerData: Omit<Player, 'id'> = { name, winRate: 0, averageScore: 0, ownerId: firebaseUser.uid };
+      const playersCollection = collection(db, 'users', dataOwnerId, 'players');
+      const newPlayerData: Omit<Player, 'id'> = { name, winRate: 0, averageScore: 0, ownerId: dataOwnerId };
       if (avatarUrl) {
         newPlayerData.avatarUrl = avatarUrl;
       }
@@ -346,14 +372,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         console.error("Failed to add player:", e);
         toast({ title: t('common.error'), description: 'Failed to add the player. Please try again.', variant: 'destructive' });
     }
-  }, [firebaseUser, toast, t]);
+  }, [dataOwnerId, toast, t]);
 
   const deletePlayer = useCallback(async (playerId: string) => {
-    if (!firebaseUser) {
+    if (!dataOwnerId) {
         toast({ title: t('auth.authError'), description: "You must be logged in to perform this action.", variant: "destructive" });
         return;
     }
-    const playerDocRef = doc(db, 'users', firebaseUser.uid, 'players', playerId);
+    const playerDocRef = doc(db, 'users', dataOwnerId, 'players', playerId);
     try {
         const playerToDelete = players.find(p => p.id === playerId);
         if (playerToDelete?.avatarUrl) {
@@ -372,10 +398,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         console.error("Failed to delete player:", e);
         toast({ title: t('common.error'), description: 'Failed to delete the player. Please try again.', variant: 'destructive' });
     }
-  }, [firebaseUser, toast, t, players]);
+  }, [dataOwnerId, toast, t, players]);
 
   const deleteAllPlayers = useCallback(async () => {
-    if (!firebaseUser) {
+    if (!dataOwnerId) {
         toast({ title: t('auth.authError'), description: "You must be logged in.", variant: "destructive" });
         return;
     }
@@ -385,7 +411,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
     try {
         const batch = writeBatch(db);
-        const playersCollectionRef = collection(db, 'users', firebaseUser.uid, 'players');
+        const playersCollectionRef = collection(db, 'users', dataOwnerId, 'players');
         const querySnapshot = await getDocs(playersCollectionRef);
         if (querySnapshot.empty) {
             toast({ title: t('common.noData'), description: t('players.toasts.noPlayersToDelete') });
@@ -400,19 +426,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         toast({ title: t('common.error'), description: 'Failed to delete all players. Please try again.', variant: 'destructive' });
         playSound('error');
     }
-  }, [firebaseUser, players, toast, t]);
+  }, [dataOwnerId, players, toast, t]);
 
 
   const updatePlayer = useCallback(async (playerId: string, playerData: { name: string; avatarFile?: File }) => {
-    if (!firebaseUser) {
+    if (!dataOwnerId) {
        toast({ title: t('auth.authError'), description: "You must be logged in to perform this action.", variant: "destructive" });
        return;
     }
     try {
-      const playerDocRef = doc(db, 'users', firebaseUser.uid, 'players', playerId);
+      const playerDocRef = doc(db, 'users', dataOwnerId, 'players', playerId);
       const updateData: Partial<Omit<Player, 'id' | 'ownerId'>> = { name: playerData.name };
       if (playerData.avatarFile) {
-        const filePath = `avatars/${firebaseUser.uid}/${playerId}/${Date.now()}-${playerData.avatarFile.name}`;
+        const filePath = `avatars/${dataOwnerId}/${playerId}/${Date.now()}-${playerData.avatarFile.name}`;
         const storageRef = ref(storage, filePath);
         const snapshot = await uploadBytes(storageRef, playerData.avatarFile);
         updateData.avatarUrl = await getDownloadURL(snapshot.ref);
@@ -423,14 +449,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
        console.error("Failed to update player:", e);
        toast({ title: t('common.error'), description: 'Failed to update the player. Please try again.', variant: 'destructive' });
     }
-  }, [firebaseUser, toast, t]);
+  }, [dataOwnerId, toast, t]);
 
 
   const addGame = useCallback(async (gameData: Omit<Game, 'id' | 'icon' | 'ownerId'>) => {
-    if (!firebaseUser) return;
+    if (!dataOwnerId) return;
     try {
-        const gamesCollection = collection(db, 'users', firebaseUser.uid, 'games');
-        const newGameData: Partial<Omit<Game, 'id'>> = { ...gameData, icon: 'HelpCircle', ownerId: firebaseUser.uid };
+        const gamesCollection = collection(db, 'users', dataOwnerId, 'games');
+        const newGameData: Partial<Omit<Game, 'id'>> = { ...gameData, icon: 'HelpCircle', ownerId: dataOwnerId };
         if (!newGameData.description) delete newGameData.description;
         if (!newGameData.maxPlayers) delete newGameData.maxPlayers;
         await addDoc(gamesCollection, newGameData);
@@ -440,45 +466,49 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         console.error("Failed to add game:", e);
         toast({ title: t('common.error'), description: 'Failed to add the game. Please try again.', variant: 'destructive' });
     }
-  }, [firebaseUser, toast, t]);
+  }, [dataOwnerId, toast, t]);
   
   const updateGame = useCallback(async (gameId: string, gameData: Partial<Omit<Game, 'id' | 'icon' | 'ownerId'>>) => {
-    if (!firebaseUser) return;
+    if (!dataOwnerId) return;
     try {
-        const gameDocRef = doc(db, 'users', firebaseUser.uid, 'games', gameId);
+        const gameDocRef = doc(db, 'users', dataOwnerId, 'games', gameId);
         await updateDoc(gameDocRef, gameData);
         toast({ title: t('games.toasts.gameUpdated') });
     } catch (e) {
         console.error("Failed to update game:", e);
         toast({ title: t('common.error'), description: 'Failed to update the game. Please try again.', variant: 'destructive' });
     }
-  }, [firebaseUser, toast, t]);
+  }, [dataOwnerId, toast, t]);
 
   const deleteGame = useCallback(async (gameId: string) => {
-    if (!firebaseUser) return;
+    if (!dataOwnerId) return;
     try {
-        const q = query(collection(db, 'users', firebaseUser.uid, 'matches'), where("gameId", "==", gameId));
+        const q = query(collection(db, 'users', dataOwnerId, 'matches'), where("gameId", "==", gameId));
         const querySnapshot = await getDocs(q);
         if (!querySnapshot.empty) {
             toast({ title: t('games.toasts.cannotDelete'), description: t('games.toasts.gameInUse'), variant: "destructive" });
             playSound('error');
             return;
         }
-        const gameDocRef = doc(db, 'users', firebaseUser.uid, 'games', gameId);
+        const gameDocRef = doc(db, 'users', dataOwnerId, 'games', gameId);
         await deleteDoc(gameDocRef);
         toast({ title: t('games.toasts.gameDeleted') });
     } catch(e) {
         console.error("Failed to delete game:", e);
         toast({ title: t('common.error'), description: 'Failed to delete the game. Please try again.', variant: 'destructive' });
     }
-  }, [firebaseUser, toast, t]);
+  }, [dataOwnerId, toast, t]);
 
 
   const addSpace = useCallback(async (name: string) => {
-    if (!firebaseUser) return;
+    if (!currentUser) return;
     try {
-        const spacesCollection = collection(db, 'users', firebaseUser.uid, 'spaces');
-        const newSpaceRef = await addDoc(spacesCollection, { name, ownerId: firebaseUser.uid });
+        const spacesCollection = collection(db, 'users', currentUser.id, 'spaces');
+        const newSpaceRef = await addDoc(spacesCollection, { 
+            name, 
+            ownerId: currentUser.id,
+            members: { [currentUser.id]: 'owner' }
+        });
         if (!activeSpaceId) {
             setActiveSpaceIdState(newSpaceRef.id);
         }
@@ -488,52 +518,59 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         console.error("Failed to add space:", e);
         toast({ title: t('common.error'), description: 'Failed to add the space. Please try again.', variant: 'destructive' });
     }
-  }, [firebaseUser, activeSpaceId, toast, t]);
+  }, [currentUser, activeSpaceId, toast, t]);
   
   const updateSpace = useCallback(async (spaceId: string, newName: string) => {
-    if (!firebaseUser) return;
+    if (!currentUser) return;
+    const space = spaces.find(s => s.id === spaceId);
+    if (!space) return;
     try {
-        const spaceDocRef = doc(db, 'users', firebaseUser.uid, 'spaces', spaceId);
+        const spaceDocRef = doc(db, 'users', space.ownerId, 'spaces', spaceId);
         await updateDoc(spaceDocRef, { name: newName });
         toast({ title: t('spaces.toasts.spaceUpdated') });
     } catch(e) {
         console.error("Failed to update space:", e);
         toast({ title: t('common.error'), description: 'Failed to update the space. Please try again.', variant: 'destructive' });
     }
-  }, [firebaseUser, toast, t]);
-
-
-  const getSpacesForCurrentUser = useCallback(() => {
-    if (!currentUser) return [];
-    if (currentUser.isAdmin) return spaces;
-    return spaces.filter(s => s.ownerId === currentUser.id);
-  }, [currentUser, spaces]);
+  }, [currentUser, spaces, toast, t]);
 
   const deleteSpace = useCallback(async (spaceIdToDelete: string) => {
-    if (!firebaseUser || !currentUser) return;
-     const userSpaces = getSpacesForCurrentUser();
-    if (userSpaces.length <= 1 && !currentUser.isAdmin) {
+    if (!currentUser) return;
+    const space = spaces.find(s => s.id === spaceIdToDelete);
+    if (!space || space.ownerId !== currentUser.id) {
+      toast({ title: "Permission Denied", variant: "destructive" });
+      return;
+    }
+    
+    if (spaces.filter(s => s.ownerId === currentUser.id).length <= 1 && !currentUser.isAdmin) {
         toast({ title: t('spaces.toasts.cannotDelete'), description: t('spaces.toasts.mustHaveOne'), variant: "destructive"});
         playSound('error');
         return;
     }
     try {
         const batch = writeBatch(db);
-        const spaceDocRef = doc(db, 'users', firebaseUser.uid, 'spaces', spaceIdToDelete);
+        const spaceDocRef = doc(db, 'users', currentUser.id, 'spaces', spaceIdToDelete);
         batch.delete(spaceDocRef);
 
-        const matchesQuery = query(collection(db, 'users', firebaseUser.uid, 'matches'), where("spaceId", "==", spaceIdToDelete));
+        const matchesQuery = query(collection(db, 'users', currentUser.id, 'matches'), where("spaceId", "==", spaceIdToDelete));
         const matchesSnapshot = await getDocs(matchesQuery);
         matchesSnapshot.forEach(doc => batch.delete(doc.ref));
 
-        const tournamentsQuery = query(collection(db, 'users', firebaseUser.uid, 'tournaments'), where("spaceId", "==", spaceIdToDelete));
+        const tournamentsQuery = query(collection(db, 'users', currentUser.id, 'tournaments'), where("spaceId", "==", spaceIdToDelete));
         const tournamentsSnapshot = await getDocs(tournamentsQuery);
         tournamentsSnapshot.forEach(doc => batch.delete(doc.ref));
+
+        // Also delete "link" documents from members' accounts
+        const memberIds = Object.keys(space.members).filter(id => id !== currentUser.id);
+        memberIds.forEach(memberId => {
+            const linkDocRef = doc(db, 'users', memberId, 'spaces', spaceIdToDelete);
+            batch.delete(linkDocRef);
+        });
 
         await batch.commit();
 
         if (activeSpaceId === spaceIdToDelete) {
-            const newActiveSpace = spaces.find(s => s.id !== spaceIdToDelete) ?? (getSpacesForCurrentUser().find(s => s.id !== spaceIdToDelete));
+            const newActiveSpace = spaces.find(s => s.id !== spaceIdToDelete && s.ownerId === currentUser.id);
             setActiveSpaceIdState(newActiveSpace?.id || null);
         }
         toast({ title: t('spaces.toasts.spaceDeleted'), description: t('spaces.toasts.spaceDeletedDesc') });
@@ -541,16 +578,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
          console.error("Failed to delete space:", e);
          toast({ title: t('common.error'), description: 'Failed to delete the space. Please try again.', variant: 'destructive' });
     }
-  }, [firebaseUser, currentUser, spaces, activeSpaceId, toast, t, getSpacesForCurrentUser]);
+  }, [currentUser, spaces, activeSpaceId, toast, t]);
   
   const addTournament = useCallback(async (data: Omit<Tournament, 'id' | 'status' | 'ownerId' | 'winnerPlayerId' | 'dateCompleted' | 'spaceId'>) => {
-     if (!firebaseUser) return;
+     if (!dataOwnerId) return;
      try {
-        const tournamentsCollection = collection(db, 'users', firebaseUser.uid, 'tournaments');
+        const tournamentsCollection = collection(db, 'users', dataOwnerId, 'tournaments');
         const newTournamentData: { [key: string]: any } = { 
             ...data, 
             status: 'active', 
-            ownerId: firebaseUser.uid,
+            ownerId: dataOwnerId,
             spaceId: activeSpaceId,
         };
         await addDoc(tournamentsCollection, newTournamentData);
@@ -560,31 +597,31 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         console.error("Failed to add tournament:", e);
         toast({ title: t('common.error'), description: 'Failed to create tournament. Please try again.', variant: 'destructive' });
      }
-  }, [firebaseUser, activeSpaceId, toast, t]);
+  }, [dataOwnerId, activeSpaceId, toast, t]);
   
   const updateTournament = useCallback(async (id: string, data: Partial<Omit<Tournament, 'id' | 'ownerId'>>) => {
-     if (!firebaseUser) return;
+     if (!dataOwnerId) return;
      try {
-        const tourDocRef = doc(db, 'users', firebaseUser.uid, 'tournaments', id);
+        const tourDocRef = doc(db, 'users', dataOwnerId, 'tournaments', id);
         await updateDoc(tourDocRef, data);
         toast({ title: t('tournaments.toasts.tournamentUpdated') });
      } catch(e) {
         console.error("Failed to update tournament:", e);
         toast({ title: t('common.error'), description: 'Failed to update tournament. Please try again.', variant: 'destructive' });
      }
-  }, [firebaseUser, toast, t]);
+  }, [dataOwnerId, toast, t]);
 
   const deleteTournament = useCallback(async (id: string) => {
-    if (!firebaseUser) return;
+    if (!dataOwnerId) return;
     try {
-        const tourDocRef = doc(db, 'users', firebaseUser.uid, 'tournaments', id);
+        const tourDocRef = doc(db, 'users', dataOwnerId, 'tournaments', id);
         await deleteDoc(tourDocRef);
         toast({ title: t('tournaments.toasts.tournamentDeleted') });
     } catch(e) {
         console.error("Failed to delete tournament:", e);
         toast({ title: t('common.error'), description: 'Failed to delete tournament. Please try again.', variant: 'destructive' });
     }
-  }, [firebaseUser, toast, t]);
+  }, [dataOwnerId, toast, t]);
 
   const getGameById = useCallback((gameId: string) => games.find(g => g.id === gameId), [games]);
   const getPlayerById = useCallback((playerId: string) => players.find(p => p.id === playerId), [players]);
@@ -619,7 +656,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, [players]);
 
   const addMatch = useCallback(async (matchData: Omit<Match, 'id' | 'spaceId' | 'date'> & { date?: string }) => {
-    if (!firebaseUser) return;
+    if (!dataOwnerId) return;
     try {
       const newMatchForDb: { [key: string]: any } = { 
           ...matchData,
@@ -628,7 +665,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       };
       if (!newMatchForDb.handicapSuggestions) delete newMatchForDb.handicapSuggestions;
 
-      const matchesCollection = collection(db, 'users', firebaseUser.uid, 'matches');
+      const matchesCollection = collection(db, 'users', dataOwnerId, 'matches');
       await addDoc(matchesCollection, newMatchForDb);
       
       const allMatchesForUser = [...matches, {...newMatchForDb, id: 'temp' } as Match]; 
@@ -639,7 +676,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       for (const tourney of activeTournamentsForGame) {
         const winner = gameLeaderboard.find(score => score.totalPoints >= tourney.targetPoints);
         if (winner) {
-          const tourneyRef = doc(db, 'users', firebaseUser.uid, 'tournaments', tourney.id);
+          const tourneyRef = doc(db, 'users', dataOwnerId, 'tournaments', tourney.id);
           await updateDoc(tourneyRef, {
               status: 'completed',
               winnerPlayerId: winner.playerId,
@@ -654,17 +691,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       console.error("Failed to add match:", e);
       toast({ title: t('common.error'), description: 'Failed to record the match. Please try again.', variant: 'destructive' });
     }
-  }, [firebaseUser, activeSpaceId, matches, tournaments, toast, calculateScores, getPlayerById, t]);
+  }, [dataOwnerId, activeSpaceId, matches, tournaments, toast, calculateScores, getPlayerById, t]);
 
   const getOverallLeaderboard = useCallback(() => {
-    const filtered = matches.filter(m => (m.spaceId || null) === (activeSpaceId || null));
-    return calculateScores(filtered);
-  }, [matches, activeSpaceId, calculateScores]);
+    return calculateScores(matches);
+  }, [matches, calculateScores]);
 
   const getGameLeaderboard = useCallback((gameId: string) => {
-    const gameMatches = matches.filter(m => m.gameId === gameId && (m.spaceId || null) === (activeSpaceId || null));
+    const gameMatches = matches.filter(m => m.gameId === gameId);
     return calculateScores(gameMatches);
-  }, [matches, activeSpaceId, calculateScores]);
+  }, [matches, calculateScores]);
   
   const getPlayerStats = useCallback((playerId: string): PlayerStats | null => {
     const player = getPlayerById(playerId);
@@ -757,36 +793,36 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, [currentUser, toast, t]);
   
   const deleteMatch = useCallback(async (matchId: string) => {
-    if (!firebaseUser) return;
+    if (!dataOwnerId) return;
     try {
-        const matchDocRef = doc(db, 'users', firebaseUser.uid, 'matches', matchId);
+        const matchDocRef = doc(db, 'users', dataOwnerId, 'matches', matchId);
         await deleteDoc(matchDocRef);
         toast({ title: t('common.success'), description: t('matchHistory.toasts.deleted') });
     } catch (e) {
         console.error("Failed to delete match:", e);
         toast({ title: t('common.error'), description: 'Failed to delete the match. Please try again.', variant: 'destructive' });
     }
-  }, [firebaseUser, toast, t]);
+  }, [dataOwnerId, toast, t]);
 
   const updateMatch = useCallback(async (matchId: string, matchData: Partial<Pick<Match, 'winnerIds' | 'pointsAwarded'>>) => {
-      if (!firebaseUser) return;
+      if (!dataOwnerId) return;
       try {
-        const matchDocRef = doc(db, 'users', firebaseUser.uid, 'matches', matchId);
+        const matchDocRef = doc(db, 'users', dataOwnerId, 'matches', matchId);
         await updateDoc(matchDocRef, matchData);
         toast({ title: t('common.success'), description: t('matchHistory.toasts.updated') });
       } catch (e) {
         console.error("Failed to update match:", e);
         toast({ title: t('common.error'), description: 'Failed to update the match. Please try again.', variant: 'destructive' });
       }
-  }, [firebaseUser, toast, t]);
+  }, [dataOwnerId, toast, t]);
   
   const clearSpaceHistory = useCallback(async (spaceId: string) => {
-    if (!firebaseUser) return;
+    if (!dataOwnerId) return;
     try {
         const batch = writeBatch(db);
-        const matchesQuery = query(collection(db, 'users', firebaseUser.uid, 'matches'), where("spaceId", "==", spaceId));
+        const matchesQuery = query(collection(db, 'users', dataOwnerId, 'matches'), where("spaceId", "==", spaceId));
         const matchesSnapshot = await getDocs(matchesQuery);
-        const tournamentsQuery = query(collection(db, 'users', firebaseUser.uid, 'tournaments'), where("spaceId", "==", spaceId));
+        const tournamentsQuery = query(collection(db, 'users', dataOwnerId, 'tournaments'), where("spaceId", "==", spaceId));
         const tournamentsSnapshot = await getDocs(tournamentsQuery);
 
         if (matchesSnapshot.empty && tournamentsSnapshot.empty) {
@@ -802,7 +838,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         console.error("Failed to clear space history:", e);
         toast({ title: t('common.error'), description: 'Failed to clear space history. Please try again.', variant: 'destructive' });
     }
-  }, [firebaseUser, toast, t]);
+  }, [dataOwnerId, toast, t]);
   
   const getLiveShareUrl = useCallback(async (): Promise<string | null> => {
     if (!currentUser?.shareId) {
@@ -812,7 +848,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     await updateLiveShareData(); // Make sure data is fresh before sharing
     if (typeof window !== 'undefined') {
       const baseUrl = `${window.location.origin}/share/${currentUser.shareId}`;
-      // If there's an active space, append it as a query parameter
       if (activeSpaceId) {
         return `${baseUrl}?space=${activeSpaceId}`;
       }
@@ -821,14 +856,140 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return null;
   }, [currentUser, updateLiveShareData, toast, activeSpaceId]);
 
+  const inviteUserToSpace = useCallback(async (spaceId: string, email: string, role: SpaceRole) => {
+    if (!currentUser) return;
+
+    try {
+        const usersRef = collection(db, "users");
+        const q = query(usersRef, where("email", "==", email));
+        const querySnapshot = await getDocs(q);
+
+        if (querySnapshot.empty) {
+            toast({ title: t('common.error'), description: t('spaces.toasts.userNotFound', { email }), variant: "destructive" });
+            return;
+        }
+
+        const inviteeUser = querySnapshot.docs[0].data() as UserAccount;
+        const spaceRef = doc(db, 'users', currentUser.id, 'spaces', spaceId);
+        
+        const spaceSnap = await getDoc(spaceRef);
+        if (!spaceSnap.exists()) return;
+        const spaceData = spaceSnap.data() as Space;
+
+        if (spaceData.members[inviteeUser.id]) {
+            toast({ title: t('common.error'), description: t('spaces.toasts.alreadyMember', { email }), variant: "destructive" });
+            return;
+        }
+
+        const batch = writeBatch(db);
+        
+        // Update members map in owner's space document
+        const newMembers = { ...spaceData.members, [inviteeUser.id]: role };
+        batch.update(spaceRef, { members: newMembers });
+
+        // Create a "link" space document for the invitee
+        const linkSpaceRef = doc(db, 'users', inviteeUser.id, 'spaces', spaceId);
+        batch.set(linkSpaceRef, {
+            ...spaceData,
+            members: newMembers, // Also give them the full members list
+            isShared: true,
+        });
+
+        // Add a document to shared_access for security rules
+        const sharedAccessRef = doc(db, `shared_access/${inviteeUser.id}_${currentUser.id}`);
+        await setDoc(sharedAccessRef, { hasAccess: true }, { merge: true });
+
+        await batch.commit();
+
+        toast({ title: t('spaces.toasts.inviteSent'), description: t('spaces.toasts.inviteSentDesc', { email }) });
+    } catch (error) {
+        console.error("Failed to invite user:", error);
+        toast({ title: t('common.error'), description: t('spaces.toasts.inviteFailed'), variant: 'destructive' });
+    }
+  }, [currentUser, t, toast]);
+
+
+  const removeUserFromSpace = useCallback(async (spaceId: string, memberId: string) => {
+      if (!currentUser) return;
+      
+      const spaceRef = doc(db, 'users', currentUser.id, 'spaces', spaceId);
+      try {
+          const spaceSnap = await getDoc(spaceRef);
+          if (!spaceSnap.exists()) return;
+          const spaceData = spaceSnap.data() as Space;
+          const memberUsername = getUserById(memberId)?.username || 'user';
+
+          const { [memberId]: _, ...newMembers } = spaceData.members;
+
+          const batch = writeBatch(db);
+          batch.update(spaceRef, { members: newMembers });
+
+          // Also update the link doc for all remaining members
+          Object.keys(newMembers).forEach(id => {
+            if (id !== currentUser.id) {
+                const linkRef = doc(db, 'users', id, 'spaces', spaceId);
+                batch.update(linkRef, { members: newMembers });
+            }
+          });
+
+          // Delete the link doc for the removed member
+          const linkDocToRemove = doc(db, 'users', memberId, 'spaces', spaceId);
+          batch.delete(linkDocToRemove);
+
+          // Check if this was the last user this owner shared with
+          const remainingSharedSpaces = spaces.filter(s => s.ownerId === currentUser.id && Object.keys(s.members).some(id => id !== currentUser.id));
+          if (!remainingSharedSpaces.some(s => Object.keys(s.members).includes(memberId))) {
+               const sharedAccessRef = doc(db, `shared_access/${memberId}_${currentUser.id}`);
+               batch.delete(sharedAccessRef);
+          }
+          
+          await batch.commit();
+          toast({ title: t('spaces.toasts.memberRemoved'), description: t('spaces.toasts.memberRemovedDesc', { username: memberUsername }) });
+
+      } catch (error) {
+          console.error("Failed to remove member:", error);
+          toast({ title: t('common.error'), description: t('spaces.toasts.removeFailed'), variant: 'destructive' });
+      }
+  }, [currentUser, toast, t, spaces, getUserById]);
+  
+  const updateUserRoleInSpace = useCallback(async (spaceId: string, memberId: string, role: SpaceRole) => {
+      if (!currentUser) return;
+      const spaceRef = doc(db, 'users', currentUser.id, 'spaces', spaceId);
+      try {
+          const spaceSnap = await getDoc(spaceRef);
+          if (!spaceSnap.exists()) return;
+          const spaceData = spaceSnap.data() as Space;
+
+          const newMembers = { ...spaceData.members, [memberId]: role };
+
+          const batch = writeBatch(db);
+          batch.update(spaceRef, { members: newMembers });
+          
+          Object.keys(newMembers).forEach(id => {
+            if (id !== currentUser.id) {
+                const linkRef = doc(db, 'users', id, 'spaces', spaceId);
+                batch.update(linkRef, { members: newMembers });
+            }
+          });
+
+          await batch.commit();
+          const memberUsername = getUserById(memberId)?.username || 'user';
+          toast({ title: t('spaces.toasts.roleUpdated'), description: t('spaces.toasts.roleUpdatedDesc', { username: memberUsername, role: t(`spaces.membersDialog.roles.${role}`) }) });
+      } catch (error) {
+          console.error("Failed to update role:", error);
+          toast({ title: t('common.error'), description: t('spaces.toasts.roleUpdateFailed'), variant: 'destructive' });
+      }
+  }, [currentUser, toast, t, getUserById]);
+
   return (
     <AppContext.Provider value={{ 
       games, players, matches, spaces, tournaments, allUsers, activeSpaceId, addPlayer, deletePlayer, deleteAllPlayers, addMatch, updatePlayer, 
       getGameById, getPlayerById, getOverallLeaderboard, getGameLeaderboard, getPlayerStats, isClient,
       currentUser, login, signup, logout, isLoadingAuth, addSpace, updateSpace, deleteSpace, 
-      setActiveSpaceId, getSpacesForCurrentUser, getActiveSpace, addGame, updateGame, deleteGame,
+      setActiveSpaceId, getActiveSpace, addGame, updateGame, deleteGame,
       getUserById, deleteUserAccount, addTournament, updateTournament, deleteTournament,
       deleteMatch, updateMatch, clearSpaceHistory, getLiveShareUrl,
+      inviteUserToSpace, removeUserFromSpace, updateUserRoleInSpace,
       firebaseConfigured: isFirebaseConfigured()
     }}>
       {children}

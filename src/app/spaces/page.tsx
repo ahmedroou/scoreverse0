@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useMemo } from 'react';
@@ -21,6 +22,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useLanguage } from '@/hooks/use-language';
+import { ManageMembersDialog } from './ManageMembersDialog';
 
 export default function ManageSpacesPage() {
   const { 
@@ -30,7 +32,6 @@ export default function ManageSpacesPage() {
     setActiveSpaceId, 
     isClient, 
     currentUser,
-    getSpacesForCurrentUser,
     getUserById,
     clearSpaceHistory,
   } = useAppContext();
@@ -38,16 +39,21 @@ export default function ManageSpacesPage() {
 
   const [isAddSpaceDialogOpen, setIsAddSpaceDialogOpen] = useState(false);
   const [isEditSpaceDialogOpen, setIsEditSpaceDialogOpen] = useState(false);
+  const [isMembersDialogOpen, setIsMembersDialogOpen] = useState(false);
   
   const [editingSpace, setEditingSpace] = useState<Space | null>(null);
+  const [managingSpace, setManagingSpace] = useState<Space | null>(null);
   const [spaceToDelete, setSpaceToDelete] = useState<Space | null>(null);
   const [spaceToClear, setSpaceToClear] = useState<Space | null>(null);
-
-  const userSpaces = useMemo(() => getSpacesForCurrentUser(), [getSpacesForCurrentUser]);
 
   const handleEditClick = (space: Space) => {
     setEditingSpace(space);
     setIsEditSpaceDialogOpen(true);
+  };
+  
+  const handleManageMembersClick = (space: Space) => {
+    setManagingSpace(space);
+    setIsMembersDialogOpen(true);
   };
 
   const handleDeleteClick = (space: Space) => {
@@ -107,7 +113,7 @@ export default function ManageSpacesPage() {
             <Layers /> {t('spaces.pageTitle')}
           </CardTitle>
           <CardDescription>
-            {currentUser.isAdmin ? t('spaces.pageDescriptionAdmin') : t('spaces.pageDescription')}
+            {t('spaces.pageDescription')}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -116,24 +122,27 @@ export default function ManageSpacesPage() {
             {t('spaces.createSpace')}
           </Button>
 
-          {userSpaces.length === 0 ? (
+          {spaces.length === 0 ? (
             <p className="text-muted-foreground text-center py-4">{t('spaces.noSpaces')}</p>
           ) : (
             <div className="space-y-4">
-              {userSpaces.map((space) => {
-                 const owner = currentUser.isAdmin ? getUserById(space.ownerId) : null;
-                 const canEdit = currentUser.isAdmin || currentUser.id === space.ownerId;
+              {spaces.map((space) => {
+                 const owner = getUserById(space.ownerId);
+                 const role = space.members[currentUser.id];
+                 const isOwner = role === 'owner';
+
                  return (
                     <SpaceCard
                       key={space.id}
                       space={space}
                       isActive={space.id === activeSpaceId}
                       onSetActive={() => setActiveSpaceId(space.id)}
-                      onEdit={() => canEdit && handleEditClick(space)}
-                      onDelete={() => canEdit && handleDeleteClick(space)}
-                      onClearHistory={canEdit ? () => handleClearHistoryClick(space) : undefined}
+                      onEdit={() => isOwner && handleEditClick(space)}
+                      onDelete={() => isOwner && handleDeleteClick(space)}
+                      onClearHistory={isOwner ? () => handleClearHistoryClick(space) : undefined}
+                      onManageMembers={() => isOwner && handleManageMembersClick(space)}
                       ownerUsername={owner?.username}
-                      canEdit={canEdit}
+                      role={role}
                     />
                  )
               })}
@@ -142,7 +151,7 @@ export default function ManageSpacesPage() {
         </CardContent>
          <CardFooter className="border-t border-border pt-4 text-center">
             <p className="text-xs text-muted-foreground w-full">
-                {activeSpaceId ? t('spaces.footerActive', {spaceName: userSpaces.find(s => s.id === activeSpaceId)?.name || ''}) : t('spaces.footerInactive')}
+                {activeSpaceId ? t('spaces.footerActive', {spaceName: spaces.find(s => s.id === activeSpaceId)?.name || ''}) : t('spaces.footerInactive')}
             </p>
         </CardFooter>
       </Card>
@@ -163,6 +172,17 @@ export default function ManageSpacesPage() {
         />
       )}
 
+      {managingSpace && (
+        <ManageMembersDialog
+          space={managingSpace}
+          isOpen={isMembersDialogOpen}
+          onOpenChange={(open) => {
+            setIsMembersDialogOpen(open);
+            if (!open) setManagingSpace(null);
+          }}
+        />
+      )}
+
       {spaceToDelete && (
         <AlertDialog open={!!spaceToDelete} onOpenChange={(open) => !open && setSpaceToDelete(null)}>
           <AlertDialogContent>
@@ -170,7 +190,7 @@ export default function ManageSpacesPage() {
               <AlertDialogTitle className="flex items-center gap-2"><ShieldAlert className="text-destructive h-6 w-6"/>{t('spaces.deleteDialog.title')}</AlertDialogTitle>
               <AlertDialogDescription>
                 {t('spaces.deleteDialog.description', {spaceName: spaceToDelete.name})}
-                {!currentUser.isAdmin && userSpaces.length <= 1 && " " + t('spaces.deleteDialog.mustHaveOne')}
+                {!currentUser.isAdmin && spaces.filter(s => s.ownerId === currentUser.id).length <= 1 && " " + t('spaces.deleteDialog.mustHaveOne')}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -178,7 +198,7 @@ export default function ManageSpacesPage() {
               <AlertDialogAction
                 onClick={confirmDelete}
                 className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
-                disabled={!currentUser.isAdmin && userSpaces.length <= 1 && userSpaces.find(s => s.id === spaceToDelete.id) !== undefined}
+                disabled={!currentUser.isAdmin && spaces.filter(s => s.ownerId === currentUser.id).length <= 1 && spaces.find(s => s.id === spaceToDelete.id) !== undefined}
               >
                 {t('common.delete')}
               </AlertDialogAction>
