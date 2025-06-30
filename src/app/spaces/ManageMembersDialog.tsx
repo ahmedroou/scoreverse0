@@ -90,12 +90,13 @@ export function ManageMembersDialog({ space, isOpen, onOpenChange }: ManageMembe
     };
     
     const members = useMemo(() => {
+        if (!space.members) return [];
         return Object.entries(space.members)
             .map(([userId, role]) => ({
                 user: getUserById(userId),
                 role
             }))
-            .filter(m => m.user)
+            .filter(m => !!m.user)
             .sort((a, b) => {
                 if (a.role === 'owner') return -1;
                 if (b.role === 'owner') return 1;
