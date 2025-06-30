@@ -19,7 +19,7 @@ import {
   where,
   getDocs,
   Unsubscribe,
-  serverTimestamp
+  deleteField,
 } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 
@@ -125,7 +125,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const allSpaces = [...ownedData.spaces];
     const joinedSpaceIds = new Set(allSpaces.map(s => s.id));
     Object.values(joinedData).forEach(data => {
-        if (data.spaces) {
+        if (data && data.spaces) {
             data.spaces.forEach(space => {
                 if(!joinedSpaceIds.has(space.id)) {
                     allSpaces.push(space);
@@ -228,7 +228,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }
 
       const activeSharedSpaces = Object.fromEntries(
-        Object.entries(currentUser.sharedSpaces).filter(([, ownerId]) => ownerId !== 'deleted')
+        Object.entries(currentUser.sharedSpaces).filter(([spaceId, ownerId]) => ownerId)
       );
       
       const ownerIdSet = new Set(Object.values(activeSharedSpaces));
@@ -243,7 +243,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                   setJoinedData(prev => ({
                       ...prev,
                       [ownerId]: {
-                          ...(prev[ownerId] || {}), // ensure ownerId key exists
+                          ...(prev[ownerId] || { games: [], players: [], matches: [], spaces: [], tournaments: [] }),
                           [coll]: data
                       }
                   }))
@@ -715,7 +715,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setActiveSpaceIdState(spaceId);
         return true;
     } catch (e) {
-        toast({ title: t('common.error'), description: 'Failed to join space.', variant: 'destructive' });
+        console.error("Failed to join space:", e)
+        toast({ title: t('common.error'), description: 'Failed to join space. Please check permissions or try again.', variant: 'destructive' });
         return false;
     }
   }, [currentUser, toast, t]);
@@ -738,10 +739,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       try {
         const batch = writeBatch(db);
         const spaceRef = doc(db, 'users', currentUser.id, 'spaces', spaceId);
-        batch.update(spaceRef, { [`members.${memberId}`]: 'deleted' }); // Using 'deleted' to remove from map
+        batch.update(spaceRef, { [`members.${memberId}`]: deleteField() });
         
         const memberUserRef = doc(db, 'users', memberId);
-        batch.update(memberUserRef, { [`sharedSpaces.${spaceId}`]: 'deleted' });
+        batch.update(memberUserRef, { [`sharedSpaces.${spaceId}`]: deleteField() });
         
         await batch.commit();
         toast({ title: t('spaces.toasts.memberRemoved') });
@@ -756,11 +757,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         const batch = writeBatch(db);
         const spaceRef = doc(db, 'users', ownerId, 'spaces', spaceId);
         if (spaceRef) {
-          batch.update(spaceRef, { [`members.${currentUser.id}`]: 'deleted' });
+          batch.update(spaceRef, { [`members.${currentUser.id}`]: deleteField() });
         }
 
         const userRef = doc(db, 'users', currentUser.id);
-        batch.update(userRef, { [`sharedSpaces.${spaceId}`]: 'deleted' });
+        batch.update(userRef, { [`sharedSpaces.${spaceId}`]: deleteField() });
 
         await batch.commit();
         if (activeSpaceId === spaceId) setActiveSpaceIdState(null);
