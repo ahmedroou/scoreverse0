@@ -418,14 +418,14 @@ function SharePageContent() {
 
                         <TabsContent value="leaderboards" className="mt-6">
                             <div className="space-y-8">
-                                {overallLeaderboard.length > 0 ? (
-                                    <LeaderboardTable scores={overallLeaderboard} title={t('leaderboards.overallLeaderboard')} isPublicView />
-                                ) : null}
                                 {data.games.map(game => {
                                     const gameScores = gameLeaderboards[game.id] || [];
                                     if (gameScores.length === 0) return null;
                                     return <LeaderboardTable key={game.id} scores={gameScores} title={t('leaderboards.gameLeaderboard', { gameName: game.name })} isPublicView />
                                 })}
+                                {overallLeaderboard.length > 0 ? (
+                                    <LeaderboardTable scores={overallLeaderboard} title={t('leaderboards.overallLeaderboard')} isPublicView />
+                                ) : null}
                             </div>
                         </TabsContent>
                         

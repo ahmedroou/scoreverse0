@@ -5,8 +5,9 @@ import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { PublicShareData } from '@/types';
 
-// Force the route to be dynamic and not cached. This ensures the latest data is always fetched.
-export const dynamic = 'force-dynamic';
+// This setting ensures that the response for this route is never cached,
+// and the data is always fetched fresh from the database on every request.
+export const revalidate = 0;
 
 export async function GET(request: NextRequest, { params }: { params: { shareId: string } }) {
   const { shareId } = params;
@@ -29,6 +30,8 @@ export async function GET(request: NextRequest, { params }: { params: { shareId:
       status: 200,
       headers: {
         'Cache-Control': 'no-store, max-age=0, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
       },
     });
 
