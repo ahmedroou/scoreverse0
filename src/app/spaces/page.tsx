@@ -5,7 +5,7 @@ import React, { useState, useMemo } from 'react';
 import { useAppContext } from '@/context/AppContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
-import { Loader2, Layers, PlusCircle, ShieldAlert } from 'lucide-react';
+import { Loader2, Layers, PlusCircle, ShieldAlert, UserPlus, LogIn, KeySquare } from 'lucide-react';
 import { AddSpaceForm } from './AddSpaceForm';
 import { EditSpaceForm } from './EditSpaceForm';
 import { SpaceCard } from './SpaceCard';
@@ -22,6 +22,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useLanguage } from '@/hooks/use-language';
+import { ManageMembersDialog } from './ManageMembersDialog';
+import { JoinSpaceDialog } from './JoinSpaceDialog';
 
 export default function ManageSpacesPage() {
   const { 
@@ -32,19 +34,32 @@ export default function ManageSpacesPage() {
     isClient, 
     currentUser,
     clearSpaceHistory,
+    leaveSpace
   } = useAppContext();
   const { t } = useLanguage();
 
   const [isAddSpaceDialogOpen, setIsAddSpaceDialogOpen] = useState(false);
   const [isEditSpaceDialogOpen, setIsEditSpaceDialogOpen] = useState(false);
+  const [isMembersDialogOpen, setIsMembersDialogOpen] = useState(false);
+  const [isJoinSpaceDialogOpen, setIsJoinSpaceDialogOpen] = useState(false);
   
-  const [editingSpace, setEditingSpace] = useState<Space | null>(null);
+  const [activeDialogSpace, setActiveDialogSpace] = useState<Space | null>(null);
   const [spaceToDelete, setSpaceToDelete] = useState<Space | null>(null);
   const [spaceToClear, setSpaceToClear] = useState<Space | null>(null);
+  const [spaceToLeave, setSpaceToLeave] = useState<Space | null>(null);
 
   const handleEditClick = (space: Space) => {
-    setEditingSpace(space);
+    setActiveDialogSpace(space);
     setIsEditSpaceDialogOpen(true);
+  };
+  
+  const handleManageMembersClick = (space: Space) => {
+    setActiveDialogSpace(space);
+    setIsMembersDialogOpen(true);
+  };
+  
+  const handleLeaveClick = (space: Space) => {
+    setSpaceToLeave(space);
   };
 
   const handleDeleteClick = (space: Space) => {
@@ -68,6 +83,21 @@ export default function ManageSpacesPage() {
       setSpaceToClear(null);
     }
   };
+  
+  const confirmLeaveSpace = () => {
+      if (spaceToLeave) {
+        leaveSpace(spaceToLeave.id, spaceToLeave.ownerId);
+        setSpaceToLeave(null);
+      }
+  }
+  
+  const { ownedSpaces, joinedSpaces } = useMemo(() => {
+      if (!currentUser) return { ownedSpaces: [], joinedSpaces: [] };
+      const owned = spaces.filter(s => s.ownerId === currentUser.id);
+      const joined = spaces.filter(s => s.ownerId !== currentUser.id);
+      return { ownedSpaces: owned, joinedSpaces: joined };
+  }, [spaces, currentUser]);
+
 
   if (!isClient) {
     return (
@@ -88,7 +118,7 @@ export default function ManageSpacesPage() {
                 <CardContent>
                     <p className="text-muted-foreground">{t('dashboard.loginPrompt')}</p>
                      <Link href="/auth" passHref legacyBehavior>
-                        <Button className="mt-4 w-full">{t('dashboard.goToLogin')}</Button>
+                        <Button className="mt-4 w-full"><LogIn className="me-2 h-4 w-4"/> {t('dashboard.goToLogin')}</Button>
                      </Link>
                 </CardContent>
             </Card>
@@ -98,64 +128,102 @@ export default function ManageSpacesPage() {
 
   return (
     <div className="container mx-auto py-8">
-      <Card className="w-full max-w-2xl mx-auto shadow-xl bg-card">
-        <CardHeader>
-          <CardTitle className="text-3xl font-bold text-primary flex items-center gap-2">
-            <Layers /> {t('spaces.pageTitle')}
-          </CardTitle>
-          <CardDescription>
-            {t('spaces.pageDescription')}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <Button onClick={() => setIsAddSpaceDialogOpen(true)} className="w-full bg-primary hover:bg-primary/90 text-primary-foreground">
-            <PlusCircle className="h-5 w-5 me-2" />
-            {t('spaces.createSpace')}
-          </Button>
-
-          {spaces.length === 0 ? (
-            <p className="text-muted-foreground text-center py-4">{t('spaces.noSpaces')}</p>
-          ) : (
-            <div className="space-y-4">
-              {spaces.map((space) => {
-                 if (!currentUser || space.ownerId !== currentUser.id) return null;
-
-                 return (
-                    <SpaceCard
-                      key={space.id}
-                      space={space}
-                      isActive={space.id === activeSpaceId}
-                      onSetActive={() => setActiveSpaceId(space.id)}
-                      onEdit={() => handleEditClick(space)}
-                      onDelete={() => handleDeleteClick(space)}
-                      onClearHistory={() => handleClearHistoryClick(space)}
-                    />
-                 )
-              })}
-            </div>
-          )}
-        </CardContent>
-         <CardFooter className="border-t border-border pt-4 text-center">
-            <p className="text-xs text-muted-foreground w-full">
-                {activeSpaceId ? t('spaces.footerActive', {spaceName: spaces.find(s => s.id === activeSpaceId)?.name || ''}) : t('spaces.footerInactive')}
+        <div className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+            <h1 className="text-4xl font-bold tracking-tight text-primary flex items-center gap-2">
+                <Layers /> {t('spaces.pageTitle')}
+            </h1>
+            <p className="text-lg text-muted-foreground">
+                {t('spaces.pageDescription')}
             </p>
-        </CardFooter>
-      </Card>
+            </div>
+            <div className="flex gap-2">
+                <Button variant="outline" onClick={() => setIsJoinSpaceDialogOpen(true)}>
+                    <KeySquare className="me-2 h-4 w-4"/> {t('spaces.joinSpace')}
+                </Button>
+                 <Button onClick={() => setIsAddSpaceDialogOpen(true)} className="bg-primary hover:bg-primary/90 text-primary-foreground">
+                    <PlusCircle className="h-5 w-5 me-2" />
+                    {t('spaces.createSpace')}
+                </Button>
+            </div>
+        </div>
+
+        <div className="space-y-8">
+            {/* Owned Spaces */}
+            <div>
+                <h2 className="text-2xl font-semibold border-b pb-2 mb-4">{t('spaces.ownedByYou')}</h2>
+                {ownedSpaces.length === 0 ? (
+                     <p className="text-muted-foreground text-center py-4">{t('spaces.noOwnedSpaces')}</p>
+                ) : (
+                    <div className="space-y-4">
+                    {ownedSpaces.map((space) => (
+                        <SpaceCard
+                        key={space.id}
+                        space={space}
+                        isActive={space.id === activeSpaceId}
+                        isOwned={true}
+                        onSetActive={() => setActiveSpaceId(space.id)}
+                        onEdit={() => handleEditClick(space)}
+                        onDelete={() => handleDeleteClick(space)}
+                        onManageMembers={() => handleManageMembersClick(space)}
+                        onClearHistory={() => handleClearHistoryClick(space)}
+                        />
+                    ))}
+                    </div>
+                )}
+            </div>
+             {/* Joined Spaces */}
+            <div>
+                <h2 className="text-2xl font-semibold border-b pb-2 mb-4">{t('spaces.joinedSpaces')}</h2>
+                {joinedSpaces.length === 0 ? (
+                    <p className="text-muted-foreground text-center py-4">{t('spaces.noJoinedSpaces')}</p>
+                ) : (
+                    <div className="space-y-4">
+                    {joinedSpaces.map((space) => (
+                         <SpaceCard
+                            key={space.id}
+                            space={space}
+                            isActive={space.id === activeSpaceId}
+                            isOwned={false}
+                            onSetActive={() => setActiveSpaceId(space.id)}
+                            onLeave={() => handleLeaveClick(space)}
+                        />
+                    ))}
+                    </div>
+                )}
+            </div>
+        </div>
+
 
       <AddSpaceForm 
         isOpen={isAddSpaceDialogOpen}
         onOpenChange={setIsAddSpaceDialogOpen}
       />
+      
+      <JoinSpaceDialog 
+        isOpen={isJoinSpaceDialogOpen}
+        onOpenChange={setIsJoinSpaceDialogOpen}
+      />
 
-      {editingSpace && (
-        <EditSpaceForm
-          space={editingSpace}
-          isOpen={isEditSpaceDialogOpen}
-          onOpenChange={(open) => {
-            setIsEditSpaceDialogOpen(open);
-            if (!open) setEditingSpace(null);
-          }}
-        />
+      {activeDialogSpace && (
+        <>
+            <EditSpaceForm
+            space={activeDialogSpace}
+            isOpen={isEditSpaceDialogOpen}
+            onOpenChange={(open) => {
+                setIsEditSpaceDialogOpen(open);
+                if (!open) setActiveDialogSpace(null);
+            }}
+            />
+             <ManageMembersDialog
+                space={activeDialogSpace}
+                isOpen={isMembersDialogOpen}
+                onOpenChange={(open) => {
+                    setIsMembersDialogOpen(open);
+                    if (!open) setActiveDialogSpace(null);
+                }}
+            />
+        </>
       )}
 
       {spaceToDelete && (
@@ -165,7 +233,6 @@ export default function ManageSpacesPage() {
               <AlertDialogTitle className="flex items-center gap-2"><ShieldAlert className="text-destructive h-6 w-6"/>{t('spaces.deleteDialog.title')}</AlertDialogTitle>
               <AlertDialogDescription>
                 {t('spaces.deleteDialog.description', {spaceName: spaceToDelete.name})}
-                {!currentUser.isAdmin && spaces.filter(s => s.ownerId === currentUser.id).length <= 1 && " " + t('spaces.deleteDialog.mustHaveOne')}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -173,7 +240,6 @@ export default function ManageSpacesPage() {
               <AlertDialogAction
                 onClick={confirmDelete}
                 className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
-                disabled={!currentUser.isAdmin && spaces.filter(s => s.ownerId === currentUser.id).length <= 1 && spaces.find(s => s.id === spaceToDelete.id) !== undefined}
               >
                 {t('common.delete')}
               </AlertDialogAction>
@@ -198,6 +264,28 @@ export default function ManageSpacesPage() {
                 className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
               >
                 {t('common.reset')}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
+
+      {spaceToLeave && (
+         <AlertDialog open={!!spaceToLeave} onOpenChange={(open) => !open && setSpaceToLeave(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle className="flex items-center gap-2"><ShieldAlert className="text-destructive h-6 w-6"/>{t('spaces.leaveDialog.title')}</AlertDialogTitle>
+              <AlertDialogDescription>
+                {t('spaces.leaveDialog.description', {spaceName: spaceToLeave.name})}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setSpaceToLeave(null)}>{t('common.cancel')}</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={confirmLeaveSpace}
+                className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+              >
+                {t('spaces.leaveDialog.confirmButton')}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

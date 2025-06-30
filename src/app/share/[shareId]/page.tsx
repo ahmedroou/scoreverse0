@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Loader2, ShieldX, Trophy, BarChart3, History, Users, Award, Medal, Gamepad2, Calendar, Layers, Zap, ArrowUp, ArrowDown, Repeat, Sigma, BarChartHorizontal, Star, RefreshCw } from 'lucide-react';
 import { LeaderboardTable } from '@/components/LeaderboardTable';
-import { TournamentCard } from '@/app/tournaments/TournamentCard';
+import { TournamentCard } from '@/components/TournamentCard';
 import { MatchHistoryCard } from '@/components/MatchHistoryCard';
 import { useLanguage } from '@/hooks/use-language';
 import type { PublicShareData, Player, Game, Match, Space, Tournament, ScoreData, PlayerStats, PlayerGameStats } from '@/types';
@@ -433,14 +433,14 @@ function SharePageContent() {
                             <h2 className="text-2xl font-bold mb-4">{t('tournaments.activeTab', { count: activeTournaments.length })}</h2>
                             {activeTournaments.length > 0 ? (
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                    {activeTournaments.map(t => <TournamentCard key={t.id} tournament={t} game={getGameById(t.gameId)} leader={(gameLeaderboards[t.gameId] || [])[0]} isPublicView />)}
+                                    {activeTournaments.map(t => <TournamentCard key={t.id} tournament={t} game={getGameById(t.gameId)} leader={(gameLeaderboards[t.gameId] || [])[0]} />)}
                                 </div>
                             ) : <p className="text-center text-muted-foreground py-8">{t('tournaments.noActive')}</p>}
 
                             <h2 className="text-2xl font-bold mt-8 mb-4">{t('tournaments.completedTab', { count: completedTournaments.length })}</h2>
                             {completedTournaments.length > 0 ? (
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                    {completedTournaments.map(t => <TournamentCard key={t.id} tournament={t} game={getGameById(t.gameId)} leader={(gameLeaderboards[t.gameId] || []).find(p => p.playerId === t.winnerPlayerId)} isPublicView />)}
+                                    {completedTournaments.map(t => <TournamentCard key={t.id} tournament={t} game={getGameById(t.gameId)} leader={(gameLeaderboards[t.gameId] || []).find(p => p.playerId === t.winnerPlayerId)} />)}
                                 </div>
                             ) : <p className="text-center text-muted-foreground py-8">{t('tournaments.noCompleted')}</p>}
                         </TabsContent>

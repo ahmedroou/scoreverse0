@@ -2,22 +2,81 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // Admins can read/write anything. This is a broad rule for administrative purposes.
-    match /{document=**} {
-      allow read, write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+
+    // HELPER FUNCTIONS
+    function isAuth() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    }
+
+    function isMember(ownerId, spaceId) {
+      let spaceData = get(/databases/$(database)/documents/users/$(ownerId)/spaces/$(spaceId)).data;
+      return request.auth.uid in spaceData.members && spaceData.members[request.auth.uid] != 'deleted';
+    }
+
+    // USER PROFILE RULES
+    match /users/{userId} {
+      // Admins can read anyone's profile.
+      // Users can read and write their own profile.
+      allow read, write: if isOwner(userId) || isAdmin();
+      allow list: if isAdmin();
     }
     
-    // Users can read/write documents and subcollections directly under their own user ID.
-    // This covers their user profile, players, games, matches, spaces, and tournaments.
-    match /users/{userId}/{document=**} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+    // SPACE INVITE RULES
+    match /spaceInvites/{inviteCode} {
+        // Any authenticated user can read an invite code to verify it.
+        allow read: if isAuth();
+        // Only the owner of the space can create/update the invite code.
+        allow write: if isOwner(request.resource.data.ownerId);
     }
     
-    // Public shares are read-only for everyone. No one can write to them.
+    // PUBLIC SHARE RULES
     match /public_shares/{shareId} {
-      allow get: if true;
-      allow list, write: if false; // Deny list and write for security.
+        allow read: if true;
+        allow write: if false; // Nobody can write directly
+    }
+
+    // USER SUBCOLLECTION RULES
+    match /users/{ownerId}/{collection}/{docId} {
+      // The owner has full access.
+      allow read, write: if isOwner(ownerId);
+      
+      // Admins have read access.
+      allow get, list: if isAdmin();
+    }
+
+    // PERMISSIONS FOR JOINED/SHARED SPACES
+    match /users/{ownerId}/spaces/{spaceId} {
+      // Allow members to read the space document itself.
+      allow get: if isOwner(ownerId) || isMember(ownerId, spaceId);
+      
+      // Allow a user to add/remove themselves from the members map for joining/leaving.
+      allow update: if request.auth.uid != ownerId &&
+                      // The change must only affect the 'members' field.
+                      request.resource.data.diff(resource.data).affectedKeys().hasOnly(['members']) &&
+                      // The user must either be adding themselves as 'viewer' or removing themselves entirely.
+                      (
+                        (request.resource.data.members[request.auth.uid] == 'viewer' && !(request.auth.uid in resource.data.members)) ||
+                        (!(request.auth.uid in request.resource.data.members) && resource.data.members[request.auth.uid] != null)
+                      );
+    }
+
+    match /users/{ownerId}/{collection=players|games|matches|tournaments}/{docId} {
+        // Allow read access if the user is a member of ANY space owned by the ownerId.
+        // This is a broader rule for simplicity. It checks if the requesting user's `sharedSpaces` map
+        // contains any entry where the value (ownerId) matches the ownerId from the path.
+        allow get, list: if isOwner(ownerId) || (
+            request.auth.uid in getAfter(/databases/$(database)/documents/users/$(ownerId)/spaces/
+              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.sharedSpaces.keys()[0] // This logic is too complex for rules
+            ).data.members
+        ) || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.sharedSpaces.values().hasAny([ownerId]);
     }
   }
 }

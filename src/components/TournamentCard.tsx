@@ -1,13 +1,11 @@
-
 "use client";
 
-import type { Tournament, Player, Game, ScoreData } from '@/types';
+import type { Tournament, Game, ScoreData } from '@/types';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Trophy, Gamepad2, Flag, UserCog, Star } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useLanguage } from '@/hooks/use-language';
 import { Progress } from '@/components/ui/progress';
-import Link from 'next/link';
 
 interface TournamentCardProps {
   tournament: Tournament;
@@ -21,10 +19,9 @@ export function TournamentCard({ tournament, game, leader, ownerUsername }: Tour
   
   const progress = leader ? Math.min((leader.totalPoints / tournament.targetPoints) * 100, 100) : 0;
   const winner = tournament.status === 'completed' && leader && leader.totalPoints >= tournament.targetPoints ? leader : null;
-
+  
   return (
-    <Link href={`/tournaments/${tournament.id}`} className="block h-full">
-      <Card className={`border hover:shadow-lg transition-all duration-200 ease-in-out bg-card flex flex-col h-full hover:scale-[1.02] hover:border-primary ${tournament.status === 'completed' ? 'border-yellow-500/30 bg-yellow-500/5' : 'border-border'}`}>
+      <Card className={`border hover:shadow-lg transition-all duration-200 ease-in-out bg-card flex flex-col h-full hover:border-primary ${tournament.status === 'completed' ? 'border-yellow-500/30 bg-yellow-500/5' : 'border-border'}`}>
         <CardHeader className="pb-4">
           <div className="flex justify-between items-start gap-4">
               <div className='flex-grow min-w-0'>
@@ -73,6 +70,5 @@ export function TournamentCard({ tournament, game, leader, ownerUsername }: Tour
           )}
         </CardContent>
       </Card>
-    </Link>
   );
 }

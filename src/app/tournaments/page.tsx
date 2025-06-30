@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Trophy, PlusCircle } from 'lucide-react';
 import Link from 'next/link';
 import { AddTournamentForm } from './AddTournamentForm';
-import { TournamentCard } from './TournamentCard';
+import { TournamentCard } from '@/components/TournamentCard';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useLanguage } from '@/hooks/use-language';
 

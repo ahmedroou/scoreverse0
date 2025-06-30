@@ -20,13 +20,13 @@ import { useLanguage } from '@/hooks/use-language';
 
 export function AppHeader() {
   const { isMobile } = useSidebar();
-  const { currentUser, logout } = useAppContext();
+  const { currentUser, logout, isClient } = useAppContext();
   const { t } = useLanguage();
 
   return (
     <header className="sticky top-0 z-50 flex h-16 items-center justify-between border-b bg-card px-4 shadow-sm sm:px-6">
       <div className="flex items-center gap-2">
-        {isMobile && currentUser && <SidebarTrigger />}
+        {isClient && isMobile && currentUser && <SidebarTrigger />}
         <Link href={currentUser ? "/dashboard" : "/auth"} className="flex items-center gap-2 text-xl font-bold text-primary hover:opacity-80 transition-opacity">
           <Sparkles className="h-7 w-7" />
           <span>{t('header.title')}</span>

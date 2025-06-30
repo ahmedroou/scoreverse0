@@ -1,7 +1,8 @@
 
-
 import type { LucideIcon } from "lucide-react";
 import type { SuggestHandicapOutput } from "@/ai/flows/suggest-handicap";
+
+export type SpaceRole = 'owner' | 'editor' | 'viewer';
 
 export interface Game {
   id: string;
@@ -18,33 +19,33 @@ export interface Player {
   id: string;
   name: string;
   avatarUrl?: string;
-  // For AI Handicap Suggestions & potential future stats display
-  winRate?: number; // 0 to 1, represents probability
+  winRate?: number;
   averageScore?: number;
   ownerId: string;
 }
 
-// Extends Player for form-specific input where winRate might be 0-100
 export interface MatchPlayer extends Player {
-  aiWinRate: number; // Percentage based (0-100) for form input
-  aiAverageScore: number; // Score for form input
+  aiWinRate: number; 
+  aiAverageScore: number; 
 }
 
 export interface Space {
   id: string;
   name: string;
   ownerId: string;
+  inviteCode?: string;
+  members: Record<string, SpaceRole>; // Map of userId to role
 }
 
 export interface Match {
-  id: string;
+  id:string;
   gameId: string;
   date: string; // ISO string
   playerIds: string[];
   winnerIds: string[];
   pointsAwarded: Array<{ playerId: string; points: number }>;
-  handicapSuggestions?: SuggestHandicapOutput; // Store the suggestions made for this match
-  spaceId: string | null; // Optional: ID of the space this match belongs to
+  handicapSuggestions?: SuggestHandicapOutput;
+  spaceId: string | null;
 }
 
 export interface ScoreData {
@@ -62,6 +63,7 @@ export interface UserAccount {
   email: string;
   isAdmin?: boolean;
   shareId?: string;
+  sharedSpaces: Record<string, string>; // Map of spaceId to ownerId for joined spaces
 }
 
 export interface PlayerGameStats {

@@ -12,7 +12,7 @@ import { useLanguage } from '@/hooks/use-language';
 
 // This component will render the correct layout based on the route and auth state.
 export function AppLayoutClient({ children }: { children: ReactNode }) {
-  const { currentUser, isLoadingAuth } = useAppContext();
+  const { currentUser, isLoadingAuth, isClient } = useAppContext();
   const { t } = useLanguage();
   const pathname = usePathname();
   const router = useRouter();
@@ -22,8 +22,9 @@ export function AppLayoutClient({ children }: { children: ReactNode }) {
 
   // This effect handles redirecting the user based on their auth state for all subsequent navigation.
   useEffect(() => {
-    if (isLoadingAuth) {
-      return; // Do nothing while we are checking the auth state.
+    // We can't redirect until we are on the client and auth state is resolved.
+    if (!isClient || isLoadingAuth) {
+      return; 
     }
 
     // If the user is not logged in and is trying to access a protected page, redirect to /auth.
@@ -35,11 +36,12 @@ export function AppLayoutClient({ children }: { children: ReactNode }) {
     if (currentUser && pathname === '/auth') {
       router.push('/dashboard');
     }
-  }, [currentUser, isLoadingAuth, isPublicPath, pathname, router]);
+  }, [currentUser, isLoadingAuth, isPublicPath, pathname, router, isClient]);
 
 
-  // While loading the auth state, or if we are about to redirect, show a global loader.
-  if (isLoadingAuth || (!currentUser && !isPublicPath)) {
+  // On the server, or on the initial client render before auth state is known,
+  // we show a consistent loader to prevent hydration errors.
+  if (!isClient || isLoadingAuth) {
     return (
       <div className="flex flex-col min-h-screen items-center justify-center bg-background text-foreground">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -47,8 +49,10 @@ export function AppLayoutClient({ children }: { children: ReactNode }) {
       </div>
     );
   }
-
-  // If the user is logged in, show the full dashboard layout with the sidebar.
+  
+  // After the client has mounted and auth is resolved, render the correct layout.
+  
+  // If the user is logged in and not on a public path, show the full dashboard layout.
   if (currentUser && !isPublicPath) {
     return (
       <div className="flex min-h-screen flex-col">
@@ -65,7 +69,7 @@ export function AppLayoutClient({ children }: { children: ReactNode }) {
     );
   }
 
-  // For logged-out users on public pages (like /auth, /share, or the root loader), show a simple layout.
+  // For public pages, or while waiting for a redirect, show a simple layout.
   return (
     <main className="flex-1 bg-background text-foreground min-h-screen">
         {children}

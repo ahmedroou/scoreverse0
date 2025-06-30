@@ -2,9 +2,6 @@
 "use client"
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { useForm, Controller } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
 import { useAppContext } from '@/context/AppContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -28,7 +25,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useLanguage } from '@/hooks/use-language';
 import type { Space, SpaceRole } from '@/types';
-import { Loader2, Trash2, UserPlus, ShieldAlert } from 'lucide-react';
+import { Loader2, Trash2, UserPlus, ShieldAlert, Copy, Check, RefreshCw } from 'lucide-react';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -39,12 +36,18 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { useToast } from '@/hooks/use-toast';
 
+const stringToHslColor = (str: string, s: number, l: number): string => {
+  if (!str) return `hsl(0, ${s}%, ${l}%)`;
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const h = hash % 360;
+  return `hsl(${h}, ${s}%, ${l}%)`;
+};
 
-const createInviteSchema = (t: (key: string) => string) => z.object({
-  email: z.string().email(t('auth.invalidEmail')),
-  role: z.enum(['editor', 'viewer']),
-});
 
 interface ManageMembersDialogProps {
   space: Space;
@@ -54,37 +57,26 @@ interface ManageMembersDialogProps {
 
 export function ManageMembersDialog({ space, isOpen, onOpenChange }: ManageMembersDialogProps) {
     const { t } = useLanguage();
-    const { inviteUserToSpace, removeUserFromSpace, updateUserRoleInSpace, getUserById, currentUser } = useAppContext();
+    const { toast } = useToast();
+    const { removeMemberFromSpace, updateMemberRole, getUserById, generateInviteCode } = useAppContext();
     
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [memberToRemove, setMemberToRemove] = useState<string | null>(null);
+    const [isCopied, setIsCopied] = useState(false);
 
-    const form = useForm<z.infer<typeof createInviteSchema>>({
-        resolver: zodResolver(createInviteSchema(t)),
-        defaultValues: { email: '', role: 'viewer' },
-    });
-    
     useEffect(() => {
         if (!isOpen) {
-            form.reset();
             setIsSubmitting(false);
         }
-    }, [isOpen, form]);
+    }, [isOpen]);
 
-    const handleInvite = async (values: z.infer<typeof createInviteSchema>) => {
-        setIsSubmitting(true);
-        await inviteUserToSpace(space.id, values.email, values.role as SpaceRole);
-        setIsSubmitting(false);
-        form.reset();
-    };
-    
     const handleRoleChange = (memberId: string, role: SpaceRole) => {
-        updateUserRoleInSpace(space.id, memberId, role);
+        updateMemberRole(space.id, memberId, role);
     };
 
     const confirmRemoveMember = () => {
         if (memberToRemove) {
-            removeUserFromSpace(space.id, memberToRemove);
+            removeMemberFromSpace(space.id, memberToRemove);
             setMemberToRemove(null);
         }
     };
@@ -96,13 +88,31 @@ export function ManageMembersDialog({ space, isOpen, onOpenChange }: ManageMembe
                 user: getUserById(userId),
                 role
             }))
-            .filter(m => !!m.user)
+            .filter(m => !!m.user && m.role !== 'deleted')
             .sort((a, b) => {
                 if (a.role === 'owner') return -1;
                 if (b.role === 'owner') return 1;
                 return a.user!.username.localeCompare(b.user!.username);
             });
     }, [space.members, getUserById]);
+    
+     const handleCopyToClipboard = () => {
+        if (!space.inviteCode) return;
+        navigator.clipboard.writeText(space.inviteCode).then(() => {
+            setIsCopied(true);
+            toast({ title: t('spaces.shareDialog.toasts.copied'), description: t('spaces.shareDialog.toasts.copySuccess') });
+            setTimeout(() => setIsCopied(false), 2000);
+        }).catch(err => {
+            console.error('Failed to copy text: ', err);
+            toast({ title: t('common.error'), description: t('spaces.shareDialog.toasts.copyError'), variant: "destructive" });
+        });
+    };
+    
+    const handleRegenerateCode = async () => {
+        setIsSubmitting(true);
+        await generateInviteCode(space.id);
+        setIsSubmitting(false);
+    }
 
   return (
     <>
@@ -114,38 +124,19 @@ export function ManageMembersDialog({ space, isOpen, onOpenChange }: ManageMembe
             </DialogHeader>
 
             <div className="flex-grow overflow-y-auto pr-2 space-y-6">
-                {/* Invite Form */}
-                <form onSubmit={form.handleSubmit(handleInvite)} className="p-4 border rounded-lg space-y-4">
-                    <h3 className="font-semibold">{t('spaces.membersDialog.inviteTitle')}</h3>
-                    <div className="space-y-2">
-                         <Label htmlFor="email-invite">{t('auth.emailLabel')}</Label>
-                         <Input id="email-invite" {...form.register('email')} placeholder={t('auth.emailPlaceholder')} disabled={isSubmitting}/>
-                         {form.formState.errors.email && <p className="text-sm text-destructive">{form.formState.errors.email.message}</p>}
-                    </div>
-                    <div className="flex gap-4 items-end">
-                        <div className="flex-grow">
-                            <Label>{t('spaces.membersDialog.roleLabel')}</Label>
-                            <Controller
-                                control={form.control}
-                                name="role"
-                                render={({ field }) => (
-                                <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isSubmitting}>
-                                    <SelectTrigger><SelectValue /></SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="viewer">{t('spaces.membersDialog.roles.viewer')}</SelectItem>
-                                        <SelectItem value="editor">{t('spaces.membersDialog.roles.editor')}</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                                )}
-                            />
-                        </div>
-                        <Button type="submit" disabled={isSubmitting}>
-                            {isSubmitting ? <Loader2 className="animate-spin" /> : t('spaces.membersDialog.inviteButton')}
+                 <div className="p-4 border rounded-lg space-y-2 bg-muted/30">
+                    <Label htmlFor="invite-code-display">{t('spaces.membersDialog.inviteCodeLabel')}</Label>
+                    <div className="flex items-center space-x-2">
+                        <Input id="invite-code-display" value={space.inviteCode || t('spaces.membersDialog.noCode')} readOnly />
+                        <Button type="button" size="icon" variant="outline" onClick={handleCopyToClipboard} disabled={!space.inviteCode}>
+                            {isCopied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                        </Button>
+                         <Button type="button" size="icon" variant="outline" onClick={handleRegenerateCode} disabled={isSubmitting}>
+                            {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
                         </Button>
                     </div>
-                </form>
+                 </div>
 
-                {/* Members List */}
                 <div className="space-y-2">
                      <h3 className="font-semibold">{t('spaces.membersDialog.listTitle')}</h3>
                      <div className="space-y-2">
@@ -154,7 +145,9 @@ export function ManageMembersDialog({ space, isOpen, onOpenChange }: ManageMembe
                                 <div className="flex items-center gap-3">
                                     <Avatar className="h-8 w-8">
                                         <AvatarImage src="" alt={user!.username} />
-                                        <AvatarFallback>{user!.username.substring(0,1)}</AvatarFallback>
+                                        <AvatarFallback style={{backgroundColor: stringToHslColor(user!.username, 50, 70)}}>
+                                            {user!.username.substring(0,1).toUpperCase()}
+                                        </AvatarFallback>
                                     </Avatar>
                                     <div>
                                         <p className="font-medium">{user!.username}</p>
