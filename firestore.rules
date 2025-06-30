@@ -3,59 +3,78 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // --- Helper Functions ---
-    function isOwner(userId) {
-      return request.auth != null && request.auth.uid == userId;
-    }
-    
-    function isAdmin() {
-      return request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
-    }
-
-    // --- Default Deny ---
+    // Default deny all.
     match /{document=**} {
       allow read, write: if false;
     }
 
-    // --- Public Shares (for embedding/sharing links) ---
+    // Public shares are read-only for everyone.
     match /public_shares/{shareId} {
-      allow get: if true;
-    }
-
-    // --- User Documents (/users/{userId}) ---
-    match /users/{userId} {
-      allow get: if isOwner(userId) || isAdmin();
-      allow list: if isAdmin();
-      allow update: if isOwner(userId) && !(request.resource.data.isAdmin == true && resource.data.isAdmin == false);
-      allow delete: if isAdmin() && request.auth.uid != userId;
-    }
-
-    // --- Shared Access Control ---
-    match /shared_access/{docId} {
-      allow write: if request.auth != null && request.auth.uid == docId.split('_')[1];
+      allow read: if true;
     }
     
-    // --- General rules for a user's OWN subcollections ---
-    match /users/{userId}/{collection}/{docId} {
-       // Owner has full access to their own stuff
-       allow read, write: if isOwner(userId);
-
-       // A member of a space can READ items from the owner's collections
-       allow read: if request.auth != null 
-                   && exists(/databases/$(database)/documents/shared_access/$(request.auth.uid)_$(userId));
+    // User profile documents.
+    match /users/{userId} {
+      function isAdmin() {
+        return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+      }
+      
+      allow get: if request.auth != null && (request.auth.uid == userId || isAdmin());
+      allow list: if request.auth != null && isAdmin();
+      // Allow user to create their own doc on signup.
+      allow create: if request.auth.uid == userId;
+      allow update: if request.auth.uid == userId;
+      allow delete: if request.auth != null && isAdmin();
     }
 
-    // --- Specific rule for 'spaces' links ---
-    match /users/{inviteeId}/spaces/{spaceId} {
-      // Allow OWNER of original space to CREATE a link doc for an invitee
-      allow create: if request.auth.uid != inviteeId 
-                    && request.resource.data.isShared == true
-                    && get(/databases/$(database)/documents/users/$(request.resource.data.ownerId)/spaces/$(spaceId)).data.ownerId == request.auth.uid;
+    // Space documents (both original and shared "links").
+    match /users/{targetUserId}/spaces/{spaceId} {
+      // Allow read access if the requesting user is in the members list.
+      allow get: if request.auth.uid in resource.data.members;
+
+      // Allow creation if the creator is the owner specified in the new document's data.
+      // This covers both creating an original space and a link for an invitee.
+      allow create: if request.resource.data.ownerId == request.auth.uid;
+
+      // Allow updates only by the space owner.
+      // This applies to the original doc and all link docs.
+      allow update: if resource.data.ownerId == request.auth.uid;
       
-      // Allow OWNER of original space to DELETE a link doc from an invitee
-      allow delete: if request.auth.uid != inviteeId
-                    && resource.data.isShared == true
-                    && request.auth.uid == resource.data.ownerId;
+      // Allow delete by the space owner (removing anyone) OR by the member leaving the space.
+      allow delete: if resource.data.ownerId == request.auth.uid || request.auth.uid == targetUserId;
+    }
+
+    // Documents inside a space (games, players, matches, etc.).
+    // This rule assumes these docs are only under the owner's user account.
+    match /users/{ownerId}/{collection}/{docId} {
+        
+        function getSpaceData(spaceId) {
+            // The canonical space document is always under the owner's account.
+            return get(/databases/$(database)/documents/users/$(ownerId)/spaces/$(spaceId)).data;
+        }
+
+        function isMember(docData) {
+            // For global (non-space) documents, only the owner is a "member".
+            if (!('spaceId' in docData) || docData.spaceId == null) {
+                return request.auth.uid == ownerId;
+            }
+            let members = getSpaceData(docData.spaceId).members;
+            return request.auth.uid in members;
+        }
+
+        function canEdit(docData) {
+            if (!('spaceId' in docData) || docData.spaceId == null) {
+                return request.auth.uid == ownerId;
+            }
+            let members = getSpaceData(docData.spaceId).members;
+            let role = members[request.auth.uid];
+            return role == 'owner' || role == 'editor';
+        }
+        
+        // Use request.resource.data for create/update, and resource.data for get/delete.
+        allow read: if isMember(resource.data);
+        allow create: if canEdit(request.resource.data);
+        allow update, delete: if canEdit(resource.data);
     }
   }
 }

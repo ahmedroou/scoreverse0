@@ -890,15 +890,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         // Create a "link" space document for the invitee
         const linkSpaceRef = doc(db, 'users', inviteeUser.id, 'spaces', spaceId);
         batch.set(linkSpaceRef, {
-            ...spaceData,
-            members: newMembers, // Also give them the full members list
+            ...spaceData, // This includes the ORIGINAL ownerId
+            members: newMembers,
             isShared: true,
         });
 
-        // Add a document to shared_access for security rules
-        const sharedAccessRef = doc(db, `shared_access/${inviteeUser.id}_${currentUser.id}`);
-        batch.set(sharedAccessRef, { hasAccess: true }, { merge: true });
-
+        // Update link docs for all OTHER existing members
+        Object.keys(newMembers).forEach(id => {
+            if (id !== currentUser.id && id !== inviteeUser.id) {
+                const linkRef = doc(db, 'users', id, 'spaces', spaceId);
+                batch.update(linkRef, { members: newMembers });
+            }
+        });
+        
         await batch.commit();
 
         toast({ title: t('spaces.toasts.inviteSent'), description: t('spaces.toasts.inviteSentDesc', { email }) });
@@ -935,13 +939,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           // Delete the link doc for the removed member
           const linkDocToRemove = doc(db, 'users', memberId, 'spaces', spaceId);
           batch.delete(linkDocToRemove);
-
-          // Check if this was the last user this owner shared with
-          const remainingSharedSpaces = spaces.filter(s => s.ownerId === currentUser.id && Object.keys(s.members).some(id => id !== currentUser.id));
-          if (!remainingSharedSpaces.some(s => Object.keys(s.members).includes(memberId))) {
-               const sharedAccessRef = doc(db, `shared_access/${memberId}_${currentUser.id}`);
-               batch.delete(sharedAccessRef);
-          }
           
           await batch.commit();
           toast({ title: t('spaces.toasts.memberRemoved'), description: t('spaces.toasts.memberRemovedDesc', { username: memberUsername }) });
@@ -950,7 +947,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           console.error("Failed to remove member:", error);
           toast({ title: t('common.error'), description: t('spaces.toasts.removeFailed'), variant: 'destructive' });
       }
-  }, [currentUser, toast, t, spaces, getUserById]);
+  }, [currentUser, toast, t, getUserById]);
   
   const updateUserRoleInSpace = useCallback(async (spaceId: string, memberId: string, role: SpaceRole) => {
       if (!currentUser) return;
