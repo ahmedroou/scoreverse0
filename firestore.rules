@@ -4,77 +4,77 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper function to check if the requester is an admin.
+    // --- Helper Functions ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isUser(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
     function isAdmin() {
-      // Use exists() to avoid errors on signup when the user doc isn't created yet.
-      return exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+      return isSignedIn() &&
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
     }
+    
+    // --- Rules Start Here ---
 
-    // Allow public read on share links
+    // Public share links can be read by anyone.
     match /public_shares/{shareId} {
-      allow read: if true;
-      allow write: if false; // Only backend can write here
+      allow get: if true;
+      allow list, write: if false;
     }
 
-    // Rules for the main /users collection and its subcollections
+    // User profile documents.
     match /users/{userId} {
-
-      // User Profile Document (`/users/{userId}`)
-      // Admins can read any user profile.
-      // Users can read/update their own profile.
-      allow get: if request.auth != null && (request.auth.uid == userId || isAdmin());
+      allow get: if isUser(userId) || isAdmin();
       allow list: if isAdmin();
-      allow update: if request.auth != null && request.auth.uid == userId;
-      // Any authenticated user can create their own profile on signup.
-      allow create: if request.auth != null && request.auth.uid == userId;
-      // Admins can delete users (logic prevents self-deletion).
+      allow create, update: if isUser(userId) || isAdmin();
       allow delete: if isAdmin();
-
-      // User-owned data (games, players, etc.)
-      match /(games|players|matches|tournaments)/{docId} {
-        // Owner has full access.
-        allow read, write: if request.auth.uid == userId;
-        
-        // Members of a space can read data from the space owner.
-        // This rule is broad: if a user is a member of ANY of the owner's spaces,
-        // they can read ALL of the owner's game data. This is a limitation
-        // of the data model that we accept for now to make sharing work.
-        allow read: if request.auth != null && size(
-          firestore.get(/databases/$(database)/documents/users/$(request.auth.uid)/spaces?ownerId=string($(userId)))
-        ) > 0;
-      }
-      
-      // Special rules for the 'spaces' subcollection (contains originals & links)
-      match /spaces/{spaceId} {
-        // A user can always read their own space documents (originals or links).
-        allow read: if request.auth.uid == userId;
-
-        // Owner can create their own original space doc.
-        allow create: if request.auth.uid == userId && request.auth.uid == request.resource.data.ownerId;
-        
-        // A user can update their own space docs (e.g., changing the name of a space they own).
-        allow update: if request.auth.uid == userId;
-
-        // A user can delete their own space docs.
-        allow delete: if request.auth.uid == userId;
-      }
     }
     
-    // This rule is separate and critical for invites. It allows a space owner
-    // to write a "link" document into another user's 'spaces' subcollection.
-    match /users/{inviteeId}/spaces/{spaceId} {
-       // Allow write (create, update) if the person making the request is the ownerId
-       // specified in the document being written.
-       allow create, update: if request.auth != null && request.resource.data.ownerId == request.auth.uid;
-       
-       // Allow a space owner to delete the link from a member's collection when removing them.
-       // This check is insecure because get() is not allowed on delete.
-       // The app's logic relies on a Cloud Function or a different model for secure removal.
-       // For now, allowing any authenticated user to delete is a temporary workaround if needed,
-       // but we will rely on the owner's client-side logic to perform the batch delete.
-       // A more secure rule would be needed for production.
-       allow delete: if request.auth != null;
+    // Space documents (the "link" docs stored under each user).
+    match /users/{memberId}/spaces/{spaceId} {
+        // A user can read/create/update/delete their own link documents.
+        allow read, write: if isUser(memberId);
+        
+        // The owner of a space can also write to a member's link document
+        // to perform invites (create), role changes (update), or removals (delete).
+        // On create, we check the incoming data. On update/delete, we check existing data.
+        allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
+        allow update, delete: if isSignedIn() && resource.data.ownerId == request.auth.uid;
+    }
+
+    // All other user subcollections (players, games, matches, tournaments).
+    match /users/{ownerId}/{collection}/{docId} {
+
+        // Helper to check if the requester is a member of the space this document belongs to.
+        function isMember() {
+            // Document must have a spaceId.
+            return resource.data.spaceId != null &&
+                   // Requester must have a corresponding space link document.
+                   exists(/databases/$(database)/documents/users/$(request.auth.uid)/spaces/$(resource.data.spaceId)) &&
+                   // That link must point to the correct owner of the data.
+                   get(/databases/$(database)/documents/users/$(request.auth.uid)/spaces/$(resource.data.spaceId)).data.ownerId == ownerId;
+        }
+
+        // Helper to check if the requester is an editor for the space this document belongs to.
+        function isEditor() {
+            // The document being written must have a spaceId.
+            return request.resource.data.spaceId != null &&
+                   // Requester must have a corresponding space link document.
+                   exists(/databases/$(database)/documents/users/$(request.auth.uid)/spaces/$(request.resource.data.spaceId)) &&
+                   // That link must point to the correct owner.
+                   get(/databases/$(database)/documents/users/$(request.auth.uid)/spaces/$(request.resource.data.spaceId)).data.ownerId == ownerId &&
+                   // The requester's role in that space must be 'editor' or 'owner'.
+                   get(/databases/$(database)/documents/users/$(request.auth.uid)/spaces/$(request.resource.data.spaceId)).data.members[request.auth.uid] in ['editor', 'owner'];
+        }
+
+        // --- Final Permissions ---
+        allow read: if isUser(ownerId) || isAdmin() || isMember();
+        allow write: if isUser(ownerId) || isAdmin() || isEditor();
     }
   }
 }
