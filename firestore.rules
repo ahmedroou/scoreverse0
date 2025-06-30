@@ -1,42 +1,43 @@
 
 rules_version = '2';
 
-// Helper function to check if the requesting user is an admin.
-function isAdmin() {
-  // Ensure the user is authenticated before trying to access their data.
-  return request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
-}
-
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Public shares are readable by anyone, but not writable.
-    match /public_shares/{shareId} {
-      allow read: if true;
-      allow write: if false; 
+    // Helper function to securely check if the requesting user is an admin.
+    // It checks for the existence of the user document before trying to read from it.
+    function isAdmin() {
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
     }
 
-    // Rules for the main user documents collection
+    // Public share data is readable by anyone, without authentication.
+    match /public_shares/{shareId} {
+      allow get: if true;
+    }
+
+    // Rules for the main 'users' collection.
     match /users/{userId} {
-      // An admin can list all users.
+      // A user can be created only if their user ID matches the authenticated user.
+      allow create: if request.auth.uid == userId;
+      
+      // A user can get their own document. An admin can get any user's document.
+      allow get: if request.auth.uid == userId || isAdmin();
+      
+      // Only an admin can list all user documents.
       allow list: if isAdmin();
       
-      // A user can get their own document, AND an admin can get any user's document.
-      // This is the key fix: an admin needs 'get' permission on all documents they 'list'.
-      allow get: if request.auth != null && (request.auth.uid == userId || isAdmin());
-
-      // A user can create/update their own document. An admin can also update any user document.
-      allow write: if request.auth != null && (request.auth.uid == userId || isAdmin());
+      // A user can only update their own document.
+      allow update: if request.auth.uid == userId;
       
-      // Only an admin can delete another user. They cannot delete themselves.
+      // An admin can delete any user except for themselves.
       allow delete: if isAdmin() && request.auth.uid != userId;
     }
-
-    // Rules for all subcollections within a user's document (players, games, etc.)
-    match /users/{userId}/{subcollection}/{docId} {
-      // Only the owner of the user document can read, write, or delete documents in their own subcollections.
-      // This keeps user data private and prevents even admins from directly modifying it.
-      allow read, write, delete: if request.auth != null && request.auth.uid == userId;
+    
+    // Secure all user subcollections (like players, games, matches, spaces, tournaments).
+    match /users/{ownerId}/{subcollection}/{docId} {
+      // The owner of the data can perform any action on their own documents.
+      allow read, write, delete: if request.auth.uid == ownerId;
     }
   }
 }
