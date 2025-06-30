@@ -561,7 +561,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         tournamentsSnapshot.forEach(doc => batch.delete(doc.ref));
 
         // Also delete "link" documents from members' accounts
-        const memberIds = Object.keys(space.members).filter(id => id !== currentUser.id);
+        const memberIds = Object.keys(space.members || {}).filter(id => id !== currentUser.id);
         memberIds.forEach(memberId => {
             const linkDocRef = doc(db, 'users', memberId, 'spaces', spaceIdToDelete);
             batch.delete(linkDocRef);
@@ -870,42 +870,39 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
 
         const inviteeUser = querySnapshot.docs[0].data() as UserAccount;
-        const spaceRef = doc(db, 'users', currentUser.id, 'spaces', spaceId);
+        const ownerSpaceRef = doc(db, 'users', currentUser.id, 'spaces', spaceId);
         
-        const spaceSnap = await getDoc(spaceRef);
+        const spaceSnap = await getDoc(ownerSpaceRef);
         if (!spaceSnap.exists()) return;
         const spaceData = spaceSnap.data() as Space;
 
-        if (spaceData.members && spaceData.members[inviteeUser.id]) {
+        const currentMembers = spaceData.members || {};
+        if (currentMembers[inviteeUser.id]) {
             toast({ title: t('common.error'), description: t('spaces.toasts.alreadyMember', { email }), variant: "destructive" });
             return;
         }
 
         const batch = writeBatch(db);
-        
-        const currentMembers = spaceData.members || { [currentUser.id]: 'owner' };
         const newMembers = { ...currentMembers, [inviteeUser.id]: role };
-        batch.update(spaceRef, { members: newMembers });
 
-        // Create a "link" space document for the invitee
+        // 1. Update the original space document
+        batch.update(ownerSpaceRef, { members: newMembers });
+
+        // 2. Create/Update the link document for the new invitee
         const linkSpaceRef = doc(db, 'users', inviteeUser.id, 'spaces', spaceId);
-        batch.set(linkSpaceRef, {
-            ...spaceData, // This includes the ORIGINAL ownerId
-            members: newMembers,
-            isShared: true,
-        });
+        batch.set(linkSpaceRef, { ...spaceData, members: newMembers, isShared: true }, { merge: true });
 
-        // Update link docs for all OTHER existing members
-        Object.keys(newMembers).forEach(id => {
-            if (id !== currentUser.id && id !== inviteeUser.id) {
-                const linkRef = doc(db, 'users', id, 'spaces', spaceId);
-                batch.update(linkRef, { members: newMembers });
+        // 3. Update the link document for all *other* existing members
+        Object.keys(currentMembers).forEach(memberId => {
+            if (memberId !== currentUser.id) { // No need to update the owner's original doc again
+                const memberLinkRef = doc(db, 'users', memberId, 'spaces', spaceId);
+                batch.update(memberLinkRef, { members: newMembers });
             }
         });
         
         await batch.commit();
-
         toast({ title: t('spaces.toasts.inviteSent'), description: t('spaces.toasts.inviteSentDesc', { email }) });
+
     } catch (error) {
         console.error("Failed to invite user:", error);
         toast({ title: t('common.error'), description: t('spaces.toasts.inviteFailed'), variant: 'destructive' });
@@ -916,34 +913,32 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const removeUserFromSpace = useCallback(async (spaceId: string, memberId: string) => {
       if (!currentUser) return;
       
-      const spaceRef = doc(db, 'users', currentUser.id, 'spaces', spaceId);
+      const ownerSpaceRef = doc(db, 'users', currentUser.id, 'spaces', spaceId);
       try {
-          const spaceSnap = await getDoc(spaceRef);
+          const spaceSnap = await getDoc(ownerSpaceRef);
           if (!spaceSnap.exists()) return;
           const spaceData = spaceSnap.data() as Space;
           const memberUsername = getUserById(memberId)?.username || 'user';
 
-          if (!spaceData.members) {
-            toast({ title: t('common.error'), description: 'Cannot remove member from a space with no member data.', variant: 'destructive' });
-            return;
-          }
+          if (!spaceData.members) return;
 
           const { [memberId]: _, ...newMembers } = spaceData.members;
 
           const batch = writeBatch(db);
-          batch.update(spaceRef, { members: newMembers });
+          // 1. Update the owner's document
+          batch.update(ownerSpaceRef, { members: newMembers });
 
-          // Also update the link doc for all remaining members
-          Object.keys(newMembers).forEach(id => {
-            if (id !== currentUser.id) {
-                const linkRef = doc(db, 'users', id, 'spaces', spaceId);
-                batch.update(linkRef, { members: newMembers });
-            }
-          });
-
-          // Delete the link doc for the removed member
+          // 2. Delete the link doc for the removed member
           const linkDocToRemove = doc(db, 'users', memberId, 'spaces', spaceId);
           batch.delete(linkDocToRemove);
+
+          // 3. Update link docs for all remaining members
+          Object.keys(newMembers).forEach(id => {
+              if (id !== currentUser.id) {
+                  const linkRef = doc(db, 'users', id, 'spaces', spaceId);
+                  batch.update(linkRef, { members: newMembers });
+              }
+          });
           
           await batch.commit();
           toast({ title: t('spaces.toasts.memberRemoved'), description: t('spaces.toasts.memberRemovedDesc', { username: memberUsername }) });
@@ -956,22 +951,21 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   
   const updateUserRoleInSpace = useCallback(async (spaceId: string, memberId: string, role: SpaceRole) => {
       if (!currentUser) return;
-      const spaceRef = doc(db, 'users', currentUser.id, 'spaces', spaceId);
+      const ownerSpaceRef = doc(db, 'users', currentUser.id, 'spaces', spaceId);
       try {
-          const spaceSnap = await getDoc(spaceRef);
+          const spaceSnap = await getDoc(ownerSpaceRef);
           if (!spaceSnap.exists()) return;
           const spaceData = spaceSnap.data() as Space;
 
-          if (!spaceData.members) {
-            toast({ title: t('common.error'), description: 'Cannot update role in a space with no member data.', variant: 'destructive' });
-            return;
-          }
+          if (!spaceData.members) return;
 
           const newMembers = { ...spaceData.members, [memberId]: role };
 
           const batch = writeBatch(db);
-          batch.update(spaceRef, { members: newMembers });
+          // 1. Update owner's document, which is the source of truth
+          batch.update(ownerSpaceRef, { members: newMembers });
           
+          // 2. Update all member link docs to keep their local copy in sync for UI purposes
           Object.keys(newMembers).forEach(id => {
             if (id !== currentUser.id) {
                 const linkRef = doc(db, 'users', id, 'spaces', spaceId);
