@@ -1,111 +1,65 @@
-
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
+    
     // --- Helper Functions ---
     function isSignedIn() {
       return request.auth != null;
     }
-
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
-    }
-
+    
     function isAdmin() {
-      // For this rule to work, users must have an 'isAdmin' field in their document.
-      return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
-    }
-    
-    // Checks if the current user has access to an owner's data because they are a member of one of that owner's spaces.
-    function hasSharedAccess(ownerId) {
-        return isSignedIn() &&
-               exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-               // Look for the ownerId key in the user's joinedSpaces map.
-               ownerId in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.joinedSpaces;
-    }
-    
-    // Helper function to check if the user is an editor for the specific resource being written.
-    function isEditorForResource(ownerId, resourceData) {
-        // This rule only applies to matches and tournaments, which must have a spaceId
-        return resourceData.spaceId != null &&
-               isSignedIn() &&
-               exists(/databases/$(database)/documents/users/$(ownerId)/spaces/$(resourceData.spaceId)) &&
-               request.auth.uid in get(/databases/$(database)/documents/users/$(ownerId)/spaces/$(resourceData.spaceId)).data.members &&
-               get(/databases/$(database)/documents/users/$(ownerId)/spaces/$(resourceData.spaceId)).data.members[request.auth.uid] == 'editor';
+      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
     }
 
-    // --- User Profile Rules ---
+    // --- User Profile and Collection Listing Rules ---
     match /users/{userId} {
-      // Admins can read any profile. Users can read their own profile.
-      allow read: if isOwner(userId) || isAdmin();
-
-      // Users can only create their own profile document.
-      allow create: if isOwner(userId);
-
-      // A user can update their own doc, but cannot change their own admin status.
-      // An admin can update any user doc.
-      // A user can also update their own joinedSpaces map when joining/leaving a space.
-      allow update: if isAdmin() || (isOwner(userId) && (
-          // Allow updates to any field EXCEPT isAdmin
-          !('isAdmin' in request.resource.data.diff(resource.data).affectedKeys()) ||
-          // Allow updates ONLY to joinedSpaces
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['joinedSpaces'])
-      ));
-
-      // Admins can delete any user except themselves.
-      allow delete: if isAdmin() && request.auth.uid != userId;
+      // Admins can list all users.
+      allow list: if isAdmin();
+      // Users can read/write their own profile. Admins can read any profile.
+      allow read, write: if isSignedIn() && request.auth.uid == userId;
+      allow read: if isAdmin();
     }
 
-    // --- Generic User Sub-collection Rules (games, players, matches, tournaments) ---
-    // This rule does NOT apply to the 'spaces' sub-collection, which has its own rule below.
+    // --- User Sub-collection Access Rules ---
     match /users/{ownerId}/{collection}/{docId} {
-        // Admins can read anything.
-        // The owner of the data can read it.
-        // A user who is a member of any of the owner's spaces can read the data.
-        allow read: if collection != 'spaces' && (isAdmin() || isOwner(ownerId) || hasSharedAccess(ownerId));
-        
-        // Write access:
-        // - Owner can write anything.
-        // - An editor of a space can write to matches and tournaments within that space.
-        allow write: if collection != 'spaces' && (isOwner(ownerId) || (
-                        (collection == 'matches' || collection == 'tournaments') && isEditorForResource(ownerId, request.resource.data)
-                     ));
+        // The owner of the data has full read/write access.
+        allow read, write: if isSignedIn() && request.auth.uid == ownerId;
+
+        // Allow a user who has joined a space to READ the data of the space's owner.
+        // This checks the current user's own document to see if they have a 'joinedSpaces' entry for the owner.
+        allow read: if isSignedIn() &&
+                       exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+                       get(/databases/$(database)/documents/users/$(request.auth.uid)).data.joinedSpaces[ownerId] != null;
     }
 
-    // --- Space Sub-collection Rules ---
+    // --- Specific Rule for JOINING a Space ---
     match /users/{ownerId}/spaces/{spaceId} {
-        // Read access: Owner and members can read the space details. Admins can read anything.
-        allow get: if isAdmin() || isOwner(ownerId) || hasSharedAccess(ownerId);
-        // List access: only owner and admin can list spaces. Members cannot list all spaces of an owner.
-        allow list: if isAdmin() || isOwner(ownerId);
-        
-        // Update access combines rules for owner, members joining, and admins.
-        allow update: if isAdmin() || isOwner(ownerId) || (
-            // This block is for a non-owner joining a space.
-            isSignedIn() &&
-            // Only the 'members' field can be changed by a non-owner.
-            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['members']) &&
-            // The user is only adding/changing their own entry in the members map.
-            request.resource.data.members.diff(resource.data.members).affectedKeys().hasOnly([request.auth.uid]) &&
-            // The new role must be 'viewer'.
-            request.resource.data.members[request.auth.uid] == 'viewer' &&
-            // The user cannot already be an active member (prevents changing role from editor to viewer).
-            (resource.data.members == null || !(request.auth.uid in resource.data.members))
-        );
-        
-        // Create/Delete access: Only the owner or an admin can create/delete spaces.
-        allow create, delete: if isOwner(ownerId) || isAdmin();
+        // This rule allows a user to update a space document ONLY to add themselves as a member.
+        allow update: if isSignedIn() &&
+                         // The user trying to join must not be the owner.
+                         request.auth.uid != ownerId &&
+                         // This is a security check: only the 'members' field can be changed.
+                         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['members']) &&
+                         // A deeper check: inside 'members', only the user's own ID can be added/changed.
+                         request.resource.data.members.diff(resource.data.members).affectedKeys().hasOnly([request.auth.uid]) &&
+                         // The user can only add themselves with the 'viewer' role. No self-promoting to editor/owner.
+                         request.resource.data.members[request.auth.uid] == 'viewer';
     }
-    
+
     // --- Invite Code Rules ---
     match /spaceInvites/{inviteCode} {
-        // Any signed-in user can read an invite code to verify it.
-        allow get: if isSignedIn();
-        // Only the space owner can create/delete their own invite codes (logic handled in AppContext).
-        // This rule verifies the ownerId in the invite doc matches the user making the request.
-        allow write: if isSignedIn() && isOwner(request.resource.data.ownerId);
+      // Any signed-in user can read an invite code to verify it.
+      allow read: if isSignedIn();
+      // Only the space owner can create/delete the invite code.
+      // This is handled by a batch write in the app, so we check the incoming data.
+      allow write: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
+    }
+
+    // --- Public Share Page Rules ---
+    match /public_shares/{shareId} {
+      allow read: if true;
+      allow write: if false; // Nobody can write directly to public shares
     }
   }
 }
