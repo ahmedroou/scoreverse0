@@ -9,7 +9,7 @@ import { Loader2, Layers, PlusCircle, ShieldAlert } from 'lucide-react';
 import { AddSpaceForm } from './AddSpaceForm';
 import { EditSpaceForm } from './EditSpaceForm';
 import { SpaceCard } from './SpaceCard';
-import type { Space } from '@/types';
+import type { Space, SpaceRole } from '@/types';
 import Link from 'next/link';
 import {
   AlertDialog,
@@ -127,8 +127,23 @@ export default function ManageSpacesPage() {
           ) : (
             <div className="space-y-4">
               {spaces.map((space) => {
+                 if (!currentUser) return null;
+
                  const owner = getUserById(space.ownerId);
-                 const role = space.members[currentUser.id];
+                 
+                 let role: SpaceRole | undefined;
+                 // Safely check for the members property first.
+                 if (space.members) {
+                   role = space.members[currentUser.id];
+                 }
+                 // Fallback for older space data: if user is owner, role is 'owner'.
+                 if (!role && space.ownerId === currentUser.id) {
+                   role = 'owner';
+                 }
+                 
+                 // If a role cannot be determined, don't render the card.
+                 if (!role) return null;
+
                  const isOwner = role === 'owner';
 
                  return (
