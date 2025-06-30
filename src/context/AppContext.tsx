@@ -873,32 +873,41 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         const ownerSpaceRef = doc(db, 'users', currentUser.id, 'spaces', spaceId);
         
         const spaceSnap = await getDoc(ownerSpaceRef);
-        if (!spaceSnap.exists()) return;
-        const spaceData = spaceSnap.data() as Space;
-
-        const currentMembers = spaceData.members || {};
+        if (!spaceSnap.exists()) {
+             toast({ title: t('common.error'), description: 'The original space document could not be found.', variant: 'destructive' });
+             return;
+        }
+        
+        const spaceData = spaceSnap.data();
+        
+        // Defensive coding to ensure critical fields exist, especially for older space documents.
+        const ownerId = spaceData.ownerId || currentUser.id;
+        const currentMembers = spaceData.members || { [currentUser.id]: 'owner' };
+        
         if (currentMembers[inviteeUser.id]) {
             toast({ title: t('common.error'), description: t('spaces.toasts.alreadyMember', { email }), variant: "destructive" });
             return;
         }
+        
+        const newMembers = { ...currentMembers, [inviteeUser.id]: role };
+        
+        // This is the complete data for the link document, ensuring ownerId is present.
+        const linkData: Space = {
+          id: spaceId,
+          name: spaceData.name,
+          ownerId: ownerId,
+          members: newMembers,
+          isShared: true,
+        };
 
         const batch = writeBatch(db);
-        const newMembers = { ...currentMembers, [inviteeUser.id]: role };
 
-        // 1. Update the original space document
+        // 1. Update the original space document with the new members list.
         batch.update(ownerSpaceRef, { members: newMembers });
 
-        // 2. Create/Update the link document for the new invitee
+        // 2. Create/Update the link document for the new invitee with complete and correct data.
         const linkSpaceRef = doc(db, 'users', inviteeUser.id, 'spaces', spaceId);
-        batch.set(linkSpaceRef, { ...spaceData, members: newMembers, isShared: true }, { merge: true });
-
-        // 3. Update the link document for all *other* existing members
-        Object.keys(currentMembers).forEach(memberId => {
-            if (memberId !== currentUser.id) { // No need to update the owner's original doc again
-                const memberLinkRef = doc(db, 'users', memberId, 'spaces', spaceId);
-                batch.update(memberLinkRef, { members: newMembers });
-            }
-        });
+        batch.set(linkSpaceRef, linkData, { merge: true });
         
         await batch.commit();
         toast({ title: t('spaces.toasts.inviteSent'), description: t('spaces.toasts.inviteSentDesc', { email }) });
