@@ -1,43 +1,41 @@
 
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper function to securely check if the requesting user is an admin.
-    // It checks for the existence of the user document before trying to read from it.
-    function isAdmin() {
-      return exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
-    }
-
-    // Public share data is readable by anyone, without authentication.
-    match /public_shares/{shareId} {
-      allow get: if true;
-    }
-
-    // Rules for the main 'users' collection.
+    // Rules for the 'users' collection itself
     match /users/{userId} {
-      // A user can be created only if their user ID matches the authenticated user.
-      allow create: if request.auth.uid == userId;
+      // A user can get their own user document.
+      allow get: if request.auth != null && request.auth.uid == userId;
       
-      // A user can get their own document. An admin can get any user's document.
-      allow get: if request.auth.uid == userId || isAdmin();
+      // An admin can get any user's document.
+      allow get: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+
+      // An admin can list all user documents.
+      allow list: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
       
-      // Only an admin can list all user documents.
-      allow list: if isAdmin();
+      // A user can update their own document.
+      allow update: if request.auth != null && request.auth.uid == userId;
       
-      // A user can only update their own document.
-      allow update: if request.auth.uid == userId;
+      // An admin can delete any user document.
+      allow delete: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
       
-      // An admin can delete any user except for themselves.
-      allow delete: if isAdmin() && request.auth.uid != userId;
+      // A user can create their own document upon signup.
+      allow create: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Rules for all subcollections within a user's document (players, games, etc.)
+    match /users/{userId}/{document=**} {
+      // A user can read and write to their own subcollections.
+      allow read, write: if request.auth != null && request.auth.uid == userId;
     }
     
-    // Secure all user subcollections (like players, games, matches, spaces, tournaments).
-    match /users/{ownerId}/{subcollection}/{docId} {
-      // The owner of the data can perform any action on their own documents.
-      allow read, write, delete: if request.auth.uid == ownerId;
+    // Rules for public share data
+    match /public_shares/{shareId} {
+      // Anyone can read shared data.
+      allow read: if true;
+      // Nobody can write directly to public shares.
+      allow write: if false;
     }
   }
 }
