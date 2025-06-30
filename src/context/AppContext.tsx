@@ -123,7 +123,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (!currentUser || !currentUser.shareId) return;
 
     const publicData: PublicShareData = {
-      owner: { username: currentUser.username, email: currentUser.email },
+      owner: { username: currentUser.username },
       ownerId: currentUser.id,
       type: 'live',
       players,
@@ -897,7 +897,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
         // Add a document to shared_access for security rules
         const sharedAccessRef = doc(db, `shared_access/${inviteeUser.id}_${currentUser.id}`);
-        await setDoc(sharedAccessRef, { hasAccess: true }, { merge: true });
+        batch.set(sharedAccessRef, { hasAccess: true }, { merge: true });
 
         await batch.commit();
 
