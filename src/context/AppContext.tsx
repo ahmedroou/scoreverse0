@@ -876,15 +876,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         if (!spaceSnap.exists()) return;
         const spaceData = spaceSnap.data() as Space;
 
-        if (spaceData.members[inviteeUser.id]) {
+        if (spaceData.members && spaceData.members[inviteeUser.id]) {
             toast({ title: t('common.error'), description: t('spaces.toasts.alreadyMember', { email }), variant: "destructive" });
             return;
         }
 
         const batch = writeBatch(db);
         
-        // Update members map in owner's space document
-        const newMembers = { ...spaceData.members, [inviteeUser.id]: role };
+        const currentMembers = spaceData.members || { [currentUser.id]: 'owner' };
+        const newMembers = { ...currentMembers, [inviteeUser.id]: role };
         batch.update(spaceRef, { members: newMembers });
 
         // Create a "link" space document for the invitee
@@ -923,6 +923,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           const spaceData = spaceSnap.data() as Space;
           const memberUsername = getUserById(memberId)?.username || 'user';
 
+          if (!spaceData.members) {
+            toast({ title: t('common.error'), description: 'Cannot remove member from a space with no member data.', variant: 'destructive' });
+            return;
+          }
+
           const { [memberId]: _, ...newMembers } = spaceData.members;
 
           const batch = writeBatch(db);
@@ -956,6 +961,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           const spaceSnap = await getDoc(spaceRef);
           if (!spaceSnap.exists()) return;
           const spaceData = spaceSnap.data() as Space;
+
+          if (!spaceData.members) {
+            toast({ title: t('common.error'), description: 'Cannot update role in a space with no member data.', variant: 'destructive' });
+            return;
+          }
 
           const newMembers = { ...spaceData.members, [memberId]: role };
 
