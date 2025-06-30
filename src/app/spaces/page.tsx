@@ -86,7 +86,7 @@ export default function ManageSpacesPage() {
   
   const confirmLeaveSpace = () => {
       if (spaceToLeave) {
-        leaveSpace(spaceToLeave.id, spaceToLeave.ownerId);
+        leaveSpace(spaceToLeave.id);
         setSpaceToLeave(null);
       }
   }
@@ -294,3 +294,5 @@ export default function ManageSpacesPage() {
     </div>
   );
 }
+
+    

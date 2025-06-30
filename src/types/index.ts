@@ -63,9 +63,9 @@ export interface UserAccount {
   email: string;
   isAdmin?: boolean;
   shareId?: string;
-  // Map of ownerId to a map of spaceIds the user has joined from that owner.
+  // Map of an owner's ID to a map of space IDs the user has joined from that owner.
   // e.g., { "owner-abc": { "space-123": true } }
-  joinedSpaces?: Record<string, Record<string, boolean>>;
+  joinedSpaces: Record<string, Record<string, boolean>>;
 }
 
 export interface PlayerGameStats {
@@ -114,3 +114,5 @@ export interface PublicShareData {
   spaces: Space[];
   tournaments: Tournament[];
 }
+
+    

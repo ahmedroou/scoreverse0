@@ -1,64 +1,67 @@
-rules_version = '2';
 
+rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-  
+
     // --- Helper Functions ---
     function isSignedIn() {
       return request.auth != null;
     }
-    
     function isOwner(userId) {
-      return request.auth.uid == userId;
+      return isSignedIn() && request.auth.uid == userId;
+    }
+    function getJoiningUserRole() {
+      return request.resource.data.members[request.auth.uid];
+    }
+    function wasMember(spaceData) {
+        return request.auth.uid in spaceData.members;
     }
 
-    // --- Default User Data Rule ---
-    // By default, users can manage their own documents and subcollections.
-    // This will be overridden by more specific rules below.
-    match /users/{userId}/{document=**} {
-      allow read, write: if isSignedIn() && isOwner(userId);
+    // --- User Profile and Public Share Rules ---
+    match /users/{userId} {
+      allow read, create: if isSignedIn();
+      allow update, delete: if isOwner(userId);
     }
-
-    // --- Space Joining & Reading Rules ---
-
-    // Rule 1: Allow a user who is a member of a space to READ its data.
-    // This allows members to see the owner's players, games, etc., for that space.
-    match /users/{ownerId}/{collection}/{docId} {
-      allow read: if isSignedIn() && (
-        // You are the owner
-        isOwner(ownerId) ||
-        // You are a member of one of the owner's spaces
-        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.joinedSpaces[ownerId] != null)
-      );
-    }
-    
-    // Rule 2: Securely allow a user to JOIN a space by adding themselves as a 'viewer'.
-    match /users/{ownerId}/spaces/{spaceId} {
-      // We only allow 'update' for joining, not 'create' or 'delete'.
-      allow update: if isSignedIn() &&
-                       // You are not the owner.
-                       !isOwner(ownerId) &&
-                       // You are only changing the 'members' field.
-                       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['members']) &&
-                       // You are only adding yourself to the members map.
-                       request.resource.data.members.diff(resource.data.members).affectedKeys().hasOnly([request.auth.uid]) &&
-                       // You are adding yourself with the 'viewer' role.
-                       request.resource.data.members[request.auth.uid] == 'viewer';
-    }
-
-    // --- Other Collections ---
-    
-    // Allow any signed-in user to read invite codes to verify them.
-    match /spaceInvites/{inviteCode} {
-        allow read: if isSignedIn();
-        allow write: if false; // Writes are handled by owner's app logic, not direct writes.
-    }
-
-    // Allow anyone to read public share data.
     match /public_shares/{shareId} {
       allow read: if true;
-      allow write: if false; 
+      allow write: if false;
+    }
+    match /spaceInvites/{inviteCode} {
+        allow read: if isSignedIn();
+    }
+
+    // --- Subcollection Rules ---
+    match /users/{ownerId}/{collectionId}/{docId} {
+      // Default rule: Owner has full access to their own subcollections.
+      allow read, write: if isOwner(ownerId);
+      
+      // Override for members: Allow members of a space to READ data from the owner's collections.
+      allow read: if isSignedIn() && 
+                   exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+                   get(/databases/$(database)/documents/users/$(request.auth.uid)).data.joinedSpaces[ownerId] != null;
+    }
+
+    // --- Space Management Rule Overrides ---
+    match /users/{ownerId}/spaces/{spaceId} {
+      // This rule allows non-owners to update a space document under very specific conditions.
+      allow update: if isSignedIn() && !isOwner(ownerId) &&
+      
+        // Condition 1: Joining a space.
+        // The user is adding themselves to the members map with the 'viewer' role.
+        (
+          request.writeFields.hasOnly(['members.' + request.auth.uid]) &&
+          getJoiningUserRole() == 'viewer'
+        ) ||
+
+        // Condition 2: Leaving a space.
+        // The user is removing their own ID from the members map.
+        (
+          wasMember(resource.data) &&
+          request.writeFields.hasOnly(['members.' + request.auth.uid]) &&
+          getJoiningUserRole() == null // Field is being deleted
+        );
     }
   }
 }
+
+    

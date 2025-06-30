@@ -1,7 +1,7 @@
 
 "use client";
 import type { ReactNode } from 'react';
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import type { User as FirebaseUser } from 'firebase/auth';
 import { onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from 'firebase/auth';
@@ -29,7 +29,6 @@ import type { Game, Player, Match, ScoreData, Space, UserAccount, PlayerStats, T
 import { useToast } from '@/hooks/use-toast';
 import { playSound } from '@/lib/audio';
 import { useLanguage } from '@/hooks/use-language';
-import { useMemo } from 'react';
 
 interface AppContextType {
   games: Game[];
@@ -77,7 +76,7 @@ interface AppContextType {
   generateInviteCode: (spaceId: string) => Promise<void>;
   updateMemberRole: (spaceId: string, memberId: string, role: SpaceRole) => Promise<void>;
   removeMemberFromSpace: (spaceId: string, memberId: string) => Promise<void>;
-  leaveSpace: (spaceId: string, ownerId: string) => Promise<void>;
+  leaveSpace: (spaceId: string) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -190,7 +189,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     });
 
     return () => authUnsubscribe();
-  }, []);
+  }, [t]);
 
   // Admin: fetch all users
   useEffect(() => {
@@ -739,7 +738,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         batch.update(spaceRef, { [`members.${memberId}`]: deleteField() });
         
         const memberUserRef = doc(db, 'users', memberId);
-        batch.update(memberUserRef, { [`joinedSpaces.${space.ownerId}.${spaceId}`]: deleteField() });
+        batch.update(memberUserRef, { [`joinedSpaces.${space.ownerId}`]: deleteField() });
         
         await batch.commit();
         toast({ title: t('spaces.toasts.memberRemoved') });
@@ -748,25 +747,31 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }
   }, [currentUser, spaces, toast, t]);
   
-  const leaveSpace = useCallback(async (spaceId: string, ownerId: string) => {
+  const leaveSpace = useCallback(async (spaceId: string) => {
     if (!currentUser) return;
+    const spaceToLeave = spaces.find(s => s.id === spaceId);
+    if (!spaceToLeave) return;
+
     try {
         const batch = writeBatch(db);
-        const spaceRef = doc(db, 'users', ownerId, 'spaces', spaceId);
-        if (spaceRef) {
-          batch.update(spaceRef, { [`members.${currentUser.id}`]: deleteField() });
-        }
+        
+        // Remove user from the space's member list
+        const spaceRef = doc(db, 'users', spaceToLeave.ownerId, 'spaces', spaceId);
+        batch.update(spaceRef, { [`members.${currentUser.id}`]: deleteField() });
 
+        // Remove the space from the user's joinedSpaces list
         const userRef = doc(db, 'users', currentUser.id);
-        batch.update(userRef, { [`joinedSpaces.${ownerId}.${spaceId}`]: deleteField() });
+        batch.update(userRef, { [`joinedSpaces.${spaceToLeave.ownerId}`]: deleteField() });
 
         await batch.commit();
+
         if (activeSpaceId === spaceId) setActiveSpaceIdState(null);
         toast({ title: t('common.success'), description: t('spaces.leaveDialog.leaveSuccess') });
     } catch (e) {
+        console.error("Error leaving space:", e);
         toast({ title: t('common.error'), description: 'Failed to leave space.', variant: 'destructive' });
     }
-  }, [currentUser, activeSpaceId, toast, t]);
+  }, [currentUser, activeSpaceId, spaces, toast, t]);
 
   return (
     <AppContext.Provider value={{ 
@@ -791,3 +796,5 @@ export const useAppContext = (): AppContextType => {
   }
   return context;
 };
+
+    
