@@ -1,12 +1,11 @@
 
 "use client";
 
-import type { Space, SpaceRole } from '@/types';
+import type { Space } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter, CardDescription } from '@/components/ui/card';
-import { Layers, Edit3, Trash2, CheckCircle, Radio, UserCog, RotateCcw, UserPlus } from 'lucide-react';
+import { Layers, Edit3, Trash2, CheckCircle, Radio, UserCog, RotateCcw } from 'lucide-react';
 import { useLanguage } from '@/hooks/use-language';
-import { Badge } from '@/components/ui/badge';
 
 interface SpaceCardProps {
   space: Space;
@@ -14,16 +13,11 @@ interface SpaceCardProps {
   onSetActive: () => void;
   onEdit: () => void;
   onDelete: () => void;
-  onManageMembers: () => void;
   onClearHistory?: () => void;
-  ownerUsername?: string;
-  role: SpaceRole;
 }
 
-export function SpaceCard({ space, isActive, onSetActive, onEdit, onDelete, onManageMembers, onClearHistory, ownerUsername, role }: SpaceCardProps) {
+export function SpaceCard({ space, isActive, onSetActive, onEdit, onDelete, onClearHistory }: SpaceCardProps) {
   const { t } = useLanguage();
-  const isOwner = role === 'owner';
-  const isEditor = role === 'editor';
   
   return (
     <Card className={`border hover:shadow-md transition-shadow duration-150 ${isActive ? 'border-primary ring-2 ring-primary bg-primary/5' : 'border-border bg-card'}`}>
@@ -35,13 +29,10 @@ export function SpaceCard({ space, isActive, onSetActive, onEdit, onDelete, onMa
                     <Layers className={`h-5 w-5 ${isActive ? 'text-primary' : 'text-accent'}`} />
                     {space.name}
                 </CardTitle>
-                {space.isShared && (
-                    <Badge variant="outline">{t('spaces.shared')}</Badge>
-                )}
              </div>
             <CardDescription className="text-xs text-muted-foreground flex items-center gap-1 pt-1">
                 <UserCog className="h-3 w-3"/>
-                {isOwner ? t('spaces.ownedByYou') : t('players.owner', {username: ownerUsername || '...' })}
+                {t('spaces.ownedByYou')}
             </CardDescription>
           </div>
           {isActive && (
@@ -54,7 +45,7 @@ export function SpaceCard({ space, isActive, onSetActive, onEdit, onDelete, onMa
       </CardHeader>
       <CardFooter className="flex flex-wrap justify-end gap-2 border-t border-border/50 pt-3 px-4 pb-4">
         <div className="flex-grow flex gap-2">
-            {isOwner && onClearHistory && (
+            {onClearHistory && (
                  <Button variant="outline" size="sm" onClick={onClearHistory} className="border-destructive/50 text-destructive hover:bg-destructive/10 hover:text-destructive">
                     <RotateCcw className="h-4 w-4 me-1.5" /> {t('common.reset')}
                 </Button>
@@ -71,19 +62,12 @@ export function SpaceCard({ space, isActive, onSetActive, onEdit, onDelete, onMa
           {isActive ? <CheckCircle className="h-4 w-4 me-1.5" /> : <Radio className="h-4 w-4 me-1.5" />}
           {isActive ? t('spaces.active') : t('spaces.setActive')}
         </Button>
-        {isOwner && (
-            <>
-                <Button variant="outline" size="sm" onClick={onManageMembers} className="border-muted-foreground/50 text-muted-foreground hover:border-accent hover:text-accent hover:bg-accent/10">
-                    <UserPlus className="h-4 w-4 me-1.5" /> {t('spaces.members')}
-                </Button>
-                <Button variant="outline" size="sm" onClick={onEdit} className="border-muted-foreground/50 text-muted-foreground hover:border-accent hover:text-accent hover:bg-accent/10">
-                    <Edit3 className="h-4 w-4 me-1.5" /> {t('common.edit')}
-                </Button>
-                <Button variant="destructive" size="sm" onClick={onDelete} className="bg-destructive/80 hover:bg-destructive text-destructive-foreground">
-                    <Trash2 className="h-4 w-4 me-1.5" /> {t('common.delete')}
-                </Button>
-            </>
-        )}
+        <Button variant="outline" size="sm" onClick={onEdit} className="border-muted-foreground/50 text-muted-foreground hover:border-accent hover:text-accent hover:bg-accent/10">
+            <Edit3 className="h-4 w-4 me-1.5" /> {t('common.edit')}
+        </Button>
+        <Button variant="destructive" size="sm" onClick={onDelete} className="bg-destructive/80 hover:bg-destructive text-destructive-foreground">
+            <Trash2 className="h-4 w-4 me-1.5" /> {t('common.delete')}
+        </Button>
       </CardFooter>
     </Card>
   );

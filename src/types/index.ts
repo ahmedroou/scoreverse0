@@ -30,14 +30,10 @@ export interface MatchPlayer extends Player {
   aiAverageScore: number; // Score for form input
 }
 
-export type SpaceRole = 'owner' | 'editor' | 'viewer';
-
 export interface Space {
   id: string;
   name: string;
-  ownerId: string; // ID of the user who owns this space
-  members: Record<string, SpaceRole>; // Map of userId to role for quick security rule lookups
-  isShared?: boolean; // Flag to indicate if this is a link for the current user
+  ownerId: string;
 }
 
 export interface Match {

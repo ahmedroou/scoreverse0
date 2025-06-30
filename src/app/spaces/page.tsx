@@ -9,7 +9,7 @@ import { Loader2, Layers, PlusCircle, ShieldAlert } from 'lucide-react';
 import { AddSpaceForm } from './AddSpaceForm';
 import { EditSpaceForm } from './EditSpaceForm';
 import { SpaceCard } from './SpaceCard';
-import type { Space, SpaceRole } from '@/types';
+import type { Space } from '@/types';
 import Link from 'next/link';
 import {
   AlertDialog,
@@ -22,7 +22,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useLanguage } from '@/hooks/use-language';
-import { ManageMembersDialog } from './ManageMembersDialog';
 
 export default function ManageSpacesPage() {
   const { 
@@ -32,28 +31,20 @@ export default function ManageSpacesPage() {
     setActiveSpaceId, 
     isClient, 
     currentUser,
-    getUserById,
     clearSpaceHistory,
   } = useAppContext();
   const { t } = useLanguage();
 
   const [isAddSpaceDialogOpen, setIsAddSpaceDialogOpen] = useState(false);
   const [isEditSpaceDialogOpen, setIsEditSpaceDialogOpen] = useState(false);
-  const [isMembersDialogOpen, setIsMembersDialogOpen] = useState(false);
   
   const [editingSpace, setEditingSpace] = useState<Space | null>(null);
-  const [managingSpace, setManagingSpace] = useState<Space | null>(null);
   const [spaceToDelete, setSpaceToDelete] = useState<Space | null>(null);
   const [spaceToClear, setSpaceToClear] = useState<Space | null>(null);
 
   const handleEditClick = (space: Space) => {
     setEditingSpace(space);
     setIsEditSpaceDialogOpen(true);
-  };
-  
-  const handleManageMembersClick = (space: Space) => {
-    setManagingSpace(space);
-    setIsMembersDialogOpen(true);
   };
 
   const handleDeleteClick = (space: Space) => {
@@ -127,24 +118,7 @@ export default function ManageSpacesPage() {
           ) : (
             <div className="space-y-4">
               {spaces.map((space) => {
-                 if (!currentUser) return null;
-
-                 const owner = getUserById(space.ownerId);
-                 
-                 let role: SpaceRole | undefined;
-                 // Safely check for the members property first.
-                 if (space.members) {
-                   role = space.members[currentUser.id];
-                 }
-                 // Fallback for older space data: if user is owner, role is 'owner'.
-                 if (!role && space.ownerId === currentUser.id) {
-                   role = 'owner';
-                 }
-                 
-                 // If a role cannot be determined, don't render the card.
-                 if (!role) return null;
-
-                 const isOwner = role === 'owner';
+                 if (!currentUser || space.ownerId !== currentUser.id) return null;
 
                  return (
                     <SpaceCard
@@ -152,12 +126,9 @@ export default function ManageSpacesPage() {
                       space={space}
                       isActive={space.id === activeSpaceId}
                       onSetActive={() => setActiveSpaceId(space.id)}
-                      onEdit={() => isOwner && handleEditClick(space)}
-                      onDelete={() => isOwner && handleDeleteClick(space)}
-                      onClearHistory={isOwner ? () => handleClearHistoryClick(space) : undefined}
-                      onManageMembers={() => isOwner && handleManageMembersClick(space)}
-                      ownerUsername={owner?.username}
-                      role={role}
+                      onEdit={() => handleEditClick(space)}
+                      onDelete={() => handleDeleteClick(space)}
+                      onClearHistory={() => handleClearHistoryClick(space)}
                     />
                  )
               })}
@@ -183,17 +154,6 @@ export default function ManageSpacesPage() {
           onOpenChange={(open) => {
             setIsEditSpaceDialogOpen(open);
             if (!open) setEditingSpace(null);
-          }}
-        />
-      )}
-
-      {managingSpace && (
-        <ManageMembersDialog
-          space={managingSpace}
-          isOpen={isMembersDialogOpen}
-          onOpenChange={(open) => {
-            setIsMembersDialogOpen(open);
-            if (!open) setManagingSpace(null);
           }}
         />
       )}

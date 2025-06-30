@@ -1,80 +1,23 @@
 
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // --- Helper Functions ---
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    function isUser(userId) {
-      return isSignedIn() && request.auth.uid == userId;
-    }
-
-    function isAdmin() {
-      return isSignedIn() &&
-             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    
+    // Admins can read/write anything. This is a broad rule for administrative purposes.
+    match /{document=**} {
+      allow read, write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
     }
     
-    // --- Rules Start Here ---
-
-    // Public share links can be read by anyone.
+    // Users can read/write documents and subcollections directly under their own user ID.
+    // This covers their user profile, players, games, matches, spaces, and tournaments.
+    match /users/{userId}/{document=**} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Public shares are read-only for everyone. No one can write to them.
     match /public_shares/{shareId} {
       allow get: if true;
-      allow list, write: if false;
-    }
-
-    // User profile documents.
-    match /users/{userId} {
-      allow get: if isUser(userId) || isAdmin();
-      allow list: if isAdmin();
-      allow create, update: if isUser(userId) || isAdmin();
-      allow delete: if isAdmin();
-    }
-    
-    // Space documents (the "link" docs stored under each user).
-    match /users/{memberId}/spaces/{spaceId} {
-        // A user can read/create/update/delete their own link documents.
-        allow read, write: if isUser(memberId);
-        
-        // The owner of a space can also write to a member's link document
-        // to perform invites (create), role changes (update), or removals (delete).
-        // On create, we check the incoming data. On update/delete, we check existing data.
-        allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
-        allow update, delete: if isSignedIn() && resource.data.ownerId == request.auth.uid;
-    }
-
-    // All other user subcollections (players, games, matches, tournaments).
-    match /users/{ownerId}/{collection}/{docId} {
-
-        // Helper to check if the requester is a member of the space this document belongs to.
-        function isMember() {
-            // Document must have a spaceId.
-            return resource.data.spaceId != null &&
-                   // Requester must have a corresponding space link document.
-                   exists(/databases/$(database)/documents/users/$(request.auth.uid)/spaces/$(resource.data.spaceId)) &&
-                   // That link must point to the correct owner of the data.
-                   get(/databases/$(database)/documents/users/$(request.auth.uid)/spaces/$(resource.data.spaceId)).data.ownerId == ownerId;
-        }
-
-        // Helper to check if the requester is an editor for the space this document belongs to.
-        function isEditor() {
-            // The document being written must have a spaceId.
-            return request.resource.data.spaceId != null &&
-                   // Requester must have a corresponding space link document.
-                   exists(/databases/$(database)/documents/users/$(request.auth.uid)/spaces/$(request.resource.data.spaceId)) &&
-                   // That link must point to the correct owner.
-                   get(/databases/$(database)/documents/users/$(request.auth.uid)/spaces/$(request.resource.data.spaceId)).data.ownerId == ownerId &&
-                   // The requester's role in that space must be 'editor' or 'owner'.
-                   get(/databases/$(database)/documents/users/$(request.auth.uid)/spaces/$(request.resource.data.spaceId)).data.members[request.auth.uid] in ['editor', 'owner'];
-        }
-
-        // --- Final Permissions ---
-        allow read: if isUser(ownerId) || isAdmin() || isMember();
-        allow write: if isUser(ownerId) || isAdmin() || isEditor();
+      allow list, write: if false; // Deny list and write for security.
     }
   }
 }
