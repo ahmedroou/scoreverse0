@@ -2,66 +2,64 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // --- Helper Functions ---
+    // Helper functions
     function isSignedIn() {
       return request.auth != null;
     }
+
     function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
-    }
-    function getJoiningUserRole() {
-      return request.resource.data.members[request.auth.uid];
-    }
-    function wasMember(spaceData) {
-        return request.auth.uid in spaceData.members;
+      return request.auth.uid == userId;
     }
 
-    // --- User Profile and Public Share Rules ---
-    match /users/{userId} {
-      allow read, create: if isSignedIn();
-      allow update, delete: if isOwner(userId);
+    // Default deny all reads/writes unless explicitly allowed
+    match /{path=**} {
+      allow read, write: if false;
     }
-    match /public_shares/{shareId} {
-      allow read: if true;
-      allow write: if false;
+
+    // Users can read/write their own documents
+    match /users/{userId}/{document=**} {
+      allow read, write: if isSignedIn() && isOwner(userId);
     }
+
+    // An owner can read their own space invites
     match /spaceInvites/{inviteCode} {
-        allow read: if isSignedIn();
+        allow read: if isSignedIn() && resource.data.ownerId == request.auth.uid;
     }
 
-    // --- Subcollection Rules ---
-    match /users/{ownerId}/{collectionId}/{docId} {
-      // Default rule: Owner has full access to their own subcollections.
-      allow read, write: if isOwner(ownerId);
-      
-      // Override for members: Allow members of a space to READ data from the owner's collections.
-      allow read: if isSignedIn() && 
-                   exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
-                   get(/databases/$(database)/documents/users/$(request.auth.uid)).data.joinedSpaces[ownerId] != null;
+    // Any signed-in user can get an invite code to check it
+    match /spaceInvites/{inviteCode} {
+        allow get: if isSignedIn();
     }
 
-    // --- Space Management Rule Overrides ---
+    // Allow members to read the data of a space they've joined
+    match /users/{ownerId}/{collection}/{docId} {
+      allow read: if isSignedIn() &&
+                     exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+                     get(/databases/$(database)/documents/users/$(request.auth.uid)).data.joinedSpaces[ownerId] != null;
+    }
+
+    // Allow a user to JOIN or LEAVE a space
     match /users/{ownerId}/spaces/{spaceId} {
-      // This rule allows non-owners to update a space document under very specific conditions.
-      allow update: if isSignedIn() && !isOwner(ownerId) &&
-      
-        // Condition 1: Joining a space.
-        // The user is adding themselves to the members map with the 'viewer' role.
-        (
-          request.writeFields.hasOnly(['members.' + request.auth.uid]) &&
-          getJoiningUserRole() == 'viewer'
-        ) ||
-
-        // Condition 2: Leaving a space.
-        // The user is removing their own ID from the members map.
-        (
-          wasMember(resource.data) &&
-          request.writeFields.hasOnly(['members.' + request.auth.uid]) &&
-          getJoiningUserRole() == null // Field is being deleted
-        );
+        allow update: if isSignedIn() &&
+                         !isOwner(ownerId) &&
+                         // only the members field is being changed
+                         request.writeFields.size() == 1 &&
+                         'members' in request.writeFields &&
+                         // The change must be either joining or leaving
+                         (
+                           // Condition for JOINING: adding self as 'viewer'
+                           (
+                             request.resource.data.members.size() == resource.data.members.size() + 1 &&
+                             request.resource.data.members[request.auth.uid] == 'viewer' &&
+                             !(request.auth.uid in resource.data.members)
+                           ) ||
+                           // Condition for LEAVING: removing self from members map
+                           (
+                             request.resource.data.members.size() == resource.data.members.size() - 1 &&
+                             !(request.auth.uid in request.resource.data.members) &&
+                             (request.auth.uid in resource.data.members)
+                           )
+                         );
     }
   }
 }
-
-    
