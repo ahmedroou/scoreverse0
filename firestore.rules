@@ -1,65 +1,66 @@
 
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Helper functions
+    
     function isSignedIn() {
       return request.auth != null;
     }
 
     function isOwner(userId) {
-      return request.auth.uid == userId;
+      return isSignedIn() && request.auth.uid == userId;
     }
 
-    // Default deny all reads/writes unless explicitly allowed
-    match /{path=**} {
-      allow read, write: if false;
+    function isJoining(ownerId) {
+      // Is trying to update a space owned by someone else
+      return isSignedIn() && request.auth.uid != ownerId;
     }
 
-    // Users can read/write their own documents
+    // Allow users to manage their own data
     match /users/{userId}/{document=**} {
-      allow read, write: if isSignedIn() && isOwner(userId);
+      allow read, write: if isOwner(userId);
     }
 
-    // An owner can read their own space invites
-    match /spaceInvites/{inviteCode} {
-        allow read: if isSignedIn() && resource.data.ownerId == request.auth.uid;
-    }
-
-    // Any signed-in user can get an invite code to check it
+    // Allow an invited user to read the space invite code to verify it
     match /spaceInvites/{inviteCode} {
         allow get: if isSignedIn();
     }
-
-    // Allow members to read the data of a space they've joined
-    match /users/{ownerId}/{collection}/{docId} {
-      allow read: if isSignedIn() &&
-                     exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-                     get(/databases/$(database)/documents/users/$(request.auth.uid)).data.joinedSpaces[ownerId] != null;
-    }
-
-    // Allow a user to JOIN or LEAVE a space
+    
+    // --- Rules for Cross-User Access ---
+    
+    // Allow a user to join OR leave a space they don't own
     match /users/{ownerId}/spaces/{spaceId} {
-        allow update: if isSignedIn() &&
-                         !isOwner(ownerId) &&
-                         // only the members field is being changed
-                         request.writeFields.size() == 1 &&
-                         'members' in request.writeFields &&
-                         // The change must be either joining or leaving
+      allow update: if isJoining(ownerId) &&
+                       // Only the 'members' field can be changed.
+                       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['members']) &&
+                       // The user can only modify their own entry in the members map.
+                       request.resource.data.members.diff(resource.data.members).affectedKeys().hasOnly([request.auth.uid]) &&
+                       (
+                         // EITHER they are joining as a viewer for the first time
                          (
-                           // Condition for JOINING: adding self as 'viewer'
-                           (
-                             request.resource.data.members.size() == resource.data.members.size() + 1 &&
-                             request.resource.data.members[request.auth.uid] == 'viewer' &&
-                             !(request.auth.uid in resource.data.members)
-                           ) ||
-                           // Condition for LEAVING: removing self from members map
-                           (
-                             request.resource.data.members.size() == resource.data.members.size() - 1 &&
-                             !(request.auth.uid in request.resource.data.members) &&
-                             (request.auth.uid in resource.data.members)
-                           )
-                         );
+                           (resource.data.members == null || !(request.auth.uid in resource.data.members)) &&
+                           request.resource.data.members[request.auth.uid] == 'viewer'
+                         ) ||
+                         // OR they are leaving (their key is removed and size decreases by 1)
+                         (
+                           request.auth.uid in resource.data.members &&
+                           (resource.data.members.size() - 1) == request.resource.data.members.size()
+                         )
+                       );
+    }
+    
+    // Allow a member of a space to READ the data of that space's owner
+    match /users/{ownerId}/{collection}/{docId} {
+      allow get, list: if isSignedIn() &&
+                          // The user making the request has joined one of the owner's spaces
+                          exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+                          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.joinedSpaces[ownerId] != null;
+    }
+    
+    // Allow public read access to shared data links
+    match /public_shares/{shareId} {
+      allow get: if true;
     }
   }
 }
