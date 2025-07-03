@@ -9,6 +9,7 @@ import { PlusCircle, BarChart3, History, Users, Swords, Layers, UserCircle, Shuf
 import React, { useState } from 'react';
 import { useLanguage } from '@/hooks/use-language';
 import { ShareDialog } from './ShareDialog';
+import { AppAdBanner } from '@/components/AdBanner';
 
 export default function DashboardPage() {
   const { currentUser, isClient, getActiveSpace, isLoadingAuth } = useAppContext();
@@ -103,6 +104,11 @@ export default function DashboardPage() {
           </Card>
         ))}
       </div>
+      
+      <div className="mt-12">
+        <AppAdBanner />
+      </div>
+
     </div>
     <ShareDialog
       isOpen={isShareDialogOpen}

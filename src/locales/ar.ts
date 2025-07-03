@@ -20,6 +20,7 @@ export const translationsAr = {
     english: 'English',
     arabic: 'العربية',
     reset: 'إعادة تعيين',
+    advertisement: 'إعلان',
   },
   header: {
     title: 'ScoreVerse',

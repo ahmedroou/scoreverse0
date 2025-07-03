@@ -20,6 +20,7 @@ export const translationsEn = {
     english: 'English',
     arabic: 'العربية',
     reset: 'Reset',
+    advertisement: 'Advertisement',
   },
   header: {
     title: 'ScoreVerse',
