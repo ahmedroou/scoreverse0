@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Loader2, Users, Trash2, ShieldAlert, ShieldCheck } from 'lucide-react';
+import { Loader2, Users, Trash2, ShieldAlert, ShieldCheck, Crown } from 'lucide-react';
 import Link from 'next/link';
 import {
   AlertDialog,
@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import type { UserAccount } from '@/types';
 import { useLanguage } from '@/hooks/use-language';
+import { Badge } from '@/components/ui/badge';
 
 // Helper function from players page
 const stringToHslColor = (str: string, s: number, l: number): string => {
@@ -109,7 +110,8 @@ export default function ManageUsersPage() {
                     <div className="truncate">
                         <div className="font-medium text-lg text-card-foreground truncate flex items-center gap-2">
                             {user.username}
-                            {user.isAdmin && <ShieldCheck className="h-4 w-4 text-green-500" title={t('header.adminMode')} />}
+                            {user.isAdmin && <Badge variant="destructive" className="text-xs"><ShieldCheck className="h-3 w-3 me-1"/> Admin</Badge>}
+                            {user.isPremium && <Badge variant="premium" className="text-xs"><Crown className="h-3 w-3 me-1"/> Pro</Badge>}
                         </div>
                         <p className="text-sm text-muted-foreground truncate">{user.email || user.id}</p>
                     </div>

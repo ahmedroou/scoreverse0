@@ -290,7 +290,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const newUser = userCredential.user;
       const username = email.split('@')[0];
-      const userDocData: UserAccount = { id: newUser.uid, username, email: newUser.email!, isAdmin: false, shareId: newUser.uid, joinedSpaces: {} };
+      const userDocData: UserAccount = { id: newUser.uid, username, email: newUser.email!, isAdmin: false, isPremium: false, shareId: newUser.uid, joinedSpaces: {} };
       await setDoc(doc(db, "users", newUser.uid), userDocData);
 
       const spaceRef = doc(collection(db, 'users', newUser.uid, 'spaces'));

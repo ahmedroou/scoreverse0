@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { SidebarTrigger, useSidebar } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
-import { Sparkles, LogOut, ShieldCheck } from 'lucide-react';
+import { LogOut, ShieldCheck, Crown } from 'lucide-react';
 import { useAppContext } from '@/context/AppContext';
 import {
   DropdownMenu,
@@ -17,18 +17,20 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from '@/components/ui/badge';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { useLanguage } from '@/hooks/use-language';
+import { getGameIcon } from '@/components/icons';
 
 export function AppHeader() {
   const { isMobile } = useSidebar();
   const { currentUser, logout, isClient } = useAppContext();
   const { t } = useLanguage();
+  const AppIcon = getGameIcon('Swords');
 
   return (
     <header className="sticky top-0 z-50 flex h-16 items-center justify-between border-b bg-card px-4 shadow-sm sm:px-6">
       <div className="flex items-center gap-2">
         {isClient && isMobile && currentUser && <SidebarTrigger />}
         <Link href={currentUser ? "/dashboard" : "/auth"} className="flex items-center gap-2 text-xl font-bold text-primary hover:opacity-80 transition-opacity">
-          <Sparkles className="h-7 w-7" />
+          <AppIcon className="h-7 w-7" />
           <span>{t('header.title')}</span>
         </Link>
       </div>
@@ -38,9 +40,12 @@ export function AppHeader() {
         {currentUser && (
           <div className="flex items-center gap-4">
             <div className="text-right hidden sm:block">
-              <span className="text-sm text-muted-foreground block leading-tight">
-                {t('header.welcome', {username: currentUser.username})}
-              </span>
+              <div className="flex items-center justify-end gap-2">
+                {currentUser.isPremium && <Badge variant="premium" className="text-xs"><Crown className="h-3 w-3 me-1"/> Pro</Badge>}
+                <span className="text-sm text-muted-foreground block leading-tight">
+                  {t('header.welcome', {username: currentUser.username})}
+                </span>
+              </div>
               {currentUser.isAdmin && (
                 <Badge variant="destructive" className="mt-1 text-xs">
                   <ShieldCheck className="h-3 w-3 me-1"/> {t('header.adminMode')}

@@ -62,6 +62,7 @@ export interface UserAccount {
   username: string;
   email: string;
   isAdmin?: boolean;
+  isPremium?: boolean;
   shareId?: string;
   // Map of an owner's ID to a map of space IDs the user has joined from that owner.
   // e.g., { "owner-abc": { "space-123": true } }

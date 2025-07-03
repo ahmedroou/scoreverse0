@@ -33,6 +33,9 @@ body {
     --destructive: 0 72% 51%; 
     --destructive-foreground: 0 0% 98%;
 
+    --premium: 45 93% 47%;
+    --premium-foreground: 45 93% 98%;
+
     --border: 0 0% 20%; 
     --input: 0 0% 20%; 
     --ring: 197 41% 53%; 
@@ -79,6 +82,9 @@ body {
 
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
+    
+    --premium: 45 93% 47%;
+    --premium-foreground: 45 93% 98%;
 
     --border: 0 0% 20%;
     --input: 0 0% 18%;
