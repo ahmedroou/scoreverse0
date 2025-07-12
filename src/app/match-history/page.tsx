@@ -28,11 +28,12 @@ export default function MatchHistoryPage() {
   const [matchToDelete, setMatchToDelete] = useState<Match | null>(null);
   const [editingMatch, setEditingMatch] = useState<Match | null>(null);
 
-  const canManage = currentUser.isAdmin || (!!activeSpace && activeSpace.ownerId === currentUser.id);
+  const canManage = (currentUser?.isAdmin || (!!activeSpace && activeSpace.ownerId === currentUser?.id));
 
   const relevantMatches = useMemo(() => {
-    if (!activeSpaceId) return matches.filter(m => m.spaceId === undefined);
-    return matches.filter(m => m.spaceId === activeSpaceId);
+    // Correctly handle the global context vs a specific space context for filtering matches.
+    const currentSpaceId = activeSpaceId || undefined;
+    return matches.filter(m => (m.spaceId || undefined) === currentSpaceId);
   }, [matches, activeSpaceId]);
 
   const sortedMatches = useMemo(() => 
