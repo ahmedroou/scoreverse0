@@ -148,9 +148,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
               tournaments: (ownerData?.tournaments || []).filter(t => t.spaceId === activeSpaceId),
           };
       }
-      // If global context or owned space, use owned data
-      const filteredMatches = ownedData.matches.filter(m => (m.spaceId || null) === (activeSpaceId || null));
-      const filteredTournaments = ownedData.tournaments.filter(t => (t.spaceId || null) === (activeSpaceId || null));
+      
+      const currentSpaceFilter = activeSpaceId || undefined;
+      const filteredMatches = ownedData.matches.filter(m => (m.spaceId || undefined) === currentSpaceFilter);
+      const filteredTournaments = ownedData.tournaments.filter(t => (t.spaceId || undefined) === currentSpaceFilter);
+      
       return { ...ownedData, matches: filteredMatches, tournaments: filteredTournaments };
   }, [activeSpaceId, spaces, ownedData, joinedData, currentUser]);
   
@@ -738,7 +740,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         batch.update(spaceRef, { [`members.${memberId}`]: deleteField() });
         
         const memberUserRef = doc(db, 'users', memberId);
-        batch.update(memberUserRef, { [`joinedSpaces.${space.ownerId}`]: deleteField() });
+        batch.update(memberUserRef, { [`joinedSpaces.${space.ownerId}.${spaceId}`]: deleteField() });
         
         await batch.commit();
         toast({ title: t('spaces.toasts.memberRemoved') });
@@ -761,7 +763,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
         // Remove the space from the user's joinedSpaces list
         const userRef = doc(db, 'users', currentUser.id);
-        batch.update(userRef, { [`joinedSpaces.${spaceToLeave.ownerId}`]: deleteField() });
+        batch.update(userRef, { [`joinedSpaces.${spaceToLeave.ownerId}.${spaceId}`]: deleteField() });
 
         await batch.commit();
 
@@ -796,5 +798,7 @@ export const useAppContext = (): AppContextType => {
   }
   return context;
 };
+
+    
 
     
