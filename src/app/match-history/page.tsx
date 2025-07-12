@@ -22,8 +22,8 @@ export default function MatchHistoryPage() {
   const activeSpace = getActiveSpace();
   
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedGameFilter, setSelectedGameFilter] = useState<string>('');
-  const [selectedPlayerFilter, setSelectedPlayerFilter] = useState<string>('');
+  const [selectedGameFilter, setSelectedGameFilter] = useState<string>('all');
+  const [selectedPlayerFilter, setSelectedPlayerFilter] = useState<string>('all');
   const [showFilters, setShowFilters] = useState(false);
   const [matchToDelete, setMatchToDelete] = useState<Match | null>(null);
   const [editingMatch, setEditingMatch] = useState<Match | null>(null);
@@ -51,8 +51,8 @@ export default function MatchHistoryPage() {
         playerNames.some(name => name.includes(lowerSearchTerm)) ||
         winnerNames.some(name => name.includes(lowerSearchTerm));
       
-      const matchesGameFilter = !selectedGameFilter || match.gameId === selectedGameFilter;
-      const matchesPlayerFilter = !selectedPlayerFilter || match.playerIds.includes(selectedPlayerFilter) || match.winnerIds.includes(selectedPlayerFilter);
+      const matchesGameFilter = selectedGameFilter === 'all' || match.gameId === selectedGameFilter;
+      const matchesPlayerFilter = selectedPlayerFilter === 'all' || match.playerIds.includes(selectedPlayerFilter) || match.winnerIds.includes(selectedPlayerFilter);
 
       return matchesSearchTerm && matchesGameFilter && matchesPlayerFilter;
     });
@@ -132,7 +132,7 @@ export default function MatchHistoryPage() {
                   <SelectValue placeholder={t('matchHistory.allGames')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">{t('matchHistory.allGames')}</SelectItem>
+                  <SelectItem value="all">{t('matchHistory.allGames')}</SelectItem>
                   {games.map(game => (
                     <SelectItem key={game.id} value={game.id}>{game.name}</SelectItem>
                   ))}
@@ -146,20 +146,20 @@ export default function MatchHistoryPage() {
                   <SelectValue placeholder={t('matchHistory.allPlayers')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">{t('matchHistory.allPlayers')}</SelectItem>
+                  <SelectItem value="all">{t('matchHistory.allPlayers')}</SelectItem>
                   {players.map(player => (
                     <SelectItem key={player.id} value={player.id}>{player.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-             {(selectedGameFilter || selectedPlayerFilter || searchTerm) && (
+             {(selectedGameFilter !== 'all' || selectedPlayerFilter !== 'all' || searchTerm) && (
                 <Button 
                     variant="ghost" 
                     onClick={() => {
                         setSearchTerm('');
-                        setSelectedGameFilter('');
-                        setSelectedPlayerFilter('');
+                        setSelectedGameFilter('all');
+                        setSelectedPlayerFilter('all');
                     }}
                     className="md:col-span-2 text-accent hover:text-accent-foreground hover:bg-accent/10 justify-start text-base py-2.5"
                 >
