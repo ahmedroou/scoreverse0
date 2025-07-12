@@ -28,13 +28,22 @@ export default function MatchHistoryPage() {
   const [matchToDelete, setMatchToDelete] = useState<Match | null>(null);
   const [editingMatch, setEditingMatch] = useState<Match | null>(null);
 
-  const canManage = (currentUser?.isAdmin || (!!activeSpace && activeSpace.ownerId === currentUser?.id));
-
   const relevantMatches = useMemo(() => {
     // Correctly handle the global context vs a specific space context for filtering matches.
-    const currentSpaceId = activeSpaceId || undefined;
-    return matches.filter(m => (m.spaceId || undefined) === currentSpaceId);
+    const currentSpaceId = activeSpaceId || null; // Use null for global context
+    return matches.filter(m => (m.spaceId || null) === currentSpaceId);
   }, [matches, activeSpaceId]);
+  
+  // A user can manage matches if they are an admin, if they own the active space,
+  // or if there is no active space (i.e., they are in their global context).
+  const canManage = useMemo(() => {
+    if (!currentUser) return false;
+    if (currentUser.isAdmin) return true;
+    if (activeSpace) return activeSpace.ownerId === currentUser.id;
+    // If no active space, it's the global context, which the user owns.
+    return true; 
+  }, [currentUser, activeSpace]);
+
 
   const sortedMatches = useMemo(() => 
     [...relevantMatches].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
@@ -230,3 +239,4 @@ export default function MatchHistoryPage() {
     </div>
   );
 }
+
